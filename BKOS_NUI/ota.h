@@ -2,8 +2,8 @@
 #include "wifi.h"
 
 #define BKOS_NUI_VERSIE     "5.N260422"
-#define OTA_GITHUB_VERSIE_URL  ""   // Vul in na uploaden naar GitHub
-#define OTA_GITHUB_FIRMWARE_URL ""  // Vul in na uploaden naar GitHub
+#define OTA_GITHUB_VERSIE_URL   "https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/BKOS_NUI/versie.txt"
+#define OTA_GITHUB_FIRMWARE_URL "https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/BKOS_NUI/firmware.bin"
 
 extern bool ota_wifi_actief;
 extern bool ota_push_actief;   // ArduinoOTA push, standaard UIT
