@@ -14,3 +14,4 @@ extern bool wifi_aangesloten;
 void wifi_setup();
 void wifi_loop();
 bool wifi_check();
+void wifi_reset();

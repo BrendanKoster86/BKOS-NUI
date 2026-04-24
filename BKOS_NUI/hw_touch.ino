@@ -7,8 +7,7 @@ void ts_setup() {
 }
 
 bool ts_touched() {
-    ts.begin();
-    delay(8);
+    ts.read();
     if (ts.isTouched) {
         scherm_touched = millis();
         actieve_touch  = true;
@@ -22,11 +21,9 @@ bool ts_touched() {
 
 // Landscape: raw Y → display X (0-800), raw X inverted → display Y (0-480)
 int touch_x() {
-    ts.read();
     return map(ts.points[0].y, 5, 800, 0, TFT_W);
 }
 
 int touch_y() {
-    ts.read();
     return map(ts.points[0].x, 490, 5, 0, TFT_H);
 }

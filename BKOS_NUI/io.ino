@@ -123,26 +123,38 @@ byte io_licht_staat(int kanaal) {
 }
 
 void io_verlichting_update() {
-    // Interieur verlichting logica
-    // licht UIT of modus HAVEN/ANKER → WIT
-    // licht AAN en ZEILEN/MOTOR → ROOD
+    // Modus relays
+    for (int i = 0; i < io_kanalen_cnt && i < MAX_IO_KANALEN; i++) {
+        if (io_naam_is(i, "**haven"))  io_output[i] = (vaar_modus == MODE_HAVEN)  ? IO_AAN : IO_UIT;
+        if (io_naam_is(i, "**zeilen")) io_output[i] = (vaar_modus == MODE_ZEILEN) ? IO_AAN : IO_UIT;
+        if (io_naam_is(i, "**motor"))  io_output[i] = (vaar_modus == MODE_MOTOR)  ? IO_AAN : IO_UIT;
+        if (io_naam_is(i, "**anker"))  io_output[i] = (vaar_modus == MODE_ANKER)  ? IO_AAN : IO_UIT;
+    }
+
+    // Interieur verlichting
     bool ext_aan = (licht_instelling == LICHT_AAN) ||
                    (licht_instelling == LICHT_AUTO &&
                     (vaar_modus == MODE_ZEILEN || vaar_modus == MODE_MOTOR));
 
-    bool int_wit  = false;
-    bool int_rood = false;
-
-    if (!ext_aan) {
-        int_wit = true;
-    } else if (vaar_modus == MODE_HAVEN || vaar_modus == MODE_ANKER) {
-        int_wit = true;
-    } else {
-        int_rood = true;
-    }
+    bool int_wit  = !ext_aan || (vaar_modus == MODE_HAVEN) || (vaar_modus == MODE_ANKER);
+    bool int_rood = !int_wit && ext_aan;
 
     for (int i = 0; i < io_kanalen_cnt && i < MAX_IO_KANALEN; i++) {
         if (io_naam_is(i, "**IL_wit"))  io_output[i] = int_wit  ? IO_AAN : IO_UIT;
         if (io_naam_is(i, "**IL_rood")) io_output[i] = int_rood ? IO_AAN : IO_UIT;
+    }
+}
+
+bool io_apparaat_staat(const char* prefix) {
+    for (int i = 0; i < io_kanalen_cnt && i < MAX_IO_KANALEN; i++) {
+        if (io_naam_is(i, prefix)) return (io_output[i] == IO_AAN);
+    }
+    return false;
+}
+
+void io_apparaat_toggle(const char* prefix) {
+    for (int i = 0; i < io_kanalen_cnt && i < MAX_IO_KANALEN; i++) {
+        if (io_naam_is(i, prefix))
+            io_output[i] = (io_output[i] == IO_AAN) ? IO_UIT : IO_AAN;
     }
 }

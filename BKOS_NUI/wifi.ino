@@ -24,6 +24,12 @@ void wifi_loop() {
     wifi_verbonden = (WiFi.status() == WL_CONNECTED);
 }
 
+void wifi_reset() {
+    WiFiManager wm;
+    wm.resetSettings();
+    ESP.restart();
+}
+
 bool wifi_check() {
     wifi_verbonden = (WiFi.status() == WL_CONNECTED);
     if (!wifi_verbonden) {

@@ -1,324 +1,403 @@
 #include "screen_main.h"
 #include "nav_bar.h"
 
-// ──────────────────────────────────────────────
-//  Boot tekening (bovenaanzicht, in BDX/BDY/BDW/BDH)
-// ──────────────────────────────────────────────
+// ─── Icoon types ────────────────────────────────
+#define I_HAVEN      0
+#define I_ZEILEN     1
+#define I_MOTOR      2
+#define I_ANKER      3
+#define I_LICHT_UIT  4
+#define I_LICHT_AAN  5
+#define I_LICHT_AUTO 6
+#define I_USB        7
+#define I_230V       8
+#define I_TV         9
+#define I_WATER      10
+#define I_DEKLICHT   11
+
+static void teken_icoon(int type, int cx, int cy, uint16_t kleur) {
+    switch (type) {
+        case I_HAVEN:
+        case I_ANKER:
+            tft.drawCircle(cx, cy-7, 3, kleur);
+            tft.drawFastVLine(cx, cy-4, 13, kleur);
+            tft.drawFastHLine(cx-7, cy+1, 14, kleur);
+            tft.drawLine(cx-7, cy+1, cx-4, cy+8, kleur);
+            tft.drawLine(cx+7, cy+1, cx+4, cy+8, kleur);
+            break;
+        case I_ZEILEN:
+            tft.drawFastVLine(cx-1, cy-9, 18, kleur);
+            tft.drawLine(cx-1, cy-9, cx+8, cy+8, kleur);
+            tft.drawLine(cx+8, cy+8, cx-1, cy+8, kleur);
+            tft.drawLine(cx-1, cy-4, cx-7, cy+8, kleur);
+            break;
+        case I_MOTOR:
+            tft.fillCircle(cx, cy, 3, kleur);
+            tft.drawLine(cx, cy, cx-5, cy-7, kleur);
+            tft.drawLine(cx, cy, cx+7, cy-2, kleur);
+            tft.drawLine(cx, cy, cx-2, cy+7, kleur);
+            break;
+        case I_LICHT_UIT:
+            tft.drawCircle(cx, cy, 7, kleur);
+            tft.drawLine(cx-5, cy-5, cx+5, cy+5, kleur);
+            tft.drawLine(cx-5, cy+5, cx+5, cy-5, kleur);
+            break;
+        case I_LICHT_AAN:
+            tft.fillCircle(cx, cy, 4, kleur);
+            tft.drawFastHLine(cx-8, cy, 4, kleur);
+            tft.drawFastHLine(cx+4, cy, 4, kleur);
+            tft.drawFastVLine(cx, cy-8, 4, kleur);
+            tft.drawFastVLine(cx, cy+4, 4, kleur);
+            tft.drawLine(cx-5, cy-5, cx-3, cy-3, kleur);
+            tft.drawLine(cx+3, cy-3, cx+5, cy-5, kleur);
+            tft.drawLine(cx-5, cy+5, cx-3, cy+3, kleur);
+            tft.drawLine(cx+3, cy+3, cx+5, cy+5, kleur);
+            break;
+        case I_LICHT_AUTO:
+            tft.drawCircle(cx, cy, 7, kleur);
+            tft.drawLine(cx, cy, cx, cy-5, kleur);
+            tft.drawLine(cx, cy, cx+4, cy+2, kleur);
+            break;
+        case I_USB:
+            tft.drawRect(cx-4, cy-7, 8, 7, kleur);
+            tft.drawFastVLine(cx, cy, 6, kleur);
+            tft.drawLine(cx, cy+6, cx-5, cy+3, kleur);
+            tft.drawLine(cx, cy+6, cx+5, cy+3, kleur);
+            tft.fillCircle(cx-5, cy+3, 2, kleur);
+            tft.fillCircle(cx+5, cy+3, 2, kleur);
+            break;
+        case I_230V:
+            tft.drawLine(cx+3, cy-8, cx-2, cy, kleur);
+            tft.drawLine(cx-2, cy, cx+3, cy, kleur);
+            tft.drawLine(cx+3, cy, cx-4, cy+8, kleur);
+            break;
+        case I_TV:
+            tft.drawRect(cx-8, cy-5, 16, 11, kleur);
+            tft.drawFastVLine(cx, cy+6, 3, kleur);
+            tft.drawFastHLine(cx-4, cy+9, 8, kleur);
+            break;
+        case I_WATER:
+            tft.drawLine(cx, cy-9, cx-5, cy, kleur);
+            tft.drawLine(cx, cy-9, cx+5, cy, kleur);
+            tft.drawCircle(cx, cy+3, 5, kleur);
+            break;
+        case I_DEKLICHT:
+            tft.fillCircle(cx, cy-1, 5, kleur);
+            tft.drawFastVLine(cx, cy+4, 4, kleur);
+            tft.drawLine(cx, cy-6, cx-3, cy-9, kleur);
+            tft.drawLine(cx, cy-6, cx+3, cy-9, kleur);
+            tft.drawLine(cx, cy-6, cx, cy-9, kleur);
+            break;
+    }
+}
+
+// ─── Boot tekendata (BKOS4 coördinaten, schaal 1:1) ────────────────
+// Algoritme: identieke opeenvolgende paar = knooppunt (begin/einde segment)
+// Lijnen worden getrokken tussen opeenvolgende knooppunten en tussenliggende punten
+
+static const int BOOT_ROMP[][2] = {
+    // Romp + opbouw (verbonden in één pad)
+    {0,150},{0,150},{2,165},{100,165},{120,140},
+    {0,150},{2,146},{40,140},{40,125},{49,125},{54,133},{70,133},{72,135},{85,135},{92,142},{92,142},
+    // Westerly knikje + kajuit buiskap (verbonden via hulplijn)
+    {70,150},{70,150},{105,147},{105,147},
+    {54,133},{54,133},{44,133},{44,137},{44,137},
+    // Verstaging (van boeg naar masttop naar achtersteven)
+    {0,150},{0,150},{63,0},{71,0},{120,141},{120,141},
+    // Kuiprand details
+    {40,140},{40,140},{49,137},{49,146},{49,146},{25,143},{25,143},{25,148},{25,148}
+};
+
+static const int BOOT_ZEILEN[][2] = {
+    // Giek (boom, rechthoekige omtrek)
+    {20,120},{20,120},{65,120},{65,119},{20,119},{20,118},{65,118},{65,118},
+    // Grootzeil achterliek
+    {20,118},{20,118},{65,4},{65,4},
+    // Genua
+    {117,137},{117,137},{89,137},{89,137},{52,129},{52,129},{53,120},{53,120}
+};
+
+static const int BOOT_MAST[][2] = {
+    {69,133},{69,133},{69,0},{68,0},{68,133},{67,133},{67,0},{66,0},{66,133},{65,133},{65,0},{65,0}
+};
+
+static const int BOOT_RAAM1[][2] = {
+    {51,142},{51,142},{58,142},{58,135},{53,135},{51,142},{51,142}
+};
+static const int BOOT_RAAM2[][2] = {
+    {61,142},{61,142},{69,142},{67,135},{61,135},{61,142},{61,142}
+};
+static const int BOOT_RAAM3[][2] = {
+    {42,131},{42,131},{51,131},{47,127},{42,127},{42,131},{42,131}
+};
+
+static void boot_seg_teken(const int data[][2], int cnt, uint16_t kleur) {
+    // Knooppunt-algoritme: identiek opeenvolgend paar = node, overige punten = lijnsegment
+    int px = 0, py = 0;
+    bool has_prev = false;
+    int i = 0;
+    while (i < cnt) {
+        int x = data[i][0], y = data[i][1];
+        bool is_node = (i + 1 < cnt && data[i+1][0] == x && data[i+1][1] == y);
+        if (has_prev)
+            tft.drawLine(BOOT_BX(px), BOOT_BY(py), BOOT_BX(x), BOOT_BY(y), kleur);
+        px = x; py = y;
+        has_prev = true;
+        i += is_node ? 2 : 1;
+    }
+}
+
+// ─── Boot tekening (zij-aanzicht CR 1070) ───────────────────────────
 void boot_teken() {
     tft.fillRect(BDX, BDY, BDW, BDH, C_BG);
 
-    int cx = BDX + BDW / 2;
-    int yBow  = BDY + 30;       // neus
-    int yMid  = BDY + BDH / 2 - 20;
-    int yMax  = BDY + BDH - 40; // hek
-    int wMid  = 100;             // halve breedte op midden
+    // Zeilen (subtiele donkere kleur, eerst tekenen zodat andere lijnen er overheen gaan)
+    boot_seg_teken(BOOT_ZEILEN, sizeof(BOOT_ZEILEN)/sizeof(BOOT_ZEILEN[0]), RGB565(30,55,90));
 
-    // Romp vulling (grijs-blauw)
-    uint16_t romp_kleur = RGB565(25, 45, 80);
-    for (int y = yBow; y < yMax; y++) {
-        float t = (float)(y - yBow) / (yMax - yBow);
-        float halveBreedte;
-        if (t < 0.15f) {
-            halveBreedte = wMid * (t / 0.15f) * 0.5f;
-        } else if (t < 0.7f) {
-            halveBreedte = wMid * (0.5f + (t - 0.15f) / 0.55f * 0.5f);
-        } else {
-            halveBreedte = wMid * (1.0f - (t - 0.7f) / 0.3f * 0.2f);
-        }
-        tft.drawFastHLine((int)(cx - halveBreedte), y, (int)(halveBreedte * 2), romp_kleur);
-    }
+    // Romp, opbouw, verstaging, details
+    boot_seg_teken(BOOT_ROMP, sizeof(BOOT_ROMP)/sizeof(BOOT_ROMP[0]), C_TEXT_DIM);
 
-    // Romp rand (wit)
-    // Port zijde
-    for (int stap = 0; stap < 40; stap++) {
-        float t = stap / 39.0f;
-        float t2 = (stap + 1) / 39.0f;
-        float y1f = yBow + t  * (yMax - yBow);
-        float y2f = yBow + t2 * (yMax - yBow);
-        float hb1, hb2;
-        auto halveBr = [&](float t) -> float {
-            if (t < 0.15f) return wMid * (t / 0.15f) * 0.5f;
-            if (t < 0.7f)  return wMid * (0.5f + (t - 0.15f) / 0.55f * 0.5f);
-            return wMid * (1.0f - (t - 0.7f) / 0.3f * 0.2f);
-        };
-        hb1 = halveBr(t);
-        hb2 = halveBr(t2);
-        tft.drawLine(cx - (int)hb1, (int)y1f, cx - (int)hb2, (int)y2f, C_TEXT_DIM);
-        tft.drawLine(cx + (int)hb1, (int)y1f, cx + (int)hb2, (int)y2f, C_TEXT_DIM);
-    }
-    // Heklijn
-    int yHek = yMax;
-    int hbHek = (int)(wMid * 0.8f);
-    tft.drawFastHLine(cx - hbHek, yHek, hbHek * 2, C_TEXT_DIM);
+    // Mast (lichtere staallook)
+    boot_seg_teken(BOOT_MAST, sizeof(BOOT_MAST)/sizeof(BOOT_MAST[0]), RGB565(160,170,190));
 
-    // Dekkleur vlak (donkerder groen overlay → boot kleur)
-    uint16_t dek_kleur = RGB565(15, 30, 55);
-    int yDek = yBow + (yMax - yBow) / 6;
-    int yDekEnd = yMax - (yMax - yBow) / 8;
-    for (int y = yDek + 4; y < yDekEnd - 4; y++) {
-        float t = (float)(y - yBow) / (yMax - yBow);
-        float hb;
-        if (t < 0.15f) hb = wMid * (t / 0.15f) * 0.5f - 8;
-        else if (t < 0.7f) hb = wMid * (0.5f + (t - 0.15f) / 0.55f * 0.5f) - 8;
-        else hb = wMid * (1.0f - (t - 0.7f) / 0.3f * 0.2f) - 8;
-        if (hb > 2) tft.drawFastHLine((int)(cx - hb), y, (int)(hb * 2), dek_kleur);
-    }
+    // Ramen (cyan accent)
+    boot_seg_teken(BOOT_RAAM1, sizeof(BOOT_RAAM1)/sizeof(BOOT_RAAM1[0]), C_CYAN);
+    boot_seg_teken(BOOT_RAAM2, sizeof(BOOT_RAAM2)/sizeof(BOOT_RAAM2[0]), C_CYAN);
+    boot_seg_teken(BOOT_RAAM3, sizeof(BOOT_RAAM3)/sizeof(BOOT_RAAM3[0]), C_CYAN);
 
-    // Kajuit (rechthoek midden van de boot)
-    int kajX = cx - 40;
-    int kajY = yDek + 20;
-    int kajW = 80;
-    int kajH = (yDekEnd - yDek) / 2;
-    uint16_t kajKleur = RGB565(30, 50, 90);
-    tft.fillRoundRect(kajX, kajY, kajW, kajH, 5, kajKleur);
-    tft.drawRoundRect(kajX, kajY, kajW, kajH, 5, RGB565(60, 90, 150));
+    // Patrijspoorten
+    tft.drawCircle(BOOT_BX(75), BOOT_BY(139), 4, C_CYAN);
+    tft.drawCircle(BOOT_BX(83), BOOT_BY(139), 4, C_CYAN);
 
-    // Cockpit
-    int ckX = cx - 28;
-    int ckY = kajY + kajH + 10;
-    int ckW = 56;
-    int ckH = 45;
-    tft.fillRoundRect(ckX, ckY, ckW, ckH, 4, RGB565(20, 35, 65));
-    tft.drawRoundRect(ckX, ckY, ckW, ckH, 4, RGB565(50, 75, 130));
-
-    // Mast (cirkel)
-    tft.fillCircle(cx, BL_MAST_Y, 6, RGB565(180, 190, 210));
-    tft.drawCircle(cx, BL_MAST_Y, 6, C_WHITE);
-
-    // Waterlijn effect onderaan
-    for (int i = 0; i < 3; i++) {
-        tft.drawFastHLine(BDX, BDY + BDH - 15 + i * 4, BDW, RGB565(10, 30, 60 + i*10));
-    }
-
-    // Label
+    // Boot naam/type
     tft.setTextSize(1);
     tft.setTextColor(C_TEXT_DIM);
-    tft.setCursor(BDX + 4, BDY + 4);
-    tft.print("BOOT AANZICHT");
+    tft.setCursor(BOOT_BX(42), BOOT_BY(58));
+    tft.print("CR");
+    tft.setCursor(BOOT_BX(37), BOOT_BY(68));
+    tft.print("1070");
+
+    // Legenda lichtindicatoren
+    int ly = BDY + BDH - 20;
+    tft.fillRect(BDX, ly - 6, BDW, 26, C_BG);
+    tft.setTextSize(1);
+    tft.fillCircle(BDX+12, ly, 5, C_LIGHT_OFF);
+    tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(BDX+20, ly-3); tft.print("Uit");
+    tft.fillCircle(BDX+55, ly, 5, C_LIGHT_COOLING);
+    tft.setCursor(BDX+63, ly-3); tft.print("Koelt");
+    tft.fillCircle(BDX+104, ly, 5, C_LIGHT_PENDING);
+    tft.setCursor(BDX+112, ly-3); tft.print("Wacht");
+    tft.fillCircle(BDX+157, ly, 5, C_LIGHT_ON);
+    tft.setTextColor(C_WHITE);
+    tft.setCursor(BDX+165, ly-3); tft.print("Aan");
 }
 
-// ──────────────────────────────────────────────
-//  Licht indicatoren op de boot
-// ──────────────────────────────────────────────
+// ─── Licht indicatoren op de boot ───────────────────────────────────
 void boot_lichten_teken() {
-    // Zoek IO kanalen op naam
-    int anker_k = -1, mast_k = -1, bb_k = -1, sb_k = -1, hek_k = -1, stoom_k = -1;
+    int anker_k = -1, stoom_k = -1, navi_k = -1, hek_k = -1;
 
     for (int i = 0; i < io_kanalen_cnt && i < MAX_IO_KANALEN; i++) {
         if      (io_naam_is(i, "**L_anker")) anker_k = i;
-        else if (io_naam_is(i, "**L_3kl"))   { bb_k = i; sb_k = i; }  // gecombineerd
-        else if (io_naam_is(i, "**L_navi"))  { bb_k = i; sb_k = i; }
-        else if (io_naam_is(i, "**L_hek"))   hek_k = i;
         else if (io_naam_is(i, "**L_stoom")) stoom_k = i;
+        else if (io_naam_is(i, "**L_3kl"))   navi_k  = i;
+        else if (io_naam_is(i, "**L_navi"))  { if (navi_k < 0) navi_k = i; }
+        else if (io_naam_is(i, "**L_hek"))   hek_k   = i;
     }
 
-    // Ankerlicht (wit, voor op de boot)
     byte staat;
+
+    // Ankerlicht (masttop, wit)
     staat = (anker_k >= 0) ? io_licht_staat(anker_k) : LSTATE_ECHT_UIT;
-    ui_licht_cirkel(BL_ANKER_X, BL_ANKER_Y, LICHT_R, staat);
-    if (staat == LSTATE_ECHT_AAN) ui_glow(BL_ANKER_X, BL_ANKER_Y, LICHT_R, C_LIGHT_ON, 4);
+    ui_licht_cirkel(BOOT_BX(BL_ANKER_RX), BOOT_BY(BL_ANKER_RY), BOOT_LICHT_R, staat);
+    if (staat == LSTATE_ECHT_AAN)
+        ui_glow(BOOT_BX(BL_ANKER_RX), BOOT_BY(BL_ANKER_RY), BOOT_LICHT_R, C_LIGHT_ON, 3);
 
-    // Toplicht / masttop (wit)
-    staat = (mast_k >= 0) ? io_licht_staat(mast_k) : LSTATE_ECHT_UIT;
-    ui_licht_cirkel(BL_MAST_X, BL_MAST_Y, LICHT_R, staat);
-
-    // Stoomlicht (wit, iets kleiner)
+    // Stoomlicht (halverwege de mast)
     staat = (stoom_k >= 0) ? io_licht_staat(stoom_k) : LSTATE_ECHT_UIT;
-    tft.fillCircle(BL_STOOM_X, BL_STOOM_Y, 10, (staat == LSTATE_ECHT_AAN) ? C_LIGHT_ON : C_LIGHT_OFF);
-    if (staat == LSTATE_ECHT_AAN) ui_glow(BL_STOOM_X, BL_STOOM_Y, 10, C_LIGHT_ON, 3);
+    ui_licht_cirkel(BOOT_BX(BL_STOOM_RX), BOOT_BY(BL_STOOM_RY), BOOT_LICHT_R, staat);
+    if (staat == LSTATE_ECHT_AAN)
+        ui_glow(BOOT_BX(BL_STOOM_RX), BOOT_BY(BL_STOOM_RY), BOOT_LICHT_R, C_LIGHT_ON, 3);
 
-    // Bakboord (rood)
-    staat = (bb_k >= 0) ? io_licht_staat(bb_k) : LSTATE_ECHT_UIT;
-    uint16_t bb_on = C_LIGHT_ON_RED;
+    // Navigatielicht boeg (rood BB / groen SB, gesplitste cirkel)
+    staat = (navi_k >= 0) ? io_licht_staat(navi_k) : LSTATE_ECHT_UIT;
+    int nav_cx = BOOT_BX(BL_NAVI_RX);
+    int nav_cy = BOOT_BY(BL_NAVI_RY);
+    int nav_r  = BOOT_LICHT_R;
     if (staat == LSTATE_ECHT_AAN) {
-        tft.fillCircle(BL_BB_X, BL_BB_Y, LICHT_R, bb_on);
-        ui_glow(BL_BB_X, BL_BB_Y, LICHT_R, bb_on, 4);
+        // Linker helft rood, rechter helft groen
+        tft.fillCircle(nav_cx, nav_cy, nav_r, C_LIGHT_ON_RED);
+        tft.fillRect(nav_cx, nav_cy - nav_r, nav_r + 1, nav_r * 2 + 1, C_LIGHT_ON_GRN);
+        ui_glow(nav_cx, nav_cy, nav_r, C_LIGHT_ON_RED, 2);
     } else if (staat == LSTATE_KOELT_AF) {
-        tft.fillCircle(BL_BB_X, BL_BB_Y, LICHT_R, C_LIGHT_COOLING);
-        tft.drawCircle(BL_BB_X, BL_BB_Y, LICHT_R, C_RED_BRIGHT);
+        tft.fillCircle(nav_cx, nav_cy, nav_r, C_LIGHT_COOLING);
+        tft.drawCircle(nav_cx, nav_cy, nav_r, C_AMBER);
     } else if (staat == LSTATE_GEEN_SIGNAAL) {
-        tft.fillCircle(BL_BB_X, BL_BB_Y, LICHT_R, C_LIGHT_PENDING);
+        tft.fillCircle(nav_cx, nav_cy, nav_r, C_LIGHT_PENDING);
+        tft.drawCircle(nav_cx, nav_cy, nav_r, C_ORANGE);
     } else {
-        tft.fillCircle(BL_BB_X, BL_BB_Y, LICHT_R, C_LIGHT_OFF);
+        tft.fillCircle(nav_cx, nav_cy, nav_r, C_LIGHT_OFF);
+        tft.drawCircle(nav_cx, nav_cy, nav_r, C_DARK_GRAY);
     }
 
-    // Stuurboord (groen)
-    staat = (sb_k >= 0) ? io_licht_staat(sb_k) : LSTATE_ECHT_UIT;
-    uint16_t sb_on = C_LIGHT_ON_GRN;
-    if (staat == LSTATE_ECHT_AAN) {
-        tft.fillCircle(BL_SB_X, BL_SB_Y, LICHT_R, sb_on);
-        ui_glow(BL_SB_X, BL_SB_Y, LICHT_R, sb_on, 4);
-    } else if (staat == LSTATE_KOELT_AF) {
-        tft.fillCircle(BL_SB_X, BL_SB_Y, LICHT_R, C_LIGHT_COOLING);
-    } else if (staat == LSTATE_GEEN_SIGNAAL) {
-        tft.fillCircle(BL_SB_X, BL_SB_Y, LICHT_R, C_LIGHT_PENDING);
-    } else {
-        tft.fillCircle(BL_SB_X, BL_SB_Y, LICHT_R, C_LIGHT_OFF);
-    }
-
-    // Heklicht (wit, achter)
+    // Heklicht (achtersteven, wit)
     staat = (hek_k >= 0) ? io_licht_staat(hek_k) : LSTATE_ECHT_UIT;
-    ui_licht_cirkel(BL_HEK_X, BL_HEK_Y, LICHT_R, staat);
-    if (staat == LSTATE_ECHT_AAN) ui_glow(BL_HEK_X, BL_HEK_Y, LICHT_R, C_LIGHT_ON, 4);
-
-    // Legenda
-    int ly = BDY + BDH - 22;
-    tft.setTextSize(1);
-    tft.fillCircle(BDX + 14, ly, 5, C_LIGHT_OFF);      tft.setTextColor(C_TEXT_DIM); tft.setCursor(BDX + 22, ly - 4); tft.print("Uit");
-    tft.fillCircle(BDX + 60, ly, 5, C_LIGHT_COOLING);  tft.setCursor(BDX + 68, ly - 4); tft.print("Koelt");
-    tft.fillCircle(BDX + 110, ly, 5, C_LIGHT_PENDING); tft.setCursor(BDX + 118, ly - 4); tft.print("Wacht");
-    tft.fillCircle(BDX + 165, ly, 5, C_LIGHT_ON);      tft.setTextColor(C_WHITE); tft.setCursor(BDX + 173, ly - 4); tft.print("Aan");
+    ui_licht_cirkel(BOOT_BX(BL_HEK_RX), BOOT_BY(BL_HEK_RY), BOOT_LICHT_R, staat);
+    if (staat == LSTATE_ECHT_AAN)
+        ui_glow(BOOT_BX(BL_HEK_RX), BOOT_BY(BL_HEK_RY), BOOT_LICHT_R, C_LIGHT_ON, 3);
 }
 
-// ──────────────────────────────────────────────
-//  Interieur licht status indicator
-// ──────────────────────────────────────────────
-void interieur_status_teken() {
+// ─── Knop helpers ───────────────────────────────────────────────────
+static void modus_knop(int x, int y, int w, int h, const char* naam,
+                       int icoon, uint16_t accent, bool actief) {
+    uint16_t bg = actief ? C_SURFACE2 : C_SURFACE;
+    tft.fillRoundRect(x, y, w, h, KNOP_R, bg);
+    if (actief) {
+        tft.drawRoundRect(x,   y,   w,   h,   KNOP_R, accent);
+        tft.drawRoundRect(x+1, y+1, w-2, h-2, KNOP_R, accent);
+        tft.fillRoundRect(x,   y,   5,   h,   KNOP_R, accent);
+    } else {
+        tft.drawRoundRect(x, y, w, h, KNOP_R, C_SURFACE2);
+    }
+    uint16_t fg = actief ? accent : C_TEXT_DIM;
+    int cx = x + w / 2;
+    teken_icoon(icoon, cx, y + 16, fg);
+    tft.setTextSize(2);
+    tft.setTextColor(fg);
+    int tw = strlen(naam) * 12;
+    tft.setCursor(cx - tw/2, y + 34);
+    tft.print(naam);
+}
+
+static void schakelaars_knop(int x, int y, int w, int h, const char* label,
+                              int icoon, uint16_t accent, bool actief) {
+    uint16_t bg = actief ? C_SURFACE2 : C_SURFACE;
+    tft.fillRoundRect(x, y, w, h, KNOP_R, bg);
+    if (actief) {
+        tft.drawRoundRect(x,   y,   w,   h,   KNOP_R, accent);
+        tft.fillRoundRect(x,   y,   5,   h,   3, accent);
+    } else {
+        tft.drawRoundRect(x, y, w, h, KNOP_R, C_SURFACE2);
+    }
+    uint16_t fg = actief ? accent : C_TEXT_DIM;
+    int cy = y + h / 2;
+    teken_icoon(icoon, x + 18, cy, fg);
+    tft.setTextSize(2);
+    tft.setTextColor(fg);
+    tft.setCursor(x + 36, cy - 8);
+    tft.print(label);
+}
+
+// ─── Vaarmodus knoppen ──────────────────────────────────────────────
+static void modus_knoppen_teken() {
+    tft.setTextSize(1);
+    tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(MKNOP_X1, CONTENT_Y + 2);
+    tft.print("VAARMODUS");
+
+    struct { const char* naam; int icoon; uint16_t kleur; byte modus; int x; int y; } modi[4] = {
+        {"HAVEN",  I_HAVEN,  C_HAVEN,  MODE_HAVEN,  MKNOP_X1, MKNOP_Y1},
+        {"ZEILEN", I_ZEILEN, C_ZEILEN, MODE_ZEILEN, MKNOP_X2, MKNOP_Y1},
+        {"MOTOR",  I_MOTOR,  C_MOTOR,  MODE_MOTOR,  MKNOP_X1, MKNOP_Y2},
+        {"ANKER",  I_ANKER,  C_ANKER,  MODE_ANKER,  MKNOP_X2, MKNOP_Y2},
+    };
+    for (int i = 0; i < 4; i++)
+        modus_knop(modi[i].x, modi[i].y, MKNOP_W, MKNOP_H,
+                   modi[i].naam, modi[i].icoon, modi[i].kleur,
+                   vaar_modus == modi[i].modus);
+}
+
+// ─── Verlichting knoppen ────────────────────────────────────────────
+static void licht_knoppen_teken() {
+    tft.setTextSize(1);
+    tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(LKNOP_X1, LKNOP_Y - 12);
+    tft.print("VERLICHTING");
+
+    struct { const char* label; int icoon; uint16_t accent; byte inst; int x; } kn[3] = {
+        {"UIT",  I_LICHT_UIT,  C_GRAY,  LICHT_UIT,  LKNOP_X1},
+        {"AAN",  I_LICHT_AAN,  C_GREEN, LICHT_AAN,  LKNOP_X2},
+        {"AUTO", I_LICHT_AUTO, C_CYAN,  LICHT_AUTO, LKNOP_X3},
+    };
+    for (int i = 0; i < 3; i++)
+        schakelaars_knop(kn[i].x, LKNOP_Y, LKNOP_W, LKNOP_H,
+                         kn[i].label, kn[i].icoon, kn[i].accent,
+                         licht_instelling == kn[i].inst);
+}
+
+// ─── Apparaat knoppen ───────────────────────────────────────────────
+static void apparaat_knoppen_teken() {
+    tft.setTextSize(1);
+    tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(DKNOP_X1, DKNOP_Y1 - 12);
+    tft.print("APPARATEN");
+
+    struct { const char* label; int icoon; const char* prefix; int x; int y; } ap[5] = {
+        {"USB",      I_USB,      "**USB",   DKNOP_X1,  DKNOP_Y1},
+        {"230V",     I_230V,     "**230",   DKNOP_X2,  DKNOP_Y1},
+        {"TV",       I_TV,       "**tv",    DKNOP_X3,  DKNOP_Y1},
+        {"WATER",    I_WATER,    "**water", DKNOP2_X1, DKNOP_Y2},
+        {"DEKLICHT", I_DEKLICHT, "**E_dek", DKNOP2_X2, DKNOP_Y2},
+    };
+    for (int i = 0; i < 5; i++)
+        schakelaars_knop(ap[i].x, ap[i].y, DKNOP_W, DKNOP_H,
+                         ap[i].label, ap[i].icoon, C_CYAN,
+                         io_apparaat_staat(ap[i].prefix));
+}
+
+// ─── Interieur licht status (compact) ───────────────────────────────
+static void interieur_status_teken() {
     int x = CTRL_PANEL_X + 10;
     int y = INT_STATUS_Y;
     int w = CTRL_PANEL_W - 20;
-    int h = 64;
+    int h = 38;
 
-    tft.fillRoundRect(x, y, w, h, 8, C_SURFACE);
-    tft.drawRoundRect(x, y, w, h, 8, C_SURFACE2);
+    tft.fillRoundRect(x, y, w, h, 6, C_SURFACE);
 
-    tft.setTextSize(1);
-    tft.setTextColor(C_TEXT_DIM);
-    tft.setCursor(x + 8, y + 6);
-    tft.print("INTERIEUR");
-
-    // Bepaal interieur status
     bool wit_aan = false, rood_aan = false;
     for (int i = 0; i < io_kanalen_cnt && i < MAX_IO_KANALEN; i++) {
         if (io_naam_is(i, "**IL_wit")  && io_output[i] == IO_AAN) wit_aan  = true;
         if (io_naam_is(i, "**IL_rood") && io_output[i] == IO_AAN) rood_aan = true;
     }
 
-    // Wit indicator
-    uint16_t wit_kleur = wit_aan ? C_WHITE : C_DARK_GRAY;
-    tft.fillCircle(x + 30, y + h/2 + 4, 14, wit_kleur);
-    if (wit_aan) ui_glow(x + 30, y + h/2 + 4, 14, C_WHITE, 3);
+    int cy = y + h / 2;
+    tft.fillCircle(x + 18, cy, 10, wit_aan  ? C_WHITE        : C_DARK_GRAY);
+    tft.fillCircle(x + 46, cy, 10, rood_aan ? C_LIGHT_ON_RED : C_DARK_GRAY);
+    if (wit_aan)  ui_glow(x + 18, cy, 10, C_WHITE,        2);
+    if (rood_aan) ui_glow(x + 46, cy, 10, C_LIGHT_ON_RED, 2);
     tft.setTextSize(1);
-    tft.setTextColor(wit_aan ? C_TEXT_DARK : C_TEXT_DIM);
-    tft.setCursor(x + 23, y + h/2 + 1);
-    tft.print("W");
-
-    // Rood indicator
-    uint16_t rood_kleur = rood_aan ? C_LIGHT_ON_RED : C_DARK_GRAY;
-    tft.fillCircle(x + 70, y + h/2 + 4, 14, rood_kleur);
-    if (rood_aan) ui_glow(x + 70, y + h/2 + 4, 14, C_LIGHT_ON_RED, 3);
+    tft.setTextColor(wit_aan  ? C_TEXT_DARK : C_TEXT_DIM);
+    tft.setCursor(x + 11, cy - 3); tft.print("W");
     tft.setTextColor(rood_aan ? C_TEXT_DARK : C_TEXT_DIM);
-    tft.setCursor(x + 65, y + h/2 + 1);
-    tft.print("R");
+    tft.setCursor(x + 40, cy - 3); tft.print("R");
 
-    // Status tekst
-    tft.setTextSize(2);
-    const char* status_txt;
-    uint16_t status_kleur;
-    if (wit_aan)  { status_txt = "WIT AAN";  status_kleur = C_WHITE; }
-    else if (rood_aan) { status_txt = "ROOD AAN"; status_kleur = C_LIGHT_ON_RED; }
-    else          { status_txt = "UIT";       status_kleur = C_TEXT_DIM; }
-    tft.setTextColor(status_kleur);
-    tft.setCursor(x + 105, y + h/2 - 2);
-    tft.print(status_txt);
-}
-
-// ──────────────────────────────────────────────
-//  Vaarmodus knoppen
-// ──────────────────────────────────────────────
-static void modus_knoppen_teken() {
-    // Titel
+    const char* txt;
+    uint16_t kleur;
+    if      (wit_aan)  { txt = "INT: WIT AAN";  kleur = C_WHITE; }
+    else if (rood_aan) { txt = "INT: ROOD AAN"; kleur = C_LIGHT_ON_RED; }
+    else               { txt = "INT: UIT";       kleur = C_TEXT_DIM; }
     tft.setTextSize(1);
-    tft.setTextColor(C_TEXT_DIM);
-    tft.setCursor(CTRL_PANEL_X + 10, CONTENT_Y + 4);
-    tft.print("VAARMODUS");
-
-    struct { const char* naam; const char* sub; uint16_t kleur; byte modus; int x; int y; } modi[4] = {
-        {"HAVEN",  "aangemeerd",  C_HAVEN,  MODE_HAVEN,  MKNOP_X1, MKNOP_Y1},
-        {"ZEILEN", "zeilvaren",   C_ZEILEN, MODE_ZEILEN, MKNOP_X2, MKNOP_Y1},
-        {"MOTOR",  "motoren",     C_MOTOR,  MODE_MOTOR,  MKNOP_X1, MKNOP_Y2},
-        {"ANKER",  "voor anker",  C_ANKER,  MODE_ANKER,  MKNOP_X2, MKNOP_Y2},
-    };
-
-    for (int i = 0; i < 4; i++) {
-        bool actief = (vaar_modus == modi[i].modus);
-        uint16_t bg = actief ? C_SURFACE2 : C_SURFACE;
-        ui_knop_groot(modi[i].x, modi[i].y, MKNOP_W, MKNOP_H,
-                      modi[i].naam, modi[i].sub,
-                      bg, modi[i].kleur, modi[i].kleur, actief);
-    }
+    tft.setTextColor(kleur);
+    tft.setCursor(x + 68, cy - 3);
+    tft.print(txt);
 }
 
-// ──────────────────────────────────────────────
-//  Verlichting knoppen
-// ──────────────────────────────────────────────
-static void licht_knoppen_teken() {
-    int ty = LKNOP_Y - 16;
-    tft.setTextSize(1);
-    tft.setTextColor(C_TEXT_DIM);
-    tft.setCursor(CTRL_PANEL_X + 10, ty);
-    tft.print("VERLICHTING");
-
-    struct { const char* label; byte inst; int x; } knoppen[3] = {
-        {"UIT",  LICHT_UIT,  LKNOP_X1},
-        {"AAN",  LICHT_AAN,  LKNOP_X2},
-        {"AUTO", LICHT_AUTO, LKNOP_X3},
-    };
-
-    for (int i = 0; i < 3; i++) {
-        bool actief = (licht_instelling == knoppen[i].inst);
-        uint16_t accent = (i == 0) ? C_GRAY :
-                          (i == 1) ? C_GREEN : C_CYAN;
-        uint16_t bg = actief ? C_SURFACE2 : C_SURFACE;
-        tft.fillRoundRect(knoppen[i].x, LKNOP_Y, LKNOP_W, LKNOP_H, KNOP_R, bg);
-        if (actief) {
-            tft.drawRoundRect(knoppen[i].x, LKNOP_Y, LKNOP_W, LKNOP_H, KNOP_R, accent);
-            tft.drawRoundRect(knoppen[i].x+1, LKNOP_Y+1, LKNOP_W-2, LKNOP_H-2, KNOP_R-1, accent);
-            tft.fillRoundRect(knoppen[i].x, LKNOP_Y, 5, LKNOP_H, 3, accent);
-        } else {
-            tft.drawRoundRect(knoppen[i].x, LKNOP_Y, LKNOP_W, LKNOP_H, KNOP_R, C_SURFACE2);
-        }
-        tft.setTextSize(2);
-        tft.setTextColor(actief ? accent : C_TEXT_DIM);
-        int tw = strlen(knoppen[i].label) * 12;
-        tft.setCursor(knoppen[i].x + (LKNOP_W - tw) / 2, LKNOP_Y + (LKNOP_H - 16) / 2);
-        tft.print(knoppen[i].label);
-    }
-
-    // AUTO sub-tekst
-    if (licht_instelling == LICHT_AUTO) {
-        tft.setTextSize(1);
-        tft.setTextColor(C_TEXT_DIM);
-        int sub_y = LKNOP_Y + LKNOP_H + 4;
-        const char* uitleg = (vaar_modus == MODE_HAVEN || vaar_modus == MODE_ANKER) ?
-                             "Auto: ext. lichten UIT" : "Auto: ext. lichten AAN";
-        tft.setCursor(CTRL_PANEL_X + 10, sub_y);
-        tft.fillRect(CTRL_PANEL_X + 10, sub_y, CTRL_PANEL_W - 20, 10, C_BG);
-        tft.print(uitleg);
-    }
-}
-
-// ──────────────────────────────────────────────
-//  Status bar bovenaan
-// ──────────────────────────────────────────────
+// ─── Status bar ─────────────────────────────────────────────────────
 static void status_bar_teken() {
     tft.fillRect(0, 0, TFT_W, SB_H, C_STATUSBAR);
     tft.drawFastHLine(0, SB_H - 1, TFT_W, C_SURFACE2);
 
-    // WiFi indicator
     tft.setTextSize(2);
     tft.setTextColor(wifi_verbonden ? C_GREEN : C_RED_BRIGHT);
     tft.setCursor(8, (SB_H - 16) / 2);
     tft.print(wifi_verbonden ? "WiFi" : "!WiFi");
 
-    // Versie
     tft.setTextSize(1);
     tft.setTextColor(C_TEXT_DIM);
     int tw = strlen(BKOS_NUI_VERSIE) * 6;
     tft.setCursor(TFT_W / 2 - tw / 2, (SB_H - 8) / 2);
     tft.print(BKOS_NUI_VERSIE);
 
-    // Klok
     tft.setTextSize(2);
     tft.setTextColor(C_TEXT);
     tw = klok_tijd.length() * 12;
@@ -326,17 +405,12 @@ static void status_bar_teken() {
     tft.print(klok_tijd);
 }
 
-// ──────────────────────────────────────────────
-//  Scheidingslijn boot / controls
-// ──────────────────────────────────────────────
 static void scheidingslijn_teken() {
     for (int i = 0; i < 3; i++)
         tft.drawFastVLine(CTRL_PANEL_X - 2 + i, CONTENT_Y, CONTENT_H, C_SURFACE2);
 }
 
-// ──────────────────────────────────────────────
-//  Hoofdfuncties
-// ──────────────────────────────────────────────
+// ─── Hoofdfuncties ──────────────────────────────────────────────────
 void screen_main_teken() {
     tft.fillScreen(C_BG);
     status_bar_teken();
@@ -345,6 +419,7 @@ void screen_main_teken() {
     boot_lichten_teken();
     modus_knoppen_teken();
     licht_knoppen_teken();
+    apparaat_knoppen_teken();
     interieur_status_teken();
     nav_bar_teken();
 }
@@ -354,16 +429,15 @@ void screen_main_update_boot() {
 }
 
 void screen_main_update_controls() {
-    // Wis alleen het rechter paneel (sneller dan volledig hertekenen)
     tft.fillRect(CTRL_PANEL_X, CONTENT_Y, CTRL_PANEL_W, CONTENT_H, C_BG);
     modus_knoppen_teken();
     licht_knoppen_teken();
+    apparaat_knoppen_teken();
     interieur_status_teken();
 }
 
 void screen_main_run(int x, int y, bool aanraking) {
     if (!aanraking) {
-        // Periodieke update van lichtindicatoren
         if (io_runned) {
             boot_lichten_teken();
             interieur_status_teken();
@@ -372,7 +446,6 @@ void screen_main_run(int x, int y, bool aanraking) {
         return;
     }
 
-    // Nav bar?
     int nav = nav_bar_klik(x, y);
     if (nav >= 0 && nav != actief_scherm) {
         actief_scherm = nav;
@@ -400,20 +473,36 @@ void screen_main_run(int x, int y, bool aanraking) {
         }
     }
 
-    // Licht knoppen
-    struct { int x; byte inst; } lknoppen[3] = {
+    // Verlichting knoppen
+    struct { int x; byte inst; } lkn[3] = {
         {LKNOP_X1, LICHT_UIT},
         {LKNOP_X2, LICHT_AAN},
         {LKNOP_X3, LICHT_AUTO},
     };
     for (int i = 0; i < 3; i++) {
-        if (x >= lknoppen[i].x && x < lknoppen[i].x + LKNOP_W &&
-            y >= LKNOP_Y        && y < LKNOP_Y + LKNOP_H) {
-            if (licht_instelling != lknoppen[i].inst) {
-                licht_instelling = lknoppen[i].inst;
+        if (x >= lkn[i].x && x < lkn[i].x + LKNOP_W &&
+            y >= LKNOP_Y   && y < LKNOP_Y + LKNOP_H) {
+            if (licht_instelling != lkn[i].inst) {
+                licht_instelling = lkn[i].inst;
                 io_verlichting_update();
                 gewijzigd = true;
             }
+        }
+    }
+
+    // Apparaat knoppen
+    struct { int x; int y; const char* prefix; } ap[5] = {
+        {DKNOP_X1,  DKNOP_Y1, "**USB"},
+        {DKNOP_X2,  DKNOP_Y1, "**230"},
+        {DKNOP_X3,  DKNOP_Y1, "**tv"},
+        {DKNOP2_X1, DKNOP_Y2, "**water"},
+        {DKNOP2_X2, DKNOP_Y2, "**E_dek"},
+    };
+    for (int i = 0; i < 5; i++) {
+        if (x >= ap[i].x && x < ap[i].x + DKNOP_W &&
+            y >= ap[i].y && y < ap[i].y + DKNOP_H) {
+            io_apparaat_toggle(ap[i].prefix);
+            gewijzigd = true;
         }
     }
 
