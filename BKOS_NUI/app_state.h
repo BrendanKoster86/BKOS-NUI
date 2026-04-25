@@ -7,6 +7,8 @@
 #define SCREEN_IO      1
 #define SCREEN_CONFIG  2
 #define SCREEN_OTA     3
+#define SCREEN_INFO    4
+#define SCREEN_WIFI    5  // niet in nav bar, toegankelijk via OTA scherm
 
 // Vaarmodi
 #define MODE_HAVEN   0
@@ -58,6 +60,9 @@ extern bool   updaten;
 // Klok
 extern String klok_tijd;
 extern bool   wifi_verbonden;
+
+// Apparaat lokale staat (fallback als geen IO module)
+extern bool dev_lokaal[5];
 
 // Preferences opslaan
 void state_save();

@@ -6,6 +6,8 @@
 #include "ota.h"
 #include "io.h"
 #include "app_state.h"
+#include "screen_info.h"
+#include "screen_wifi.h"
 
 void hw_setup();
 void hw_loop();

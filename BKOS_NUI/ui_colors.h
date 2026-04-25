@@ -32,13 +32,13 @@
 #define C_MOTOR       RGB565(255, 120,   0)
 #define C_ANKER       RGB565(140, 100,  40)
 
-// Verlichting stadia
-#define C_LIGHT_OFF     RGB565(35, 45, 65)    // 0: echt uit
-#define C_LIGHT_COOLING RGB565(110, 70,  0)   // 1: uit, voelt nog aan (amber)
-#define C_LIGHT_PENDING RGB565(255, 140,  0)  // 2: aan, geen signaal (oranje)
-#define C_LIGHT_ON      RGB565(220, 235, 255) // 3: echt aan (wit)
-#define C_LIGHT_ON_RED  RGB565(255,  20,  30) // 3: echt aan rood
-#define C_LIGHT_ON_GRN  RGB565(0,   255,  60) // 3: echt aan groen
+// Verlichting stadia — gloeilamp-metafoor, geen legenda nodig
+#define C_LIGHT_OFF     RGB565(18,  22,  38)  // 0: echt uit — bijna zwart
+#define C_LIGHT_COOLING RGB565(160,  80,   0) // 1: koelt af — warm oranje/amber
+#define C_LIGHT_PENDING RGB565(180, 160,  50) // 2: aan/geen signaal — gedimde gele tint
+#define C_LIGHT_ON      RGB565(255, 250, 180) // 3: echt aan — gloeiend warm geel-wit
+#define C_LIGHT_ON_RED  RGB565(255,  30,  50) // BB navigatielicht rood
+#define C_LIGHT_ON_GRN  RGB565( 20, 255,  80) // SB navigatielicht groen
 
 // Status bar
 #define C_STATUSBAR   RGB565(12, 18, 38)

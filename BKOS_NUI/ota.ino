@@ -25,11 +25,63 @@ void ota_loop() {
     }
 }
 
+static void ota_voortgang_teken(unsigned int progress, unsigned int totaal) {
+    static int laaste_pct = -1;
+    int pct = (totaal > 0) ? (int)(progress * 100UL / totaal) : 0;
+    if (pct == laaste_pct) return;
+    laaste_pct = pct;
+    int bar_w = (int)((long)(TFT_W - 100) * pct / 100);
+    tft.fillRect(50, 200, TFT_W - 100, 30, C_SURFACE);
+    if (bar_w > 0) tft.fillRect(50, 200, bar_w, 30, C_GREEN);
+    tft.drawRect(50, 200, TFT_W - 100, 30, C_SURFACE2);
+    tft.fillRect(50, 245, 200, 20, C_BG);
+    tft.setTextSize(2);
+    tft.setTextColor(C_TEXT);
+    tft.setCursor(50, 245);
+    char buf[16]; snprintf(buf, sizeof(buf), "%d%%", pct);
+    tft.print(buf);
+}
+
 void ota_push_inschakelen(bool aan) {
     ota_push_actief = aan;
     if (aan) {
         ArduinoOTA.setHostname("BKOS-NUI");
         ArduinoOTA.setPassword("bkos2025");
+
+        ArduinoOTA.onStart([]() {
+            tft.fillScreen(C_BG);
+            tft.setTextSize(3);
+            tft.setTextColor(C_CYAN);
+            tft.setCursor(50, 100);
+            tft.print("OTA Push update...");
+            tft.setTextSize(2);
+            tft.setTextColor(C_TEXT_DIM);
+            tft.setCursor(50, 148);
+            tft.print("Niet uitschakelen!");
+        });
+
+        ArduinoOTA.onProgress([](unsigned int p, unsigned int t) {
+            ota_voortgang_teken(p, t);
+        });
+
+        ArduinoOTA.onEnd([]() {
+            tft.fillRect(50, 280, TFT_W - 100, 40, C_BG);
+            tft.setTextSize(3);
+            tft.setTextColor(C_GREEN);
+            tft.setCursor(50, 290);
+            tft.print("Klaar! Herstart...");
+            delay(1500);
+        });
+
+        ArduinoOTA.onError([](ota_error_t err) {
+            tft.fillRect(50, 280, TFT_W - 100, 40, C_BG);
+            tft.setTextSize(2);
+            tft.setTextColor(C_RED_BRIGHT);
+            tft.setCursor(50, 290);
+            char buf[30]; snprintf(buf, sizeof(buf), "Fout: %u", err);
+            tft.print(buf);
+        });
+
         ArduinoOTA.begin();
         ota_status_tekst = "Push OTA actief";
     } else {

@@ -14,33 +14,35 @@ void hw_setup() {
     ts_setup();
     hw_io_setup();
     state_load();
-    wifi_setup();
-    ota_setup();
-    io_boot();
+    tft_helderheid_zet(tft_helderheid);  // herstel opgeslagen helderheid
 
     // Welkomstscherm
     tft.fillScreen(C_BG);
-    tft_logo(TFT_W / 2 - 100, TFT_H / 2 - 40, 1, C_CYAN);
+    tft_logo(TFT_W / 2 - 100, TFT_H / 2 - 50, 1, C_CYAN);
     tft.setTextSize(2);
     tft.setTextColor(C_TEXT);
-    tft.setCursor(TFT_W / 2 - 80, TFT_H / 2 + 50);
+    tft.setCursor(TFT_W / 2 - 100, TFT_H / 2 + 40);
     tft.print("BKOS-NUI  ");
     tft.print(BKOS_NUI_VERSIE);
-    delay(1000);
+    tft.setTextSize(1);
+    tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(TFT_W / 2 - 80, TFT_H / 2 + 62);
+    tft.print("WiFi verbinden...");
+
+    wifi_setup();
+    ntp_setup();
+    ota_setup();
+    io_boot();
 
     scherm_bouwen = true;
     actief_scherm = SCREEN_MAIN;
 }
 
 void hw_loop() {
-    // IO cyclus (achtergrond)
     io_loop();
-
-    // WiFi / OTA
     wifi_loop();
     ota_loop();
 
-    // Touch lezen
     bool aanraking = ts_touched();
 
     // Scherm (her)bouwen
@@ -52,21 +54,27 @@ void hw_loop() {
             case SCREEN_IO:     screen_io_teken();     break;
             case SCREEN_CONFIG: screen_config_teken(); break;
             case SCREEN_OTA:    screen_ota_teken();    break;
+            case SCREEN_INFO:   screen_info_teken();   break;
+            case SCREEN_WIFI:   screen_wifi_teken();   break;
         }
-        nav_bar_teken();
     }
 
-    // Touch verwerken (alleen bij nieuw contact)
+    // Touch: eerste touch na scherm-wake overslaan
     if (aanraking && !vorige_touch) {
         touch_verwerkt = false;
     }
-    if (aanraking && !touch_verwerkt) {
+    if (scherm_net_gewekt && aanraking) {
+        scherm_net_gewekt = false;
+        touch_verwerkt = true;  // consumeer wake-touch
+    } else if (aanraking && !touch_verwerkt) {
         touch_verwerkt = true;
         switch (actief_scherm) {
             case SCREEN_MAIN:   screen_main_run(ts_x, ts_y, true);   break;
             case SCREEN_IO:     screen_io_run(ts_x, ts_y, true);     break;
             case SCREEN_CONFIG: screen_config_run(ts_x, ts_y, true); break;
             case SCREEN_OTA:    screen_ota_run(ts_x, ts_y, true);    break;
+            case SCREEN_INFO:   screen_info_run(ts_x, ts_y, true);   break;
+            case SCREEN_WIFI:   screen_wifi_run(ts_x, ts_y, true);   break;
         }
     }
 

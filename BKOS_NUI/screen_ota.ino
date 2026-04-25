@@ -83,22 +83,11 @@ void screen_ota_teken() {
                   ota_push_actief ? C_ORANGE   : C_TEXT_DIM,
                   C_ORANGE, ota_push_actief);
 
-    // Knop 4: WiFi reset (gevaarlijk → rode rand)
-    tft.fillRoundRect(OTA_BTN_X, OTA_BTN_Y4, OTA_BTN_W, OTA_BTN_H, KNOP_R, C_SURFACE);
-    tft.drawRoundRect(OTA_BTN_X,   OTA_BTN_Y4,   OTA_BTN_W,   OTA_BTN_H,   KNOP_R, C_RED_BRIGHT);
-    tft.drawRoundRect(OTA_BTN_X+1, OTA_BTN_Y4+1, OTA_BTN_W-2, OTA_BTN_H-2, KNOP_R, C_RED_BRIGHT);
-    tft.setTextSize(2);
-    tft.setTextColor(C_RED_BRIGHT);
-    int tw = strlen("WIFI RESET") * 12;
-    int cy4 = OTA_BTN_Y4 + OTA_BTN_H / 2 - 8;
-    tft.setCursor(OTA_BTN_X + (OTA_BTN_W - tw) / 2, cy4);
-    tft.print("WIFI RESET");
-    tft.setTextSize(1);
-    tft.setTextColor(C_TEXT_DIM);
-    const char* sub = "Wist WiFi instellingen — apparaat herstart";
-    tw = strlen(sub) * 6;
-    tft.setCursor(OTA_BTN_X + (OTA_BTN_W - tw) / 2, cy4 + 18);
-    tft.print(sub);
+    // Knop 4: WiFi netwerken beheren
+    ui_knop_groot(OTA_BTN_X, OTA_BTN_Y4, OTA_BTN_W, OTA_BTN_H,
+                  "WIFI NETWERKEN",
+                  wifi_verbonden ? ("Verbonden: " + WiFi.SSID()).c_str() : "Niet verbonden — tik om netwerk te kiezen",
+                  C_SURFACE, C_CYAN, C_CYAN, false);
 
     ota_info_teken();
     nav_bar_teken();
@@ -159,18 +148,8 @@ void screen_ota_run(int x, int y, bool aanraking) {
     }
 
     if (y >= OTA_BTN_Y4 && y < OTA_BTN_Y4 + OTA_BTN_H) {
-        // Bevestigingsbericht
-        tft.fillScreen(C_BG);
-        tft.setTextSize(2);
-        tft.setTextColor(C_RED_BRIGHT);
-        tft.setCursor(60, 160);
-        tft.print("WiFi wordt gewist...");
-        tft.setTextSize(1);
-        tft.setTextColor(C_TEXT_DIM);
-        tft.setCursor(60, 200);
-        tft.print("Apparaat herstart. Verbind dan met AP: BKOS-NUI-Setup");
-        delay(2000);
-        wifi_reset();
+        actief_scherm = SCREEN_WIFI;
+        scherm_bouwen = true;
         return;
     }
 }

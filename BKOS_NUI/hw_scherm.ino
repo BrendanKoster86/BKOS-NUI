@@ -21,13 +21,14 @@ void tft_loop() {
     if (!tft_actief) {
         if (actieve_touch) {
             tft_actief = true;
+            scherm_net_gewekt = true;
             tft_helderheid_zet(tft_helderheid);
-            while (actieve_touch) ts_touched();
         }
     } else if (!actieve_touch) {
-        if (millis() > scherm_touched + (unsigned long)scherm_timer * 1000) {
+        if (scherm_timer > 0 &&
+            millis() > scherm_touched + (unsigned long)scherm_timer * 1000) {
             tft_actief = false;
-            tft_helderheid_zet(5);
+            tft_helderheid_zet(0);
         }
     }
 }

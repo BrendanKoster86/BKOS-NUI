@@ -19,10 +19,11 @@ Arduino_ESP32RGBPanel *rgbpanel = new Arduino_ESP32RGBPanel(
 
 Arduino_RGB_Display tft(800, 480, rgbpanel, 0, true);
 
-int   tft_helderheid = 75;
-long  scherm_timer   = 30;   // seconden voor dimmen
-bool  tft_actief     = true;
-long  scherm_touched = 0;
+int   tft_helderheid    = 75;
+long  scherm_timer      = 30;    // seconden voor dimmen (0 = nooit)
+bool  tft_actief        = true;
+long  scherm_touched    = 0;
+bool  scherm_net_gewekt = false; // scherm net wakker: eerste touch overslaan
 
 void tft_setup();
 void tft_loop();

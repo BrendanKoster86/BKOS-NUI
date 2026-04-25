@@ -169,28 +169,13 @@ void boot_teken() {
     tft.drawCircle(BOOT_BX(75), BOOT_BY(139), 4, C_CYAN);
     tft.drawCircle(BOOT_BX(83), BOOT_BY(139), 4, C_CYAN);
 
-    // Boot naam/type
+    // Boot naam (uit info-scherm of standaard)
     tft.setTextSize(1);
     tft.setTextColor(C_TEXT_DIM);
     tft.setCursor(BOOT_BX(42), BOOT_BY(58));
     tft.print("CR");
     tft.setCursor(BOOT_BX(37), BOOT_BY(68));
     tft.print("1070");
-
-    // Legenda lichtindicatoren
-    int ly = BDY + BDH - 20;
-    tft.fillRect(BDX, ly - 6, BDW, 26, C_BG);
-    tft.setTextSize(1);
-    tft.fillCircle(BDX+12, ly, 5, C_LIGHT_OFF);
-    tft.setTextColor(C_TEXT_DIM);
-    tft.setCursor(BDX+20, ly-3); tft.print("Uit");
-    tft.fillCircle(BDX+55, ly, 5, C_LIGHT_COOLING);
-    tft.setCursor(BDX+63, ly-3); tft.print("Koelt");
-    tft.fillCircle(BDX+104, ly, 5, C_LIGHT_PENDING);
-    tft.setCursor(BDX+112, ly-3); tft.print("Wacht");
-    tft.fillCircle(BDX+157, ly, 5, C_LIGHT_ON);
-    tft.setTextColor(C_WHITE);
-    tft.setCursor(BDX+165, ly-3); tft.print("Aan");
 }
 
 // ─── Licht indicatoren op de boot ───────────────────────────────────
@@ -339,10 +324,11 @@ static void apparaat_knoppen_teken() {
         {"WATER",    I_WATER,    "**water", DKNOP2_X1, DKNOP_Y2},
         {"DEKLICHT", I_DEKLICHT, "**E_dek", DKNOP2_X2, DKNOP_Y2},
     };
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < 5; i++) {
+        bool aan = (io_kanalen_cnt > 0) ? io_apparaat_staat(ap[i].prefix) : dev_lokaal[i];
         schakelaars_knop(ap[i].x, ap[i].y, DKNOP_W, DKNOP_H,
-                         ap[i].label, ap[i].icoon, C_CYAN,
-                         io_apparaat_staat(ap[i].prefix));
+                         ap[i].label, ap[i].icoon, C_CYAN, aan);
+    }
 }
 
 // ─── Interieur licht status (compact) ───────────────────────────────
@@ -502,6 +488,7 @@ void screen_main_run(int x, int y, bool aanraking) {
         if (x >= ap[i].x && x < ap[i].x + DKNOP_W &&
             y >= ap[i].y && y < ap[i].y + DKNOP_H) {
             io_apparaat_toggle(ap[i].prefix);
+            dev_lokaal[i] = !dev_lokaal[i];  // altijd lokale staat bijhouden
             gewijzigd = true;
         }
     }
