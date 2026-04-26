@@ -1,10 +1,12 @@
 #include "screen_info.h"
 #include "nav_bar.h"
+#include <SPIFFS.h>
+
+#define INFO_BESTAND "/bkos_info.csv"
 
 // ─── Info state ──────────────────────────────────────────────────────
-static byte info_tab = 0;  // 0=boot, 1=eigenaar
+static byte info_tab = 0;
 
-// Veldnamen en waarden
 static const char* boot_labels[6]  = {"Naam", "Type", "Lengte", "Breedte", "Diepgang", "Hoogte"};
 static const char* boot_keys[6]    = {"b_naam","b_type","b_len","b_br","b_dg","b_hg"};
 static char        boot_vals[6][INFO_VELD_LEN];
@@ -15,35 +17,56 @@ static char        eig_vals[5][INFO_VELD_LEN];
 
 static bool info_geladen = false;
 
-// ─── NVS opslaan/laden ───────────────────────────────────────────────
+// ─── SPIFFS opslaan/laden ─────────────────────────────────────────────
 void info_laden() {
-    Preferences prefs;
-    prefs.begin("bkos_info", true);
-    for (int i = 0; i < 6; i++) {
-        String v = prefs.getString(boot_keys[i], "");
-        strncpy(boot_vals[i], v.c_str(), INFO_VELD_LEN - 1);
-        boot_vals[i][INFO_VELD_LEN - 1] = '\0';
+    for (int i = 0; i < 6; i++) boot_vals[i][0] = '\0';
+    for (int i = 0; i < 5; i++) eig_vals[i][0]  = '\0';
+
+    if (!SPIFFS.exists(INFO_BESTAND)) { info_geladen = true; return; }
+
+    File f = SPIFFS.open(INFO_BESTAND, "r");
+    if (!f) { info_geladen = true; return; }
+
+    while (f.available()) {
+        String lijn = f.readStringUntil('\n');
+        lijn.trim();
+        if (lijn.length() == 0) continue;
+        int sep = lijn.indexOf('=');
+        if (sep < 1) continue;
+        String sleutel = lijn.substring(0, sep);
+        String waarde  = lijn.substring(sep + 1);
+        for (int i = 0; i < 6; i++) {
+            if (sleutel == boot_keys[i]) {
+                strncpy(boot_vals[i], waarde.c_str(), INFO_VELD_LEN - 1);
+                boot_vals[i][INFO_VELD_LEN - 1] = '\0';
+            }
+        }
+        for (int i = 0; i < 5; i++) {
+            if (sleutel == eig_keys[i]) {
+                strncpy(eig_vals[i], waarde.c_str(), INFO_VELD_LEN - 1);
+                eig_vals[i][INFO_VELD_LEN - 1] = '\0';
+            }
+        }
     }
-    for (int i = 0; i < 5; i++) {
-        String v = prefs.getString(eig_keys[i], "");
-        strncpy(eig_vals[i], v.c_str(), INFO_VELD_LEN - 1);
-        eig_vals[i][INFO_VELD_LEN - 1] = '\0';
-    }
-    prefs.end();
+    f.close();
     info_geladen = true;
 }
 
 void info_opslaan() {
-    Preferences prefs;
-    prefs.begin("bkos_info", false);
-    for (int i = 0; i < 6; i++) prefs.putString(boot_keys[i], boot_vals[i]);
-    for (int i = 0; i < 5; i++) prefs.putString(eig_keys[i], eig_vals[i]);
-    prefs.end();
+    File f = SPIFFS.open(INFO_BESTAND, "w");
+    if (!f) { Serial.println("info_opslaan: SPIFFS open mislukt"); return; }
+    for (int i = 0; i < 6; i++) {
+        if (strlen(boot_vals[i]) > 0) f.printf("%s=%s\n", boot_keys[i], boot_vals[i]);
+    }
+    for (int i = 0; i < 5; i++) {
+        if (strlen(eig_vals[i]) > 0) f.printf("%s=%s\n", eig_keys[i], eig_vals[i]);
+    }
+    f.close();
 }
 
-// ─── Toetsenbord ────────────────────────────────────────────────────
+// ─── Toetsenbord ─────────────────────────────────────────────────────
 static bool   info_kb_actief  = false;
-static int    info_kb_idx     = -1;  // veldindex
+static int    info_kb_idx     = -1;
 static bool   info_kb_boot    = true;
 static char   info_kb_invoer[INFO_VELD_LEN] = "";
 static unsigned long info_kb_sloot = 0;
@@ -62,23 +85,15 @@ static const char* info_kb_rijen[4] = {"1234567890", "QWERTYUIOP", "ASDFGHJKL", 
 static void info_kb_teken() {
     tft.fillRect(0, CONTENT_Y, TFT_W, CONTENT_H, C_SURFACE);
 
-    // Huidige invoer
     tft.fillRoundRect(IKB_X, IKB_INV_Y, IKB_W, IKB_INV_H, 6, C_SURFACE2);
     tft.drawRoundRect(IKB_X, IKB_INV_Y, IKB_W, IKB_INV_H, 6, C_CYAN);
-    tft.setTextSize(2);
-    tft.setTextColor(C_WHITE);
+    tft.setTextSize(2); tft.setTextColor(C_WHITE);
     tft.setCursor(IKB_X + 12, IKB_INV_Y + (IKB_INV_H - 16) / 2);
 
-    // Toon veldnaam
     const char* lbl = info_kb_boot ? boot_labels[info_kb_idx] : eig_labels[info_kb_idx];
-    tft.setTextColor(C_TEXT_DIM);
-    tft.print(lbl);
-    tft.print(": ");
-    tft.setTextColor(C_WHITE);
-    tft.print(info_kb_invoer);
-    tft.print("_");
+    tft.setTextColor(C_TEXT_DIM); tft.print(lbl); tft.print(": ");
+    tft.setTextColor(C_WHITE); tft.print(info_kb_invoer); tft.print("_");
 
-    // Toetsen
     for (int rij = 0; rij < 4; rij++) {
         const char* keys = info_kb_rijen[rij];
         int cnt = strlen(keys);
@@ -88,8 +103,7 @@ static void info_kb_teken() {
             int ky = IKB_KEYS_Y + rij * (IKB_TH + 4);
             tft.fillRoundRect(kx + 2, ky + 2, tw - 4, IKB_TH - 4, 5, C_SURFACE2);
             tft.drawRoundRect(kx + 2, ky + 2, tw - 4, IKB_TH - 4, 5, C_SURFACE3);
-            tft.setTextSize(2);
-            tft.setTextColor(C_TEXT);
+            tft.setTextSize(2); tft.setTextColor(C_TEXT);
             tft.setCursor(kx + (tw - 12) / 2, ky + (IKB_TH - 16) / 2);
             tft.print(keys[k]);
         }
@@ -131,12 +145,8 @@ static bool info_kb_run(int x, int y) {
             if (len < INFO_VELD_LEN - 1) { info_kb_invoer[len] = ' '; info_kb_invoer[len+1] = '\0'; }
             info_kb_teken();
         } else if (x >= IKB_X + 286 && x < IKB_X + 446) {
-            // Opslaan
-            if (info_kb_boot) {
-                strncpy(boot_vals[info_kb_idx], info_kb_invoer, INFO_VELD_LEN - 1);
-            } else {
-                strncpy(eig_vals[info_kb_idx], info_kb_invoer, INFO_VELD_LEN - 1);
-            }
+            if (info_kb_boot) strncpy(boot_vals[info_kb_idx], info_kb_invoer, INFO_VELD_LEN - 1);
+            else              strncpy(eig_vals[info_kb_idx],  info_kb_invoer, INFO_VELD_LEN - 1);
             info_opslaan();
             info_kb_actief = false;
             return true;
@@ -149,17 +159,16 @@ static bool info_kb_run(int x, int y) {
 }
 
 // ─── Tab balk ────────────────────────────────────────────────────────
-#define TAB_Y     CONTENT_Y
-#define TAB_H     36
-#define TAB_W     (TFT_W / 2)
+#define TAB_Y   CONTENT_Y
+#define TAB_H   36
+#define TAB_W   (TFT_W / 2)
 
 static void info_tabs_teken() {
     for (int i = 0; i < 2; i++) {
         bool actief = (info_tab == (byte)i);
-        uint16_t bg = actief ? C_SURFACE2 : C_SURFACE;
-        tft.fillRect(i * TAB_W, TAB_Y, TAB_W, TAB_H, bg);
+        tft.fillRect(i * TAB_W, TAB_Y, TAB_W, TAB_H, actief ? C_SURFACE2 : C_SURFACE);
         if (actief) {
-            tft.drawFastHLine(i * TAB_W + 10, TAB_Y, TAB_W - 20, C_CYAN);
+            tft.drawFastHLine(i * TAB_W + 10, TAB_Y,     TAB_W - 20, C_CYAN);
             tft.drawFastHLine(i * TAB_W + 10, TAB_Y + 1, TAB_W - 20, C_CYAN);
         }
         const char* lbl = (i == 0) ? "BOOT" : "EIGENAAR";
@@ -172,45 +181,30 @@ static void info_tabs_teken() {
     tft.drawFastHLine(0, TAB_Y + TAB_H, TFT_W, C_SURFACE2);
 }
 
-// ─── Velden tekenen ──────────────────────────────────────────────────
+// ─── Velden ──────────────────────────────────────────────────────────
 #define VELD_START_Y  (TAB_Y + TAB_H + 4)
 #define VELD_H        50
 #define VELD_LABEL_W  120
 
 static void info_veld_teken(int idx, int y, const char* label, const char* waarde) {
-    bool even = (idx % 2 == 0);
-    tft.fillRect(10, y, TFT_W - 20, VELD_H - 2, even ? C_SURFACE : C_BG);
-
-    tft.setTextSize(1);
-    tft.setTextColor(C_TEXT_DIM);
-    tft.setCursor(18, y + (VELD_H - 8) / 2);
-    tft.print(label);
-
+    tft.fillRect(10, y, TFT_W - 20, VELD_H - 2, (idx % 2 == 0) ? C_SURFACE : C_BG);
+    tft.setTextSize(1); tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(18, y + (VELD_H - 8) / 2); tft.print(label);
     tft.setTextSize(2);
     tft.setTextColor(strlen(waarde) > 0 ? C_TEXT : C_DARK_GRAY);
     tft.setCursor(VELD_LABEL_W + 18, y + (VELD_H - 16) / 2);
     tft.print(strlen(waarde) > 0 ? waarde : "(niet ingevuld)");
-
-    // Bewerk icoon
     tft.setTextColor(C_SURFACE3);
-    tft.setCursor(TFT_W - 30, y + (VELD_H - 8) / 2);
-    tft.print(">");
+    tft.setCursor(TFT_W - 30, y + (VELD_H - 8) / 2); tft.print(">");
 }
 
 static void info_velden_teken() {
     int fy = VELD_START_Y;
     tft.fillRect(0, VELD_START_Y, TFT_W, TFT_H - NAV_H - VELD_START_Y, C_BG);
-
     if (info_tab == 0) {
-        for (int i = 0; i < 6; i++) {
-            info_veld_teken(i, fy, boot_labels[i], boot_vals[i]);
-            fy += VELD_H;
-        }
+        for (int i = 0; i < 6; i++) { info_veld_teken(i, fy, boot_labels[i], boot_vals[i]); fy += VELD_H; }
     } else {
-        for (int i = 0; i < 5; i++) {
-            info_veld_teken(i, fy, eig_labels[i], eig_vals[i]);
-            fy += VELD_H;
-        }
+        for (int i = 0; i < 5; i++) { info_veld_teken(i, fy, eig_labels[i], eig_vals[i]);  fy += VELD_H; }
     }
 }
 
@@ -220,10 +214,8 @@ void screen_info_teken() {
     tft.fillScreen(C_BG);
     tft.fillRect(0, 0, TFT_W, SB_H, C_STATUSBAR);
     tft.drawFastHLine(0, SB_H - 1, TFT_W, C_SURFACE2);
-    tft.setTextSize(2);
-    tft.setTextColor(C_CYAN);
-    tft.setCursor(10, (SB_H - 16) / 2);
-    tft.print("BOOT & EIGENAAR");
+    tft.setTextSize(2); tft.setTextColor(C_CYAN);
+    tft.setCursor(10, (SB_H - 16) / 2); tft.print("BOOT & EIGENAAR");
     info_tabs_teken();
     info_velden_teken();
     nav_bar_teken();
@@ -237,21 +229,17 @@ void screen_info_run(int x, int y, bool aanraking) {
         bool klaar = info_kb_run(x, y);
         if (klaar) {
             info_kb_actief = false;
-            info_kb_sloot = millis();
-            scherm_bouwen = true;
+            info_kb_sloot  = millis();
+            scherm_bouwen  = true;
         }
         return;
     }
 
-    // Nav bar
     int nav = nav_bar_klik(x, y);
     if (nav >= 0 && nav != actief_scherm) {
-        actief_scherm = nav;
-        scherm_bouwen = true;
-        return;
+        actief_scherm = nav; scherm_bouwen = true; return;
     }
 
-    // Tab wisselen
     if (y >= TAB_Y && y < TAB_Y + TAB_H) {
         byte nieuwe_tab = (x < TFT_W / 2) ? 0 : 1;
         if (nieuwe_tab != info_tab) {
@@ -262,7 +250,6 @@ void screen_info_run(int x, int y, bool aanraking) {
         return;
     }
 
-    // Veld klikken
     if (y >= VELD_START_Y) {
         int veld_idx = (y - VELD_START_Y) / VELD_H;
         int n_velden = (info_tab == 0) ? 6 : 5;
