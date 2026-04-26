@@ -38,7 +38,7 @@ jobs:
       - name: Compile firmware
         run: |
           arduino-cli compile \
-            --fqbn "esp32:esp32:esp32s3:CDCOnBoot=default,PartitionScheme=default_8MB,FlashSize=16M,FlashMode=dio,FlashFreq=80" \
+            --fqbn "esp32:esp32:esp32s3:CDCOnBoot=default,PartitionScheme=default_8MB,FlashSize=16M,FlashMode=dio,PSRAM=opi" \
             --output-dir build/ \
             BKOS_NUI/
 
