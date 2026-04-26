@@ -1,6 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include <Preferences.h>
+#include "hw_io.h"   // MAX_IO_KANALEN, IO_NAAM_LEN hier gedefinieerd
 
 // Actief scherm
 #define SCREEN_MAIN    0
@@ -22,22 +23,18 @@
 #define LICHT_AUTO  2
 
 // IO output stadia (per kanaal)
-#define IO_UIT         0  // uit
-#define IO_AAN         1  // aan
-#define IO_INV_UIT     2  // inverteer uit (hoog = uit)
-#define IO_INV_AAN     3  // inverteer aan (laag = aan)
-#define IO_GEBLOKKEERD 4  // geblokkeerd laag
-#define IO_INV_GEBLOKKEERD 5 // geblokkeerd hoog
-
-// Max IO kanalen
-#define MAX_IO_KANALEN 240  // 30 modules × 8
-#define IO_NAAM_LEN    12
+#define IO_UIT         0
+#define IO_AAN         1
+#define IO_INV_UIT     2
+#define IO_INV_AAN     3
+#define IO_GEBLOKKEERD 4
+#define IO_INV_GEBLOKKEERD 5
 
 // Lichtstaat (visueel, gecombineerd output+input)
-#define LSTATE_ECHT_UIT      0  // output=0, input=0 → echt uit
-#define LSTATE_KOELT_AF      1  // output=0, input=1 → uit maar voelt nog aan
-#define LSTATE_GEEN_SIGNAAL  2  // output=1, input=0 → aan maar geen signaal
-#define LSTATE_ECHT_AAN      3  // output=1, input=1 → echt aan
+#define LSTATE_ECHT_UIT      0
+#define LSTATE_KOELT_AF      1
+#define LSTATE_GEEN_SIGNAAL  2
+#define LSTATE_ECHT_AAN      3
 
 extern int    actief_scherm;
 extern bool   scherm_bouwen;
@@ -64,7 +61,5 @@ extern bool   wifi_verbonden;
 // Apparaat lokale staat (fallback als geen IO module)
 extern bool dev_lokaal[5];
 
-// Preferences opslaan
 void state_save();
 void state_load();
-byte licht_staat(int kanaal);

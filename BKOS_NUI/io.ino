@@ -69,15 +69,16 @@ void io_cyclus() {
         }
     }
 
-    // Lees inputs
+    // Lees inputs — geen delay() per kanaal, io_wacht_byte regelt de timing
     kanaal = 0;
     for (int m = 0; m < io_aparaten_cnt; m++) {
         int kanalen = (io_aparaten[m] == MODULE_LOGICA16 || io_aparaten[m] == MODULE_SCHAKEL16) ? 16 : 8;
         for (int k = 0; k < kanalen; k++) {
-            delay(25);
             char c;
             if (kanaal < MAX_IO_KANALEN) {
-                if (io_wacht_byte(c, 200)) {
+                // Eerste byte per module krijgt meer tijd, daarna gaat het snel
+                unsigned long t = (k == 0) ? 100 : 30;
+                if (io_wacht_byte(c, t)) {
                     bool nieuw = (c == '1');
                     if (nieuw != io_input[kanaal]) {
                         io_input[kanaal] = nieuw;
@@ -123,7 +124,6 @@ byte io_licht_staat(int kanaal) {
 }
 
 void io_verlichting_update() {
-    // Modus relays
     for (int i = 0; i < io_kanalen_cnt && i < MAX_IO_KANALEN; i++) {
         if (io_naam_is(i, "**haven"))  io_output[i] = (vaar_modus == MODE_HAVEN)  ? IO_AAN : IO_UIT;
         if (io_naam_is(i, "**zeilen")) io_output[i] = (vaar_modus == MODE_ZEILEN) ? IO_AAN : IO_UIT;
@@ -131,7 +131,6 @@ void io_verlichting_update() {
         if (io_naam_is(i, "**anker"))  io_output[i] = (vaar_modus == MODE_ANKER)  ? IO_AAN : IO_UIT;
     }
 
-    // Interieur verlichting
     bool ext_aan = (licht_instelling == LICHT_AAN) ||
                    (licht_instelling == LICHT_AUTO &&
                     (vaar_modus == MODE_ZEILEN || vaar_modus == MODE_MOTOR));

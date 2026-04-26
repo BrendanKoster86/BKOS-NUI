@@ -1,0 +1,54 @@
+name: Build Firmware
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'BKOS_NUI/**.ino'
+      - 'BKOS_NUI/**.h'
+      - '.github/workflows/build.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Arduino CLI
+        uses: arduino/setup-arduino-cli@v1
+
+      - name: Install ESP32 platform (core 2.x)
+        run: |
+          arduino-cli config init
+          arduino-cli config add board_manager.additional_urls \
+            https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@2.0.17
+
+      - name: Install libraries
+        run: |
+          arduino-cli lib install "Arduino_GFX_Library@1.3.7"
+          arduino-cli lib install "WiFiManager@2.0.16-rc.2"
+          arduino-cli lib install "TAMC_GT911@1.0.2"
+
+      - name: Compile firmware
+        run: |
+          arduino-cli compile \
+            --fqbn "esp32:esp32:esp32s3:CDCOnBoot=cdc,PartitionScheme=default_8MB,FlashSize=16M,FlashMode=qio,FlashFreq=80" \
+            --output-dir build/ \
+            BKOS_NUI/
+
+      - name: Copy firmware.bin to sketch folder
+        run: cp build/BKOS_NUI.ino.bin BKOS_NUI/firmware.bin
+
+      - name: Commit firmware
+        run: |
+          git config user.name  "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add BKOS_NUI/firmware.bin BKOS_NUI/versie.txt
+          git diff --staged --quiet || git commit -m "ci: build firmware $(cat BKOS_NUI/versie.txt)"
+          git push

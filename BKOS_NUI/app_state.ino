@@ -15,10 +15,10 @@ static Preferences prefs_state;
 
 void state_save() {
     prefs_state.begin("bkos_state", false);
-    prefs_state.putUChar("modus",    vaar_modus);
-    prefs_state.putUChar("licht",    licht_instelling);
-    prefs_state.putInt("helderh",    tft_helderheid);
-    prefs_state.putLong("timer",     scherm_timer);
+    prefs_state.putUChar("modus",  vaar_modus);
+    prefs_state.putUChar("licht",  licht_instelling);
+    prefs_state.putInt("helderh",  tft_helderheid);
+    prefs_state.putLong("timer",   scherm_timer);
     for (int i = 0; i < 5; i++) {
         char k[6]; snprintf(k, sizeof(k), "dev%d", i);
         prefs_state.putBool(k, dev_lokaal[i]);
@@ -37,13 +37,4 @@ void state_load() {
         dev_lokaal[i] = prefs_state.getBool(k, false);
     }
     prefs_state.end();
-}
-
-byte licht_staat(int kanaal) {
-    bool uit = (io_output[kanaal] == IO_UIT || io_output[kanaal] == IO_INV_UIT);
-    bool sig = io_input[kanaal];
-    if (uit && !sig)  return LSTATE_ECHT_UIT;
-    if (uit && sig)   return LSTATE_KOELT_AF;
-    if (!uit && !sig) return LSTATE_GEEN_SIGNAAL;
-    return LSTATE_ECHT_AAN;
 }

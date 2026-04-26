@@ -1,7 +1,7 @@
 #pragma once
 #include "wifi.h"
 
-#define BKOS_NUI_VERSIE     "5.N250426"
+#define BKOS_NUI_VERSIE     "6.N260426"
 #define OTA_GITHUB_VERSIE_URL   "https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/BKOS_NUI/versie.txt"
 #define OTA_GITHUB_FIRMWARE_URL "https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/BKOS_NUI/firmware.bin"
 
@@ -15,4 +15,5 @@ void ota_setup();
 void ota_loop();
 void ota_git_check();
 void ota_git_update();
+void ota_push_inschakelen(bool aan);
 bool ota_download_toepassen(String url);
