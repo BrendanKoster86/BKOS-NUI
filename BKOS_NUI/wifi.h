@@ -3,7 +3,6 @@
 #include <WiFiManager.h>
 #include <HTTPClient.h>
 #include <Update.h>
-#include <ArduinoJson.h>
 #include <ArduinoOTA.h>
 #include <time.h>
 
