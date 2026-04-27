@@ -165,6 +165,13 @@ Touch debouncing via `touch_verwerkt` flag; eerste touch na display wake wordt g
 | 21 | Sessie 3 | Keyboard: CLR-knop, CAPS-toggle (HOOFD/klein), @ toegevoegd als toets | ✅ Afgerond |
 | 22 | Sessie 3 | IO CFG NAAM-knop: toetsenbord direct in overlay, geen schermwissel meer | ✅ Afgerond |
 | 23 | Sessie 3 | Versienummer format gewijzigd naar MAJOR.MINOR.YYMMDD.I | ✅ Afgerond |
+| 24 | Sessie 4 | Toggle gedrag: io_apparaat_staat = true alleen als ALLE poorten AAN; toggle zet ALLE poorten uniform | ✅ Afgerond |
+| 25 | Sessie 4 | Config state van Preferences naar SPIFFS (/bkos_config.csv) | ✅ Afgerond |
+| 26 | Sessie 4 | 7 kleurenpaletten (MARINE/ROOD/GOUD/BLAUW/GROEN/WIT/NACHT) als runtime variabelen; swatch-selectie in config | ✅ Afgerond |
+| 27 | Sessie 4 | SYM-modus op toetsenbord: speciale tekens voor WiFi-wachtwoorden | ✅ Afgerond |
+| 28 | Sessie 4 | IO NAMEN: 2-kolom compact layout (7×2=14 per pagina, CFG_RIJ_H=38) | ✅ Afgerond |
+| 29 | Sessie 4 | Boot type tekeningen: kruizer, strijkijzer, catamaran | ✅ Afgerond |
+| 30 | Sessie 4 | Info scherm: hergebruik config-toetsenbord; numerieke velden tonen ft/in conversie | ✅ Afgerond |
 
 ---
 
@@ -178,6 +185,16 @@ Touch debouncing via `touch_verwerkt` flag; eerste touch na display wake wordt g
 - Push nooit zonder bijgewerkte `versie.txt` en geëxporteerde `firmware.bin`
 
 ---
+
+## Kleurenpaletten (ui_colors.h)
+
+Thema-afhankelijke kleuren zijn runtime `uint16_t` variabelen (niet meer #defines):
+`C_BG`, `C_SURFACE`, `C_SURFACE2`, `C_SURFACE3`, `C_STATUSBAR`, `C_NAVBAR`, `C_TEXT`, `C_TEXT_DIM`, `C_TEXT_DARK`, `C_DARK_GRAY`, `C_CYAN`, `C_NAV_ACTIVE`, `C_NAV_NORMAL`
+
+7 paletten gedefinieerd in `ui_colors.ino` (MARINE=0, ROOD=1, GOUD=2, BLAUW=3, GROEN=4, WIT=5, NACHT=6).
+`palette_toepassen(schema)` in `hw_setup()` aanroepen na `state_load()`.
+
+Vaste kleuren (ongewijzigd, #defines): `C_GREEN`, `C_RED_BRIGHT`, `C_AMBER`, `C_BLUE`, `C_HAVEN`, `C_ZEILEN`, `C_MOTOR`, `C_ANKER`, `C_LIGHT_*`
 
 ## GitHub Actions — FQBN verificatie
 
