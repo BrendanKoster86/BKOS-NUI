@@ -74,6 +74,7 @@ void hw_loop() {
     if (scherm_net_gewekt && aanraking) {
         scherm_net_gewekt = false;
         touch_verwerkt = true;
+        laatste_touch_ms = millis();  // debounce zodat vastgehouden vinger ook genegeerd wordt
     } else if (aanraking && !touch_verwerkt) {
         // Debounce: minimale tijd tussen twee aparte aanrakingen
         if (millis() - laatste_touch_ms >= TOUCH_DEBOUNCE_MS) {

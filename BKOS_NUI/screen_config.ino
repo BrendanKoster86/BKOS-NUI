@@ -12,6 +12,8 @@ bool kb_hoofdletters            = true;
 bool kb_sym                     = false;
 bool cfg_kb_info_mode           = false;
 bool cfg_kb_opgeslagen          = false;
+bool cfg_kb_numeriek            = false;
+char cfg_kb_label[24]           = "Naam:";
 static unsigned long cfg_kb_sloot = 0;
 static bool cfg_preset_menu     = false;
 
@@ -104,6 +106,62 @@ static void helderheid_balk_teken() {
     tft.setCursor(tx + 8, HLD_Y + 16); tft.print(tbuf);
 }
 
+// ─── Mini boot silhouet voor CONFIG knoppen ──────────────────────────────
+static void mini_boot(int btype, int x, int y, int w, int h, uint16_t c, uint16_t ca) {
+    switch (btype) {
+        case 0: { // Zeilboot
+            int bot = y + h;
+            int mx  = x + w * 2/5;
+            tft.drawLine(x, bot, x + w, bot - h/4, c);
+            tft.drawLine(x + w, bot - h/4, x + w - 5, bot - h/3, c);
+            tft.drawFastHLine(x, bot - h/3, w - 5, c);
+            tft.drawFastVLine(mx, y + 1, bot - h/3 - y - 1, ca);
+            tft.drawLine(mx, y + 1, x + w - 7, bot - h/3 - 1, ca);
+            tft.drawLine(x + w - 7, bot - h/3 - 1, mx, bot - h/3 - 1, ca);
+            break;
+        }
+        case 1: { // Kruizer
+            int ht = y + h / 2;
+            tft.drawFastHLine(x, y + h, w, c);
+            tft.drawLine(x, y + h, x + 2, ht, c);
+            tft.drawLine(x + w - 2, y + h, x + w, ht + h/4, c);
+            tft.drawLine(x + w, ht + h/4, x + w - 4, ht, c);
+            tft.drawFastHLine(x + 2, ht, w - 6, c);
+            int cx = x + w/4, cw = w/2, ch = h/3;
+            tft.drawRect(cx, ht - ch, cw, ch, c);
+            tft.drawFastHLine(cx + 3, ht - ch + 3, 4, ca);
+            tft.drawFastHLine(cx + cw - 7, ht - ch + 3, 4, ca);
+            break;
+        }
+        case 2: { // Strijkijzer / speedboat
+            int hy = y + h * 2/3;
+            tft.drawFastHLine(x + 4, y + h, w - 4, c);
+            tft.drawLine(x, hy, x + 4, y + h, c);
+            tft.drawLine(x + w, y + h, x + w, hy, c);
+            tft.drawFastHLine(x, hy, w, c);
+            tft.drawLine(x + 4, hy, x + w/3, y + h/4, ca);
+            tft.drawLine(x + w/3, y + h/4, x + w*3/4, y + h/4, ca);
+            tft.drawLine(x + w*3/4, y + h/4, x + w, hy, ca);
+            break;
+        }
+        case 3: { // Catamaran
+            int h1 = y + h / 4, h2 = y + h * 3/4 - 3, hh = h/6 + 1;
+            tft.drawFastHLine(x, h1, w - 4, c);
+            tft.drawLine(x + w - 4, h1, x + w, h1 + hh, c);
+            tft.drawFastHLine(x, h1 + hh, w, c);
+            tft.drawFastHLine(x, h2, w - 4, c);
+            tft.drawLine(x + w - 4, h2, x + w, h2 + hh, c);
+            tft.drawFastHLine(x, h2 + hh, w, c);
+            tft.drawFastVLine(x + w/3, h1 + hh, h2 - h1 - hh, c);
+            tft.drawFastVLine(x + w*2/3, h1 + hh, h2 - h1 - hh, c);
+            int mx = x + w/2;
+            tft.drawFastVLine(mx, y + 1, h1 - y - 1, ca);
+            tft.drawLine(mx, y + 1, x + w/3, h1, ca);
+            break;
+        }
+    }
+}
+
 // ─── Tab 0: Instellingen ────────────────────────────────────────────────
 static const char* palette_names[PALETTE_CNT] = {
     "MARINE", "ROOD", "GOUD", "BLAUW", "GROEN", "WIT", "NACHT"
@@ -160,8 +218,17 @@ static void cfg_instellingen_teken() {
     int bw = 148, bx = 90;
     for (int i = 0; i < 4; i++) {
         bool act = (boot_type == i);
-        ui_knop(bx + i * (bw + 6), by + 4, bw, 32, boots[i],
-                act ? C_CYAN : C_SURFACE2, act ? C_TEXT_DARK : C_TEXT);
+        int bx_i = bx + i * (bw + 6);
+        uint16_t bbg = act ? C_CYAN : C_SURFACE2;
+        uint16_t bfg = act ? C_TEXT_DARK : C_TEXT_DIM;
+        tft.fillRoundRect(bx_i, by + 4, bw, 32, 5, bbg);
+        tft.drawRoundRect(bx_i, by + 4, bw, 32, 5, act ? C_WHITE : C_SURFACE3);
+        tft.setTextSize(1); tft.setTextColor(bfg);
+        tft.setCursor(bx_i + 5, by + 4 + (32 - 8) / 2);
+        tft.print(boots[i]);
+        uint16_t mc = act ? C_TEXT_DARK : C_TEXT_DIM;
+        uint16_t mca = act ? RGB565(0,0,0) : C_CYAN;
+        mini_boot(i, bx_i + bw - 66, by + 7, 60, 22, mc, mca);
     }
 
     // Zeilnummer
@@ -241,6 +308,8 @@ static void cfg_instellingen_run(int x, int y) {
         cfg_bewerk_zeilnr = true;
         strncpy(cfg_invoer, zeilnummer, CFG_INVOER_LEN - 1);
         cfg_invoer[CFG_INVOER_LEN - 1] = '\0';
+        strncpy(cfg_kb_label, "Zeilnr:", 24);
+        cfg_kb_numeriek = false;
         cfg_toetsenbord_actief = true;
         screen_config_toetsenbord_teken();
         return;
@@ -379,11 +448,37 @@ void screen_config_toetsenbord_teken() {
     tft.drawRoundRect(KB_X, KB_INV_Y, KB_W, KB_INV_H, 6, C_CYAN);
     tft.setTextSize(2); tft.setTextColor(C_TEXT_DIM);
     tft.setCursor(KB_X + 8, KB_INV_Y + (KB_INV_H - 16) / 2);
-    tft.print(cfg_bewerk_zeilnr ? "Zeilnr: " : "Naam: ");
+    tft.print(cfg_kb_label[0] ? cfg_kb_label : "Naam:");
+    tft.print(" ");
     tft.setTextColor(C_WHITE);
     tft.print(cfg_invoer); tft.print("_");
 
-    if (!cfg_bewerk_zeilnr && !cfg_kb_info_mode) cfg_chips_teken();
+    if (!cfg_bewerk_zeilnr && !cfg_kb_info_mode && !cfg_kb_numeriek) cfg_chips_teken();
+
+    // Numeriek toetsenbord (alleen cijfers + komma)
+    if (cfg_kb_numeriek) {
+        static const char* num_rijen[4] = {"789", "456", "123", "0,"};
+        int num_tw = KB_W / 3;
+        for (int rij = 0; rij < 4; rij++) {
+            const char* keys = num_rijen[rij];
+            int cnt = strlen(keys);
+            for (int k = 0; k < cnt; k++) {
+                int kx = KB_X + k * num_tw;
+                int ky = KB_CHIP_Y + rij * (KB_TOETS_H + 4);
+                tft.fillRoundRect(kx + 2, ky + 2, num_tw - 4, KB_TOETS_H - 4, 5, C_SURFACE2);
+                tft.drawRoundRect(kx + 2, ky + 2, num_tw - 4, KB_TOETS_H - 4, 5, C_SURFACE3);
+                tft.setTextSize(3); tft.setTextColor(C_TEXT);
+                tft.setCursor(kx + (num_tw - 18) / 2, ky + (KB_TOETS_H - 24) / 2);
+                tft.print(keys[k]);
+            }
+        }
+        int num_btn_y = KB_CHIP_Y + 4 * (KB_TOETS_H + 4) + 4;
+        ui_knop(KB_X + KB_DEL_X, num_btn_y, KB_DEL_W, KB_BTN_H, "< DEL",   C_SURFACE2, C_RED_BRIGHT);
+        ui_knop(KB_X + KB_CLR_X, num_btn_y, KB_CLR_W, KB_BTN_H, "CLR",     C_SURFACE2, C_RED_BRIGHT);
+        ui_knop(KB_X + KB_OPS_X, num_btn_y, KB_OPS_W, KB_BTN_H, "OPSLAAN", C_GREEN,    C_TEXT_DARK);
+        ui_knop(KB_X + KB_CAN_X, num_btn_y, KB_CAN_W, KB_BTN_H, "CANCEL",  C_SURFACE2, C_TEXT_DIM);
+        return;
+    }
 
     // Toetsrijen (normaal of SYM)
     const char** rijen = kb_sym ? kb_sym_rijen : kb_rijen;
@@ -450,6 +545,61 @@ static bool cfg_chip_klik(int x, int y) {
 }
 
 bool screen_config_toetsenbord_run(int x, int y) {
+    // Numeriek toetsenbord
+    if (cfg_kb_numeriek) {
+        static const char* num_rijen[4] = {"789", "456", "123", "0,"};
+        int num_tw  = KB_W / 3;
+        int num_btn_y = KB_CHIP_Y + 4 * (KB_TOETS_H + 4) + 4;
+        for (int rij = 0; rij < 4; rij++) {
+            const char* keys = num_rijen[rij];
+            int cnt = strlen(keys);
+            int ky = KB_CHIP_Y + rij * (KB_TOETS_H + 4);
+            if (y >= ky && y < ky + KB_TOETS_H) {
+                int k = (x - KB_X) / num_tw;
+                if (k >= 0 && k < cnt) {
+                    int len = strlen(cfg_invoer);
+                    if (len < CFG_INVOER_LEN - 1) {
+                        cfg_invoer[len] = keys[k];
+                        cfg_invoer[len + 1] = '\0';
+                    }
+                    screen_config_toetsenbord_teken();
+                    return false;
+                }
+            }
+        }
+        if (y >= num_btn_y && y < num_btn_y + KB_BTN_H) {
+            if (x >= KB_X + KB_DEL_X && x < KB_X + KB_DEL_X + KB_DEL_W) {
+                int len = strlen(cfg_invoer);
+                if (len > 0) cfg_invoer[len - 1] = '\0';
+                screen_config_toetsenbord_teken();
+            } else if (x >= KB_X + KB_CLR_X && x < KB_X + KB_CLR_X + KB_CLR_W) {
+                cfg_invoer[0] = '\0';
+                screen_config_toetsenbord_teken();
+            } else if (x >= KB_X + KB_OPS_X && x < KB_X + KB_OPS_X + KB_OPS_W) {
+                if (cfg_kb_info_mode) {
+                    cfg_kb_opgeslagen = true;
+                } else if (cfg_bewerk_zeilnr) {
+                    strncpy(zeilnummer, cfg_invoer, ZEILNR_LEN - 1);
+                    zeilnummer[ZEILNR_LEN - 1] = '\0';
+                    state_save();
+                    cfg_bewerk_zeilnr = false;
+                }
+                cfg_toetsenbord_actief = false;
+                cfg_kb_info_mode  = false;
+                cfg_kb_numeriek   = false;
+                return true;
+            } else if (x >= KB_X + KB_CAN_X) {
+                cfg_bewerk_zeilnr     = false;
+                cfg_toetsenbord_actief = false;
+                cfg_kb_info_mode      = false;
+                cfg_kb_opgeslagen     = false;
+                cfg_kb_numeriek       = false;
+                return true;
+            }
+        }
+        return false;
+    }
+
     if (cfg_chip_klik(x, y)) return false;
 
     const char** rijen = kb_sym ? kb_sym_rijen : kb_rijen;
@@ -508,16 +658,18 @@ bool screen_config_toetsenbord_run(int x, int y) {
                 hw_io_namen_opslaan();
             }
             cfg_toetsenbord_actief = false;
-            cfg_kb_info_mode = false;
+            cfg_kb_info_mode  = false;
+            cfg_kb_numeriek   = false;
             kb_sym = false;
             return true;
         } else if (x >= KB_X + KB_CAN_X) {
             // CANCEL
-            cfg_bewerk_zeilnr    = false;
+            cfg_bewerk_zeilnr      = false;
             cfg_toetsenbord_actief = false;
-            cfg_kb_info_mode     = false;
-            cfg_kb_opgeslagen    = false;
-            kb_sym               = false;
+            cfg_kb_info_mode       = false;
+            cfg_kb_opgeslagen      = false;
+            cfg_kb_numeriek        = false;
+            kb_sym                 = false;
             return true;
         }
     }
@@ -646,6 +798,8 @@ static void cfg_io_namen_run(int x, int y) {
             cfg_bewerk_zeilnr = false;
             strncpy(cfg_invoer, io_namen[kanaal], CFG_INVOER_LEN);
             cfg_invoer[CFG_INVOER_LEN - 1] = '\0';
+            strncpy(cfg_kb_label, "Naam:", 24);
+            cfg_kb_numeriek = false;
             cfg_toetsenbord_actief = true;
             screen_config_toetsenbord_teken();
         }

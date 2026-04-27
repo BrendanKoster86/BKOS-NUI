@@ -172,6 +172,14 @@ Touch debouncing via `touch_verwerkt` flag; eerste touch na display wake wordt g
 | 28 | Sessie 4 | IO NAMEN: 2-kolom compact layout (7×2=14 per pagina, CFG_RIJ_H=38) | ✅ Afgerond |
 | 29 | Sessie 4 | Boot type tekeningen: kruizer, strijkijzer, catamaran | ✅ Afgerond |
 | 30 | Sessie 4 | Info scherm: hergebruik config-toetsenbord; numerieke velden tonen ft/in conversie | ✅ Afgerond |
+| 31 | Sessie 5 | Kleurpaletten: achtergrond wordt overheersende kleur per palet (ROOD=donkerrood, GROEN=donkergroen, etc.) | ✅ Afgerond |
+| 32 | Sessie 5 | Wake-touch fix: laatste_touch_ms=millis() bij scherm-wake → vasthouden vinger triggert geen actie | ✅ Afgerond |
+| 33 | Sessie 5 | IO schakelaar-bug: io_gewijzigd[kanaal]=true toegevoegd, toggle vereenvoudigd (geen INV-logica meer) | ✅ Afgerond |
+| 34 | Sessie 5 | IO flikkering: alleen gewijzigde rijen hertekenen via prev_io_output/prev_io_input vergelijking | ✅ Afgerond |
+| 35 | Sessie 5 | cfg_kb_label: toetsenbord toont veldnaam i.p.v. hardcoded "Naam:" | ✅ Afgerond |
+| 36 | Sessie 5 | cfg_kb_numeriek: cijfertoetsenbord (0-9 + komma) voor maatvelden; komma als decimaalteken | ✅ Afgerond |
+| 37 | Sessie 5 | Afmetingen: weergave op grootte 2 met ft/in conversie in grootte 1 eronder | ✅ Afgerond |
+| 38 | Sessie 5 | Boot mini-preview in CONFIG boottype knoppen (60×22px silhouet per type) | ✅ Afgerond |
 
 ---
 

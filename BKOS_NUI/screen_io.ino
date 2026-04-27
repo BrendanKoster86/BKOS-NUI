@@ -3,6 +3,10 @@
 
 int io_pagina = 0;
 
+static byte prev_io_output[IO_RIJEN_PER_PAGINA];
+static bool prev_io_input[IO_RIJEN_PER_PAGINA];
+static int  prev_pagina = -1;
+
 static void io_rij_teken(int kanaal, int rij_y) {
     int n_vis = io_zichtbaar();
     bool geldig = (kanaal < n_vis && kanaal < MAX_IO_KANALEN);
@@ -102,7 +106,19 @@ void screen_io_teken() {
 void screen_io_run(int x, int y, bool aanraking) {
     if (!aanraking) {
         if (io_runned) {
-            screen_io_teken_rijen();
+            int n_vis = io_zichtbaar();
+            bool pagina_veranderd = (prev_pagina != io_pagina);
+            prev_pagina = io_pagina;
+            for (int r = 0; r < IO_RIJEN_PER_PAGINA; r++) {
+                int k = io_pagina * IO_RIJEN_PER_PAGINA + r;
+                byte cur_out = (k < n_vis && k < MAX_IO_KANALEN) ? io_output[k] : 0xFF;
+                bool cur_in  = (k < n_vis && k < MAX_IO_KANALEN) ? io_input[k]  : false;
+                if (pagina_veranderd || cur_out != prev_io_output[r] || cur_in != prev_io_input[r]) {
+                    io_rij_teken(k, CONTENT_Y + r * IO_RIJ_H);
+                    prev_io_output[r] = cur_out;
+                    prev_io_input[r]  = cur_in;
+                }
+            }
             io_runned = false;
         }
         return;
@@ -121,10 +137,12 @@ void screen_io_run(int x, int y, bool aanraking) {
         int px    = TFT_W - 290;
         if (x >= px && x < px + 90 && io_pagina > 0) {
             io_pagina--;
+            prev_pagina = -1;
             io_sb_teken();
             screen_io_teken_rijen();
         } else if (x >= px + 162 && x < px + 262 && io_pagina < n_pag - 1) {
             io_pagina++;
+            prev_pagina = -1;
             io_sb_teken();
             screen_io_teken_rijen();
         }
@@ -138,11 +156,11 @@ void screen_io_run(int x, int y, bool aanraking) {
         int n_vis  = io_zichtbaar();
         if (kanaal >= 0 && kanaal < n_vis && kanaal < MAX_IO_KANALEN) {
             if (io_richting[kanaal] != IO_RICHTING_IN) {
-                if (io_output[kanaal] == IO_UIT || io_output[kanaal] == IO_INV_UIT)
-                    io_output[kanaal] = (io_output[kanaal] == IO_UIT) ? IO_AAN : IO_INV_AAN;
-                else
-                    io_output[kanaal] = (io_output[kanaal] == IO_AAN) ? IO_UIT : IO_INV_UIT;
+                bool aan = (io_output[kanaal] == IO_AAN || io_output[kanaal] == IO_INV_AAN);
+                io_output[kanaal] = aan ? IO_UIT : IO_AAN;
+                io_gewijzigd[kanaal] = true;
                 io_rij_teken(kanaal, CONTENT_Y + rij * IO_RIJ_H);
+                prev_io_output[rij] = io_output[kanaal];
             }
         }
     }

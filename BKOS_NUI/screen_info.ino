@@ -72,11 +72,13 @@ void info_opslaan() {
 // ─── Omreken helper (meters → feet/inches) ───────────────────────────
 static void meter_naar_ft(const char* val, char* buf, int len) {
     if (strlen(val) == 0) { buf[0] = '\0'; return; }
-    float m = atof(val);
+    char tmp[32]; strncpy(tmp, val, 31); tmp[31] = '\0';
+    for (int i = 0; tmp[i]; i++) if (tmp[i] == ',') tmp[i] = '.';
+    float m = atof(tmp);
     float ft_totaal = m * 3.28084f;
     int   ft  = (int)ft_totaal;
     int   in_ = (int)((ft_totaal - ft) * 12.0f + 0.5f);
-    snprintf(buf, len, "%.2fm  (%d'%d\")", m, ft, in_);
+    snprintf(buf, len, "(%d'%d\")", ft, in_);
 }
 
 // ─── Tab balk ────────────────────────────────────────────────────────
@@ -113,10 +115,17 @@ static void info_veld_teken(int idx, int y, const char* label, const char* waard
     tft.setCursor(18, y + (VELD_H - 8) / 2); tft.print(label);
 
     if (numeriek && strlen(waarde) > 0) {
-        char buf[40]; meter_naar_ft(waarde, buf, sizeof(buf));
-        tft.setTextSize(1); tft.setTextColor(C_TEXT);
-        tft.setCursor(VELD_LABEL_W + 18, y + (VELD_H - 8) / 2);
-        tft.print(buf);
+        tft.setTextSize(2); tft.setTextColor(C_TEXT);
+        tft.setCursor(VELD_LABEL_W + 18, y + 6);
+        tft.print(waarde); tft.print(" m");
+        char ftbuf[20]; meter_naar_ft(waarde, ftbuf, sizeof(ftbuf));
+        tft.setTextSize(1); tft.setTextColor(C_TEXT_DIM);
+        tft.setCursor(VELD_LABEL_W + 18, y + 28);
+        tft.print(ftbuf);
+    } else if (numeriek) {
+        tft.setTextSize(2); tft.setTextColor(C_DARK_GRAY);
+        tft.setCursor(VELD_LABEL_W + 18, y + (VELD_H - 16) / 2);
+        tft.print("(niet ingevuld)");
     } else {
         tft.setTextSize(2);
         tft.setTextColor(strlen(waarde) > 0 ? C_TEXT : C_DARK_GRAY);
@@ -202,15 +211,18 @@ void screen_info_run(int x, int y, bool aanraking) {
             info_kb_idx  = veld_idx;
             info_kb_boot = (info_tab == 0);
             const char* huidige = info_kb_boot ? boot_vals[veld_idx] : eig_vals[veld_idx];
+            const char* lbl = info_kb_boot ? boot_labels[veld_idx] : eig_labels[veld_idx];
             // Config keyboard instellen
             strncpy(cfg_invoer, huidige, CFG_INVOER_LEN - 1);
             cfg_invoer[CFG_INVOER_LEN - 1] = '\0';
-            cfg_geselecteerd       = -1;
-            cfg_bewerk_zeilnr      = false;
-            cfg_kb_info_mode       = true;   // geen chips, OPSLAAN laat aan ons
-            cfg_kb_opgeslagen      = false;  // reset, wordt true bij OPSLAAN
-            kb_sym                 = false;
-            info_kb_actief         = true;
+            snprintf(cfg_kb_label, 24, "%s:", lbl);
+            cfg_kb_numeriek    = info_kb_boot && boot_numeriek[veld_idx];
+            cfg_geselecteerd   = -1;
+            cfg_bewerk_zeilnr  = false;
+            cfg_kb_info_mode   = true;   // geen chips, OPSLAAN laat aan ons
+            cfg_kb_opgeslagen  = false;  // reset, wordt true bij OPSLAAN
+            kb_sym             = false;
+            info_kb_actief     = true;
             screen_config_toetsenbord_teken();
         }
     }
