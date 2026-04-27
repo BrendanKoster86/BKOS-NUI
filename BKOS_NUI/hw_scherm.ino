@@ -18,17 +18,32 @@ void tft_schermvullen(uint16_t kleur) {
 }
 
 void tft_loop() {
-    if (!tft_actief) {
+    if (tft_actief) {
+        // Wakker: wachten op time-out → fase 1 (3%)
+        if (!actieve_touch && scherm_timer > 0 &&
+            millis() > scherm_touched + (unsigned long)scherm_timer * 1000) {
+            tft_actief    = false;
+            tft_bijna_uit = true;
+            tft_dim_ms    = millis();
+            tft_helderheid_zet(TFT_MIN_HELDER);  // 3%, GT911 blijft actief
+        }
+    } else if (tft_bijna_uit) {
+        // Fase 1: 5 seconden later volledig zwart (fase 2)
         if (actieve_touch) {
-            tft_actief = true;
+            tft_bijna_uit = false;
+            tft_actief    = true;
             scherm_net_gewekt = true;
             tft_helderheid_zet(tft_helderheid);
+        } else if (millis() - tft_dim_ms > 5000UL) {
+            tft_bijna_uit = false;
+            tft_helderheid_zet(0);  // volledig zwart
         }
-    } else if (!actieve_touch) {
-        if (scherm_timer > 0 &&
-            millis() > scherm_touched + (unsigned long)scherm_timer * 1000) {
-            tft_actief = false;
-            tft_helderheid_zet(TFT_MIN_HELDER);
+    } else {
+        // Fase 2: volledig zwart, wachten op touch
+        if (actieve_touch) {
+            tft_actief    = true;
+            scherm_net_gewekt = true;
+            tft_helderheid_zet(tft_helderheid);
         }
     }
 }

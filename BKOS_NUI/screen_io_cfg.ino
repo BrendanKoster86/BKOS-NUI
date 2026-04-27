@@ -5,6 +5,7 @@
 static int  iocfg_scroll        = 0;
 static bool iocfg_overlay       = false;
 static int  iocfg_kanaal        = -1;
+static bool iocfg_naam_kb       = false;  // toetsenbord actief in overlay
 static unsigned long iocfg_sloot = 0;
 
 // Tijdelijke waarden in overlay (bewerkbaar)
@@ -269,8 +270,16 @@ void screen_io_cfg_teken() {
     tft.drawFastHLine(0, SB_H - 1, TFT_W, C_SURFACE2);
     tft.setTextSize(2); tft.setTextColor(C_CYAN);
     tft.setCursor(10, (SB_H - 16) / 2); tft.print("IO CONFIGURATIE");
+
+    if (iocfg_naam_kb) {
+        screen_config_toetsenbord_teken();
+        nav_bar_teken();
+        return;
+    }
+
     iocfg_count_teken();
     iocfg_lijst_teken();
+    if (iocfg_overlay) iocfg_overlay_teken();
     nav_bar_teken();
 }
 
@@ -288,19 +297,34 @@ void screen_io_cfg_run(int x, int y, bool aanraking) {
     if (!aanraking) return;
     if (millis() - iocfg_sloot < 400) return;
 
+    // Embedded toetsenbord voor naambewerkng
+    if (iocfg_naam_kb) {
+        int nav = nav_bar_klik(x, y);
+        if (nav >= 0 && nav != actief_scherm) {
+            iocfg_naam_kb = false;
+            actief_scherm = nav; scherm_bouwen = true; return;
+        }
+        if (screen_config_toetsenbord_run(x, y)) {
+            iocfg_sloot   = millis();
+            iocfg_naam_kb = false;
+            if (iocfg_overlay) iocfg_overlay_teken();
+            else               scherm_bouwen = true;
+        }
+        return;
+    }
+
     // Overlay open
     if (iocfg_overlay) {
-        // NAAM bewerken knop (in titelbalk)
+        // NAAM bewerken knop (in titelbalk) — keyboard direct in dit scherm
         if (y >= OV_Y + 8 && y < OV_Y + 34 && x >= OV_X + OV_W - 110) {
-            cfg_geselecteerd      = iocfg_kanaal;
-            cfg_bewerk_zeilnr     = false;
+            cfg_geselecteerd = iocfg_kanaal;
+            cfg_bewerk_zeilnr = false;
             strncpy(cfg_invoer, io_namen[iocfg_kanaal], CFG_INVOER_LEN - 1);
             cfg_invoer[CFG_INVOER_LEN - 1] = '\0';
-            cfg_toetsenbord_actief = true;
-            cfg_tab                = 1;
-            iocfg_overlay          = false;
-            actief_scherm          = SCREEN_CONFIG;
-            scherm_bouwen          = true;
+            iocfg_naam_kb = true;
+            iocfg_sloot   = millis();
+            screen_config_toetsenbord_teken();
+            nav_bar_teken();
             return;
         }
 

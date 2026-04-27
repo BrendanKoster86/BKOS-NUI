@@ -2,17 +2,18 @@
 #include "nav_bar.h"
 
 // ─── State ──────────────────────────────────────────────────────────────
-byte cfg_tab                    = 0;   // 0=instellingen, 1=io namen
+byte cfg_tab                    = 0;
 int  cfg_scroll                 = 0;
 int  cfg_geselecteerd           = -1;
 bool cfg_toetsenbord_actief     = false;
 bool cfg_bewerk_zeilnr          = false;
 char cfg_invoer[CFG_INVOER_LEN] = "";
+bool kb_hoofdletters            = true;
 static unsigned long cfg_kb_sloot = 0;
 static bool cfg_preset_menu     = false;
 
 // ─── Toetsenbord layout ─────────────────────────────────────────────────
-static const char* kb_rijen[4] = {"1234567890", "QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM_*"};
+static const char* kb_rijen[4] = {"1234567890", "QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM_*@"};
 #define KB_X        40
 #define KB_W        (TFT_W - 80)
 #define KB_INV_Y    (CONTENT_Y + 8)
@@ -325,15 +326,23 @@ void screen_config_toetsenbord_teken() {
             tft.fillRoundRect(kx + 2, ky + 2, tw - 4, KB_TOETS_H - 4, 5, C_SURFACE2);
             tft.drawRoundRect(kx + 2, ky + 2, tw - 4, KB_TOETS_H - 4, 5, C_SURFACE3);
             tft.setTextSize(2); tft.setTextColor(C_TEXT);
+            char c = keys[k];
+            if (!kb_hoofdletters && c >= 'A' && c <= 'Z') c += 32;
             tft.setCursor(kx + (tw - 12) / 2, ky + (KB_TOETS_H - 16) / 2);
-            tft.print(keys[k]);
+            tft.print(c);
         }
     }
 
-    ui_knop(KB_X,       KB_BTN_Y, 110, KB_BTN_H, "< DEL",   C_SURFACE2, C_RED_BRIGHT);
-    ui_knop(KB_X + 118, KB_BTN_Y, 160, KB_BTN_H, "SPATIE",  C_SURFACE2, C_TEXT);
-    ui_knop(KB_X + 286, KB_BTN_Y, 160, KB_BTN_H, "OPSLAAN", C_GREEN,    C_TEXT_DARK);
-    ui_knop(KB_X + 454, KB_BTN_Y, 120, KB_BTN_H, "CANCEL",  C_SURFACE2, C_TEXT_DIM);
+    // Knoppen onderste rij: DEL | CLR | CAPS | SPATIE | OPSLAAN | CANCEL
+    ui_knop(KB_X,       KB_BTN_Y,  95, KB_BTN_H, "< DEL",  C_SURFACE2,   C_RED_BRIGHT);
+    ui_knop(KB_X + 103, KB_BTN_Y,  95, KB_BTN_H, "CLR",    C_SURFACE2,   C_RED_BRIGHT);
+    ui_knop(KB_X + 206, KB_BTN_Y,  90, KB_BTN_H,
+            kb_hoofdletters ? "HOOFD" : "klein",
+            kb_hoofdletters ? C_CYAN : C_SURFACE2,
+            kb_hoofdletters ? C_TEXT_DARK : C_TEXT_DIM);
+    ui_knop(KB_X + 304, KB_BTN_Y, 120, KB_BTN_H, "SPATIE",  C_SURFACE2,  C_TEXT);
+    ui_knop(KB_X + 432, KB_BTN_Y, 150, KB_BTN_H, "OPSLAAN", C_GREEN,     C_TEXT_DARK);
+    ui_knop(KB_X + 590, KB_BTN_Y, 100, KB_BTN_H, "CANCEL",  C_SURFACE2,  C_TEXT_DIM);
 }
 
 static bool cfg_chip_klik(int x, int y) {
@@ -371,7 +380,9 @@ bool screen_config_toetsenbord_run(int x, int y) {
             if (k >= 0 && k < cnt) {
                 int len = strlen(cfg_invoer);
                 if (len < CFG_INVOER_LEN - 1) {
-                    cfg_invoer[len] = keys[k];
+                    char c = keys[k];
+                    if (!kb_hoofdletters && c >= 'A' && c <= 'Z') c += 32;
+                    cfg_invoer[len] = c;
                     cfg_invoer[len + 1] = '\0';
                 }
                 screen_config_toetsenbord_teken();
@@ -381,15 +392,26 @@ bool screen_config_toetsenbord_run(int x, int y) {
     }
 
     if (y >= KB_BTN_Y && y < KB_BTN_Y + KB_BTN_H) {
-        if (x >= KB_X && x < KB_X + 110) {
+        if (x >= KB_X && x < KB_X + 95) {
+            // DEL
             int len = strlen(cfg_invoer);
             if (len > 0) cfg_invoer[len - 1] = '\0';
             screen_config_toetsenbord_teken();
-        } else if (x >= KB_X + 118 && x < KB_X + 278) {
+        } else if (x >= KB_X + 103 && x < KB_X + 198) {
+            // CLR — alles wissen
+            cfg_invoer[0] = '\0';
+            screen_config_toetsenbord_teken();
+        } else if (x >= KB_X + 206 && x < KB_X + 296) {
+            // CAPS toggle
+            kb_hoofdletters = !kb_hoofdletters;
+            screen_config_toetsenbord_teken();
+        } else if (x >= KB_X + 304 && x < KB_X + 424) {
+            // SPATIE
             int len = strlen(cfg_invoer);
             if (len < CFG_INVOER_LEN - 1) { cfg_invoer[len] = ' '; cfg_invoer[len + 1] = '\0'; }
             screen_config_toetsenbord_teken();
-        } else if (x >= KB_X + 286 && x < KB_X + 446) {
+        } else if (x >= KB_X + 432 && x < KB_X + 582) {
+            // OPSLAAN
             if (cfg_bewerk_zeilnr) {
                 strncpy(zeilnummer, cfg_invoer, ZEILNR_LEN - 1);
                 zeilnummer[ZEILNR_LEN - 1] = '\0';
@@ -402,7 +424,8 @@ bool screen_config_toetsenbord_run(int x, int y) {
             }
             cfg_toetsenbord_actief = false;
             return true;
-        } else if (x >= KB_X + 454) {
+        } else if (x >= KB_X + 590) {
+            // CANCEL
             cfg_bewerk_zeilnr = false;
             cfg_toetsenbord_actief = false;
             return true;

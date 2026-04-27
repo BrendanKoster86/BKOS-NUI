@@ -86,7 +86,7 @@ static void io_sb_teken() {
 }
 
 void screen_io_teken_rijen() {
-    tft.fillRect(0, CONTENT_Y, TFT_W, CONTENT_H, C_BG);
+    // Geen fillRect hier: elke rij tekent zijn eigen achtergrond → geen flikkering
     for (int r = 0; r < IO_RIJEN_PER_PAGINA; r++) {
         io_rij_teken(io_pagina * IO_RIJEN_PER_PAGINA + r, CONTENT_Y + r * IO_RIJ_H);
     }

@@ -25,6 +25,7 @@ extern bool cfg_toetsenbord_actief;
 extern bool cfg_bewerk_zeilnr;
 extern char cfg_invoer[];
 extern byte cfg_tab;
+extern bool kb_hoofdletters;
 
 void screen_config_teken();
 void screen_config_run(int x, int y, bool aanraking);

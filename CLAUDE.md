@@ -24,6 +24,19 @@ git push
 
 Versienummer verhogen in `ota.h` (`BKOS_NUI_VERSIE`) en `versie.txt` bij elke push.
 
+### Versienummer formaat: `MAJOR.MINOR.YYMMDD.I`
+
+- `MAJOR.MINOR` = release-niveau, start op `0.0`
+- `YYMMDD` = bouwdatum (bijv. `260427` = 27 april 2026)
+- `I` = iteratienummer op die dag, begint bij 1
+
+Werkversie voorbeeld: `0.0.260427.2`
+
+Wanneer Brendan valideert → officiële release:
+- `0.0.x.y → 0.1.1`, daarna: `0.1.YYMMDD.I`
+- Tag bij validatie: `git tag v0.1.1 && git push --tags`
+- Volgende niveaus: `0.1.2`, `0.2.1`, `1.0.1`
+
 ---
 
 ## Compileren & Uploaden
@@ -144,6 +157,14 @@ Touch debouncing via `touch_verwerkt` flag; eerste touch na display wake wordt g
 | 13 | Sessie 2 | Touch debounce: 320ms minimum tussen aparte aanrakingen, dubbele taps worden genegeerd | ✅ Afgerond |
 | 14 | Sessie 2 | Scherm wekt niet na dimmen: ts_touched()+tft_loop() naar begin hw_loop() vóór blokkerende IO-code | ✅ Afgerond |
 | 15 | Sessie 2 | Info-opslag (bootnaam, eigenaar) verplaatst van NVS naar SPIFFS (/bkos_info.csv) | ✅ Afgerond |
+| 16 | Sessie 3 | IO NAMEN + IO CFG scroll (VORIGE/VOLGENDE strip), IO scherm 9 rijen breed zonder zijbalken | ✅ Afgerond |
+| 17 | Sessie 3 | Helderheid herstelt correct na idle (tft_helderheid_zet overschreef waarde niet meer) | ✅ Afgerond |
+| 18 | Sessie 3 | 2-fase idle: na timer→3% (GT911 actief), 5s later→0% (volledig zwart) | ✅ Afgerond |
+| 19 | Sessie 3 | IO flikkering: fillRect verwijderd uit periodieke update, elke rij schildert eigen achtergrond | ✅ Afgerond |
+| 20 | Sessie 3 | Schakelaar-bug: io_apparaat_toggle/staat gebruiken io_zichtbaar() i.p.v. io_kanalen_cnt | ✅ Afgerond |
+| 21 | Sessie 3 | Keyboard: CLR-knop, CAPS-toggle (HOOFD/klein), @ toegevoegd als toets | ✅ Afgerond |
+| 22 | Sessie 3 | IO CFG NAAM-knop: toetsenbord direct in overlay, geen schermwissel meer | ✅ Afgerond |
+| 23 | Sessie 3 | Versienummer format gewijzigd naar MAJOR.MINOR.YYMMDD.I | ✅ Afgerond |
 
 ---
 

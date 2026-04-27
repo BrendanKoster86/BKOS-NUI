@@ -150,16 +150,20 @@ void io_verlichting_update() {
 }
 
 bool io_apparaat_staat(const char* prefix) {
-    for (int i = 0; i < io_kanalen_cnt && i < MAX_IO_KANALEN; i++) {
+    int n = io_zichtbaar();
+    for (int i = 0; i < n; i++) {
         if (io_naam_is(i, prefix)) return (io_output[i] == IO_AAN);
     }
     return false;
 }
 
 void io_apparaat_toggle(const char* prefix) {
-    for (int i = 0; i < io_kanalen_cnt && i < MAX_IO_KANALEN; i++) {
-        if (io_naam_is(i, prefix))
-            io_output[i] = (io_output[i] == IO_AAN) ? IO_UIT : IO_AAN;
+    int n = io_zichtbaar();
+    for (int i = 0; i < n; i++) {
+        if (io_naam_is(i, prefix)) {
+            io_output[i]    = (io_output[i] == IO_AAN) ? IO_UIT : IO_AAN;
+            io_gewijzigd[i] = true;
+        }
     }
 }
 
