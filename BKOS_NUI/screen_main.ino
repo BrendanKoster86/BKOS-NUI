@@ -1,4 +1,5 @@
 #include "screen_main.h"
+#include "meteo.h"
 #include "nav_bar.h"
 
 // ─── Icoon types ────────────────────────────────
@@ -475,12 +476,108 @@ static void scheidingslijn_teken() {
 }
 
 // ─── Hoofdfuncties ──────────────────────────────────────────────────
+// ─── Meteo strip onderaan bootpaneel ────────────────────────────────────
+#define METEO_SY  (BDY + BDH - 58)   // y = bodem bootpaneel - 58px
+#define METEO_SH  56                  // strip hoogte
+
+static void meteo_strip_teken() {
+    int sx = BDX, sy = METEO_SY, sw = BDW, sh = METEO_SH;
+    tft.fillRect(sx, sy, sw, sh, C_SURFACE);
+    tft.drawRect(sx, sy, sw, sh, C_SURFACE2);
+
+    if (!meteo_geladen) {
+        tft.setTextSize(1);
+        tft.setTextColor(C_TEXT_DIM);
+        tft.setCursor(sx + 8, sy + (sh - 8) / 2);
+        tft.print(wifi_verbonden ? "Meteo ophalen..." : "Geen WiFi");
+        return;
+    }
+
+    // ── Links: actueel weer ──────────────────────────────────────────
+    int lx = sx + 4, ly = sy + 4;
+
+    // WMO code → unicode-achtig teken via ASCII
+    tft.setTextSize(1);
+    tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(lx, ly);
+    tft.print(meteo_weer_omschrijving(meteo_weer_code));
+
+    tft.setTextSize(2);
+    tft.setTextColor(C_TEXT);
+    tft.setCursor(lx, ly + 12);
+    char tbuf[10]; snprintf(tbuf, 10, "%.1f", meteo_temp);
+    tft.print(tbuf);
+    tft.setTextSize(1);
+    tft.setTextColor(C_TEXT_DIM);
+    tft.print("\xF7""C");
+
+    tft.setTextSize(1);
+    tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(lx, ly + 32);
+    tft.print("max ");
+    tft.setTextColor(C_TEXT);
+    char mxbuf[8]; snprintf(mxbuf, 8, "%.0f\xF7", meteo_temp_max);
+    tft.print(mxbuf);
+
+    // ── Midden: wind ──────────────────────────────────────────────────
+    int mx = sx + 100;
+    tft.setTextSize(1);
+    tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(mx, ly);
+    tft.print("Wind");
+    tft.setTextColor(C_TEXT);
+    tft.setCursor(mx, ly + 12);
+    char wbuf[12];
+    snprintf(wbuf, 12, "%s B%d", meteo_wind_richting(meteo_wind_dir), meteo_beaufort(meteo_wind_ms));
+    tft.setTextSize(1);
+    tft.print(wbuf);
+    tft.setTextSize(1);
+    tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(mx, ly + 26);
+    char gbuf[10]; snprintf(gbuf, 10, "stoot B%d", meteo_beaufort(meteo_wind_max));
+    tft.print(gbuf);
+    tft.setCursor(mx, ly + 38);
+    snprintf(gbuf, 10, "%.1fm/s", meteo_wind_ms);
+    tft.print(gbuf);
+
+    // ── Rechts: getij HW/LW ──────────────────────────────────────────
+    int rx = sx + 200;
+    tft.setTextSize(1);
+    tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(rx, ly);
+    tft.print("Getij ");
+    tft.setTextColor(C_CYAN);
+    tft.print(getij_stations[meteo_station_idx].naam);
+
+    int cnt = min(getij_ext_cnt, 2);
+    for (int i = 0; i < cnt; i++) {
+        const GetijExtreme& e = getij_ext[i];
+        struct tm* lt = localtime(&e.tijd);
+        char ebuf[24];
+        float lat_af = e.hoogte - getij_stations[meteo_station_idx].LAT_nap;
+        snprintf(ebuf, 24, "%s %02d:%02d %.2fm+%.1f",
+            e.hoog_water ? "HW" : "LW",
+            lt->tm_hour, lt->tm_min,
+            e.hoogte, lat_af);
+        uint16_t ec = e.hoog_water ? C_BLUE : C_TEXT_DIM;
+        tft.setTextColor(ec);
+        tft.setCursor(rx, ly + 12 + i * 18);
+        tft.print(ebuf);
+    }
+    if (getij_ext_cnt == 0) {
+        tft.setTextColor(C_TEXT_DIM);
+        tft.setCursor(rx, ly + 14);
+        tft.print("Geen getijdata");
+    }
+}
+
 void screen_main_teken() {
     tft.fillScreen(C_BG);
     status_bar_teken();
     scheidingslijn_teken();
     boot_teken();
     boot_lichten_teken();
+    meteo_strip_teken();
     modus_knoppen_teken();
     licht_knoppen_teken();
     apparaat_knoppen_teken();
@@ -506,6 +603,12 @@ void screen_main_run(int x, int y, bool aanraking) {
             boot_lichten_teken();
             interieur_status_teken();
             io_runned = false;
+        }
+        // Meteo strip: hertekenen als data net geladen is
+        static unsigned long meteo_strip_ms = 0;
+        if (millis() - meteo_strip_ms > 30000UL) {
+            meteo_strip_ms = millis();
+            meteo_strip_teken();
         }
         return;
     }

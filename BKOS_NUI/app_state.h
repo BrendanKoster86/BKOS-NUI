@@ -5,11 +5,12 @@
 // Actief scherm
 #define SCREEN_MAIN    0
 #define SCREEN_IO      1
-#define SCREEN_CONFIG  2
-#define SCREEN_OTA     3
-#define SCREEN_INFO    4
-#define SCREEN_WIFI    5  // niet in nav bar, toegankelijk via OTA scherm
-#define SCREEN_IO_CFG  6  // niet in nav bar, toegankelijk via config scherm
+#define SCREEN_METEO   2
+#define SCREEN_CONFIG  3
+#define SCREEN_OTA     4
+#define SCREEN_INFO    5
+#define SCREEN_WIFI    6  // niet in nav bar, toegankelijk via OTA scherm
+#define SCREEN_IO_CFG  7  // niet in nav bar, toegankelijk via config scherm
 
 // Vaarmodi
 #define MODE_HAVEN   0

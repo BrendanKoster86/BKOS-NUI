@@ -29,21 +29,21 @@ static const Palette paletten[PALETTE_CNT] = {
       RGB565(12,18,38),
       RGB565(200,220,255), RGB565(100,130,160), RGB565(20,30,55), RGB565(40,50,70),
       RGB565(0,200,230) },
-    // 1: ROOD — donker rood als overheersende achtergrondkleur
-    { RGB565(18,3,3),     RGB565(42,8,8),     RGB565(65,14,14),   RGB565(88,22,22),
-      RGB565(12,2,2),
-      RGB565(255,205,205), RGB565(158,72,72),  RGB565(25,5,5),    RGB565(55,14,14),
-      RGB565(255,55,55) },
+    // 1: ROOD — verzadigd donkerrood als overheersende achtergrondkleur
+    { RGB565(72,0,0),     RGB565(110,5,5),    RGB565(148,10,10),  RGB565(180,18,18),
+      RGB565(52,0,0),
+      RGB565(255,210,210), RGB565(200,90,90),  RGB565(80,3,3),    RGB565(120,8,8),
+      RGB565(255,30,30) },
     // 2: GOUD — donker goud/amber als overheersende achtergrondkleur
     { RGB565(18,12,2),    RGB565(40,28,5),    RGB565(62,44,8),    RGB565(84,60,12),
       RGB565(12,8,1),
       RGB565(255,242,200), RGB565(158,128,55), RGB565(26,18,2),   RGB565(58,38,8),
       RGB565(255,185,0) },
-    // 3: BLAUW — diep kobaltblauw (anders dan marine grijs-blauw)
-    { RGB565(2,4,20),     RGB565(5,10,48),    RGB565(8,18,76),    RGB565(12,28,102),
-      RGB565(1,3,14),
-      RGB565(195,210,255), RGB565(78,105,188), RGB565(4,8,48),    RGB565(16,30,70),
-      RGB565(50,120,255) },
+    // 3: BLAUW — verzadigd kobaltblauw als overheersende achtergrondkleur
+    { RGB565(0,0,80),     RGB565(5,5,120),    RGB565(10,10,160),  RGB565(15,20,200),
+      RGB565(0,0,58),
+      RGB565(200,215,255), RGB565(100,130,220), RGB565(3,3,90),   RGB565(10,15,130),
+      RGB565(60,140,255) },
     // 4: GROEN — donker bosgroen als overheersende achtergrondkleur
     { RGB565(2,12,2),     RGB565(5,28,5),     RGB565(8,44,8),     RGB565(12,60,12),
       RGB565(1,8,1),

@@ -1,8 +1,10 @@
 #include "hardware.h"
 #include "screen_main.h"
 #include "screen_io.h"
+#include "screen_meteo.h"
 #include "screen_config.h"
 #include "screen_ota.h"
+#include "meteo.h"
 #include "nav_bar.h"
 
 static bool          vorige_touch        = false;
@@ -34,6 +36,7 @@ void hw_setup() {
     wifi_setup();
     ntp_setup();
     ota_setup();
+    meteo_setup();
     io_boot();
 
     scherm_bouwen = true;
@@ -49,6 +52,7 @@ void hw_loop() {
     io_loop();
     wifi_loop();
     ota_loop();
+    meteo_loop();
 
     // Scherm (her)bouwen
     if (scherm_bouwen) {
@@ -57,6 +61,7 @@ void hw_loop() {
         switch (actief_scherm) {
             case SCREEN_MAIN:   screen_main_teken();   break;
             case SCREEN_IO:     screen_io_teken();     break;
+            case SCREEN_METEO:  screen_meteo_teken();  break;
             case SCREEN_CONFIG: screen_config_teken(); break;
             case SCREEN_OTA:    screen_ota_teken();    break;
             case SCREEN_INFO:   screen_info_teken();     break;
@@ -83,6 +88,7 @@ void hw_loop() {
             switch (actief_scherm) {
                 case SCREEN_MAIN:   screen_main_run(ts_x, ts_y, true);   break;
                 case SCREEN_IO:     screen_io_run(ts_x, ts_y, true);     break;
+                case SCREEN_METEO:  screen_meteo_run(ts_x, ts_y, true);  break;
                 case SCREEN_CONFIG: screen_config_run(ts_x, ts_y, true); break;
                 case SCREEN_OTA:    screen_ota_run(ts_x, ts_y, true);    break;
                 case SCREEN_INFO:   screen_info_run(ts_x, ts_y, true);     break;

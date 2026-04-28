@@ -93,10 +93,13 @@ ota.h/.ino          ← GitHub versiecheck, firmware download+flash, ArduinoOTA 
 nav_bar.h/.ino      ← vaste navigatiebalk onderaan (scherm-knoppen)
 screen_main.h/.ino  ← hoofdscherm: bootsschema met lichten, vaarmodus knoppen, verlichting
 screen_io.h/.ino    ← IO kanalen lijst (scrollbaar, 8 rijen/pagina, 44px rijhoogte)
+screen_meteo.h/.ino ← METEO scherm (3 tabs: WEER / GETIJ / LOCATIE)
 screen_config.h/.ino← instellingen scherm
 screen_ota.h/.ino   ← OTA update scherm met voortgangsbalk
 screen_info.h/.ino  ← device informatie scherm
 screen_wifi.h/.ino  ← WiFi configuratie scherm
+
+meteo.h/.ino        ← weer + getij module: locatie (ip-api.com), Open-Meteo API, harmonische getijberekening
 ```
 
 ### Scherm-dispatch patroon
@@ -180,6 +183,11 @@ Touch debouncing via `touch_verwerkt` flag; eerste touch na display wake wordt g
 | 36 | Sessie 5 | cfg_kb_numeriek: cijfertoetsenbord (0-9 + komma) voor maatvelden; komma als decimaalteken | ✅ Afgerond |
 | 37 | Sessie 5 | Afmetingen: weergave op grootte 2 met ft/in conversie in grootte 1 eronder | ✅ Afgerond |
 | 38 | Sessie 5 | Boot mini-preview in CONFIG boottype knoppen (60×22px silhouet per type) | ✅ Afgerond |
+| 39 | Sessie 5 | ROOD palet meer verzadigd rood; BLAUW palet meer verzadigd blauw (RGB565 verhoogd) | ✅ Afgerond |
+| 40 | Sessie 5 | meteo.h + meteo.ino: locatie (ip-api), weer (Open-Meteo), getij (harmonisch) module | ✅ Afgerond |
+| 41 | Sessie 5 | screen_meteo.h + screen_meteo.ino: METEO scherm met WEER/GETIJ/LOCATIE tabs | ✅ Afgerond |
+| 42 | Sessie 5 | Nav bar 6 items (PANEEL/IO/METEO/CONFIG/OTA/INFO); SCREEN_METEO=2 toegevoegd | ✅ Afgerond |
+| 43 | Sessie 5 | Meteo strip onderaan bootpaneel: actueel weer + wind + eerste 2 HW/LW extremen | ✅ Afgerond |
 
 ---
 
