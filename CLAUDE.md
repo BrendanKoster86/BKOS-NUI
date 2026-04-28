@@ -204,6 +204,13 @@ Touch debouncing via `touch_verwerkt` flag; eerste touch na display wake wordt g
 | 57 | Sessie 7 | Getij tab: tijd ook size2 (was size1); "Di 14:30  HW" volledig groot | ✅ Afgerond |
 | 58 | Sessie 7 | PANEEL HW/LW chronologische volgorde: eerste komende event bovenaan, ongeacht type | ✅ Afgerond |
 | 59 | Sessie 7 | Weer API fix: https:// + setInsecure(); FreeRTOS stack 12KB→20KB voor WiFiClientSecure TLS | ✅ Afgerond |
+| 60 | Sessie 8 | Weer fix: http.useHTTP10(true) + timeout 15s om chunked transfer problemen op ESP32 te omzeilen | ✅ Afgerond |
+| 61 | Sessie 8 | Getij dagverschuiving: hw_uur_dag = hw_uur + dag×0.8333h per dag (~50 min per dag) | ✅ Afgerond |
+| 62 | Sessie 8 | Getij tabel: 1 regel per entry "Di 28-04  14:30  HW  1.23m", 12×2=24 entries, maand links boven | ✅ Afgerond |
+| 63 | Sessie 8 | PANEEL sync fix: io_zichtbaar() ipv io_kanalen_cnt in apparaat_knoppen_teken() | ✅ Afgerond |
+| 64 | Sessie 8 | Vaarmodi navigatielichten: ZEILEN→L_3kl+L_hek; MOTOR→L_stoom+L_hek; ANKER→L_anker; HAVEN→alles uit | ✅ Afgerond |
+| 65 | Sessie 8 | IO NAMEN tab verwijderd uit CONFIG scherm (CFG_TAB_H=0, tab UI weg) | ✅ Afgerond |
+| 66 | Sessie 8 | PIN beveiliging CONFIG: cijfertoetsenbord, kleur/boot/zeilnr achter PIN; helderheid vrij; PIN wijzigen → SPIFFS /bkos_pin.txt | ✅ Afgerond |
 
 ---
 

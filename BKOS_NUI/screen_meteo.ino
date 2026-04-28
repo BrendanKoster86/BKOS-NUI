@@ -8,12 +8,12 @@
 int meteo_tab = METEO_TAB_WEER;
 
 // ─── Getij tabel layout ───────────────────────────────────────────────────
-// PANEL_Y=82, NAV_Y=438 → beschikbaar=356px
-// HDR(26) + NOW(26) + tabel(8×37=296) + 8px = 356px ✓
-#define GTJ_HDR_H   26    // station + scroll knoppen
+// PANEL_Y=82, NAV_Y=438 → tabel beschikbaar=438-138=300px
+// HDR(26) + NOW(26) + 4px gap + tabel(12×25=300px) = 356px totaal ✓
+#define GTJ_HDR_H   26    // station + scroll knoppen + maan (links boven)
 #define GTJ_NOW_H   26    // huidige waterstand + richting
-#define GTJ_ROW_H   37    // hoogte = 2 lijnen (dag/tijd size1, hoogte size2)
-#define GTJ_ROWS_N  8     // rijen per kolom (2 col × 8 rij = 16 entries)
+#define GTJ_ROW_H   25    // één regel: dag DD-MM  tijd  HW/LW  hoogte
+#define GTJ_ROWS_N  12    // rijen per kolom (2 col × 12 rij = 24 entries)
 #define GTJ_COLS_N  2
 #define GTJ_TABLE_Y (PANEL_Y + GTJ_HDR_H + GTJ_NOW_H + 4)
 #define GTJ_COL_W   ((TFT_W - 20) / GTJ_COLS_N)
@@ -314,10 +314,26 @@ static void meteo_weer_teken() {
 static void meteo_getij_teken() {
     tft.fillRect(0, PANEL_Y, TFT_W, PANEL_H, C_BG);
 
-    // ── Header: station + scroll knoppen (GTJ_HDR_H = 26px) ──────────────
+    // ── Header: maan links boven + station midden + scroll knoppen rechts ─
     int hdr_y = PANEL_Y + 3;
+
+    // Maansymbool + fase code links boven
+    float maan_dag = meteo_maan_dag();
+    ui_maan_symbool(22, hdr_y + 13, 8, maan_dag / 29.53f);
+    char maan_buf[10];
+    meteo_maan_nautisc(maan_dag, maan_buf, sizeof(maan_buf));
+    tft.setTextSize(1); tft.setTextColor(RGB565(200, 210, 150));
+    tft.setCursor(34, hdr_y + 4);
+    tft.print(maan_buf);
+    float spring_f = (cosf(2.0f * M_PI * maan_dag / 29.53f) + 1.0f) / 2.0f;
+    tft.setCursor(34, hdr_y + 14);
+    if      (spring_f > 0.70f) { tft.setTextColor(C_RED_BRIGHT); tft.print("springtij"); }
+    else if (spring_f < 0.30f) { tft.setTextColor(C_TEXT_DIM);   tft.print("doodtij"); }
+    else                        { tft.setTextColor(C_TEXT_DIM);   tft.print("gemidd."); }
+
+    // Station info midden
     tft.setTextSize(1); tft.setTextColor(C_TEXT_DIM);
-    tft.setCursor(10, hdr_y + 1); tft.print("Station: ");
+    tft.setCursor(120, hdr_y + 4); tft.print("Station: ");
     tft.setTextColor(C_CYAN);
     tft.print(getij_stations[meteo_station_idx].naam);
     tft.setTextColor(C_TEXT_DIM);
@@ -363,22 +379,8 @@ static void meteo_getij_teken() {
         tft.setCursor(ax + 18, now_y + 4); tft.print("afgaand");
     }
 
-    // Maansymbool + nautische fase rechts in NOW bar
-    float maan_dag = meteo_maan_dag();
-    int mx = TFT_W - 120;
-    ui_maan_symbool(mx + 5, now_y + 13, 5, maan_dag / 29.53f);
-    char maan_buf[10];
-    meteo_maan_nautisc(maan_dag, maan_buf, sizeof(maan_buf));
-    tft.setTextSize(1); tft.setTextColor(RGB565(200, 210, 150));
-    tft.setCursor(mx + 14, now_y + 3);
-    tft.print(maan_buf);
-    float spring_f = (cosf(2.0f * M_PI * maan_dag / 29.53f) + 1.0f) / 2.0f;
-    tft.setCursor(mx + 14, now_y + 14);
-    if      (spring_f > 0.70f) { tft.setTextColor(C_RED_BRIGHT); tft.print("springtij"); }
-    else if (spring_f < 0.30f) { tft.setTextColor(C_TEXT_DIM);   tft.print("doodtij"); }
-    else                        { tft.setTextColor(C_TEXT_DIM);   tft.print("gemidd."); }
-
-    // ── 2-kolom tabel: 8 rijen × 2 kolommen = 16 entries ─────────────────
+    // ── 2-kolom tabel: 12 rijen × 2 kolommen = 24 entries ────────────────
+    // Elke rij: 1 regel — "Di 28-04  14:30  HW  1.23m"
     time_t nu = time(nullptr);
     const char* dag_afk[] = {"Zo","Ma","Di","Wo","Do","Vr","Za"};
 
@@ -388,58 +390,47 @@ static void meteo_getij_teken() {
             int idx = getij_scroll + col * GTJ_ROWS_N + rij;
             int ey  = GTJ_TABLE_Y + rij * GTJ_ROW_H;
             if (idx >= getij_ext_cnt) {
-                tft.fillRect(bx, ey, GTJ_COL_W - 4, GTJ_ROW_H - 2, C_BG);
+                tft.fillRect(bx, ey, GTJ_COL_W - 4, GTJ_ROW_H - 1, C_BG);
                 continue;
             }
             const GetijExtreme& e = getij_ext[idx];
             bool verleden = (e.tijd < nu);
             bool hw = e.hoog_water;
 
-            uint16_t bg, type_kleur, hoogte_kleur;
+            uint16_t bg, tekst_kleur;
             if (verleden) {
-                bg = RGB565(12, 18, 35);
-                type_kleur   = C_TEXT_DIM;
-                hoogte_kleur = C_TEXT_DIM;
+                bg           = RGB565(12, 18, 35);
+                tekst_kleur  = C_TEXT_DIM;
             } else if (hw) {
-                bg = RGB565(0, 45, 110);
-                type_kleur   = C_BLUE;
-                hoogte_kleur = C_TEXT;
+                bg           = RGB565(0, 45, 110);
+                tekst_kleur  = C_TEXT;
             } else {
-                bg = RGB565(15, 28, 55);
-                type_kleur   = RGB565(80, 160, 255);
-                hoogte_kleur = C_TEXT;
+                bg           = RGB565(15, 28, 55);
+                tekst_kleur  = C_TEXT;
             }
-            tft.fillRoundRect(bx, ey, GTJ_COL_W - 4, GTJ_ROW_H - 2, 3, bg);
+            tft.fillRoundRect(bx, ey, GTJ_COL_W - 4, GTJ_ROW_H - 1, 3, bg);
 
             struct tm* lt = localtime(&e.tijd);
-            char tbuf[6]; snprintf(tbuf, sizeof(tbuf), "%02d:%02d", lt->tm_hour, lt->tm_min);
 
-            // Lijn 1: dag + tijd in size2 (links) + HW/LW in size2 (rechts)
-            char dagtijdbuf[12];
-            snprintf(dagtijdbuf, sizeof(dagtijdbuf), "%s %s", dag_afk[lt->tm_wday], tbuf);
-            tft.setTextSize(2); tft.setTextColor(verleden ? C_TEXT_DIM : C_TEXT_DIM);
-            tft.setCursor(bx + 5, ey + 1);
-            tft.print(dagtijdbuf);
+            // Één regel: "Di 28-04  14:30  HW  1.23m"
+            char rowbuf[32];
+            snprintf(rowbuf, sizeof(rowbuf), "%s %02d-%02d  %02d:%02d  %s  %.2fm",
+                dag_afk[lt->tm_wday], lt->tm_mday, lt->tm_mon + 1,
+                lt->tm_hour, lt->tm_min,
+                hw ? "HW" : "LW", e.hoogte);
 
-            // HW/LW label rechts in size2
-            const char* type_str = hw ? "HW" : "LW";
-            int type_w = 2 * 12;
-            tft.setTextSize(2); tft.setTextColor(type_kleur);
-            tft.setCursor(bx + GTJ_COL_W - 4 - type_w - 4, ey + 1);
-            tft.print(type_str);
+            uint16_t type_kleur = hw ? C_BLUE : RGB565(80, 160, 255);
+            tft.setTextSize(2);
+            tft.setTextColor(verleden ? C_TEXT_DIM : tekst_kleur);
+            tft.setCursor(bx + 5, ey + (GTJ_ROW_H - 16) / 2);
+            tft.print(rowbuf);
 
-            // Lijn 2: hoogte NAP in size2 (groot, belangrijk!)
-            char hbuf[10]; snprintf(hbuf, sizeof(hbuf), "%.2fm", e.hoogte);
-            tft.setTextSize(2); tft.setTextColor(hoogte_kleur);
-            tft.setCursor(bx + 5, ey + 19);
-            tft.print(hbuf);
-
-            // LAT waarde rechts in size1
+            // LAT offset uiterst rechts in size1
             float lat_af = e.hoogte - getij_stations[meteo_station_idx].LAT_nap;
-            char latbuf[10]; snprintf(latbuf, sizeof(latbuf), "+%.1fm", lat_af);
-            int lat_w = strlen(latbuf) * 6;
-            tft.setTextSize(1); tft.setTextColor(C_TEXT_DIM);
-            tft.setCursor(bx + GTJ_COL_W - 4 - lat_w - 4, ey + 26);
+            char latbuf[8]; snprintf(latbuf, sizeof(latbuf), "+%.1f", lat_af);
+            int lat_tw = strlen(latbuf) * 6;
+            tft.setTextSize(1); tft.setTextColor(verleden ? C_DARK_GRAY : C_TEXT_DIM);
+            tft.setCursor(bx + GTJ_COL_W - 4 - lat_tw - 4, ey + (GTJ_ROW_H - 8) / 2);
             tft.print(latbuf);
         }
     }

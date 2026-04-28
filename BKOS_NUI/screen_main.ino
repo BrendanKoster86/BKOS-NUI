@@ -405,7 +405,7 @@ static void apparaat_knoppen_teken() {
         {"DEKLICHT", I_DEKLICHT, "**E_dek", DKNOP2_X2, DKNOP_Y2},
     };
     for (int i = 0; i < 5; i++) {
-        byte staat3 = (io_kanalen_cnt > 0) ? io_apparaat_staat3(ap[i].prefix) : (dev_lokaal[i] ? 2 : 0);
+        byte staat3 = (io_zichtbaar() > 0) ? io_apparaat_staat3(ap[i].prefix) : (dev_lokaal[i] ? 2 : 0);
         bool aan = (staat3 == 2);
         bool mix = (staat3 == 1);
         schakelaars_knop(ap[i].x, ap[i].y, DKNOP_W, DKNOP_H,

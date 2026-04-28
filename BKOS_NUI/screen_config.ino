@@ -1,6 +1,25 @@
 #include "screen_config.h"
 #include "nav_bar.h"
 #include "meteo.h"
+#include <SPIFFS.h>
+
+// ─── PIN code helpers ────────────────────────────────────────────────────
+static void pin_lezen(char* buf, int len) {
+    File f = SPIFFS.open("/bkos_pin.txt", "r");
+    if (!f) { strncpy(buf, "0000", len); return; }
+    String s = f.readStringUntil('\n');
+    f.close();
+    s.trim();
+    if (s.length() == 4) strncpy(buf, s.c_str(), len - 1);
+    else                 strncpy(buf, "0000",     len - 1);
+    buf[len - 1] = '\0';
+}
+static void pin_schrijven(const char* pin) {
+    File f = SPIFFS.open("/bkos_pin.txt", "w");
+    if (!f) return;
+    f.print(pin); f.print('\n');
+    f.close();
+}
 
 // ─── State ──────────────────────────────────────────────────────────────
 byte cfg_tab                    = 0;
@@ -18,6 +37,23 @@ bool cfg_kb_meteo_stad          = false;
 char cfg_kb_label[24]           = "Naam:";
 static unsigned long cfg_kb_sloot = 0;
 static bool cfg_preset_menu     = false;
+
+// ─── PIN state ───────────────────────────────────────────────────────────
+static bool  config_ontgrendeld     = false;
+static bool  pin_overlay_actief     = false;
+static int   pin_stap               = 0;   // 0=unlock, 1=nieuw PIN, 2=bevestig PIN
+static char  pin_invoer[5]          = "";
+static char  pin_nieuw[5]           = "";
+static bool  pin_na_unlock_wijzigen = false;
+
+// PIN overlay layout (gecentreerd)
+#define PIN_OV_X   150
+#define PIN_OV_Y   (CFG_CONT_Y + 15)
+#define PIN_OV_W   500
+#define PIN_OV_H   358
+#define PIN_KW     148
+#define PIN_KH     46
+#define PIN_KGAP   6
 
 // ─── Toetsenbord layout ─────────────────────────────────────────────────
 static const char* kb_rijen[4]     = {"1234567890", "QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM_*@"};
@@ -59,6 +95,194 @@ static const char* cfg_chips_r2[] = {
     "**haven", "**zeilen", "**motor", "**anker",
     "**USB",   "**230",    "**tv",    "**water", "**E_dek", nullptr
 };
+
+// ─── PIN overlay ────────────────────────────────────────────────────────
+static void pin_overlay_teken() {
+    tft.fillRect(0, CFG_CONT_Y, TFT_W, CONTENT_H, RGB565(5, 10, 20));
+    tft.fillRoundRect(PIN_OV_X, PIN_OV_Y, PIN_OV_W, PIN_OV_H, 12, C_SURFACE);
+    tft.drawRoundRect(PIN_OV_X, PIN_OV_Y, PIN_OV_W, PIN_OV_H, 12, C_CYAN);
+
+    const char* titel;
+    if      (pin_stap == 1) titel = "NIEUW PINCODE";
+    else if (pin_stap == 2) titel = "BEVESTIG PINCODE";
+    else                    titel = "PINCODE VEREIST";
+    tft.setTextSize(2); tft.setTextColor(C_CYAN);
+    int ttw = strlen(titel) * 12;
+    tft.setCursor(PIN_OV_X + (PIN_OV_W - ttw) / 2, PIN_OV_Y + 12);
+    tft.print(titel);
+
+    // 4 invoer stippen
+    int slot_w = 52, slot_h = 46, slot_gap = 10;
+    int slot_total = 4 * slot_w + 3 * slot_gap;
+    int sx = PIN_OV_X + (PIN_OV_W - slot_total) / 2;
+    int sy = PIN_OV_Y + 44;
+    int ingevoerd = strlen(pin_invoer);
+    for (int i = 0; i < 4; i++) {
+        int ix = sx + i * (slot_w + slot_gap);
+        tft.fillRoundRect(ix, sy, slot_w, slot_h, 5, C_SURFACE2);
+        tft.drawRoundRect(ix, sy, slot_w, slot_h, 5, (i < ingevoerd) ? C_CYAN : C_SURFACE3);
+        if (i < ingevoerd)
+            tft.fillCircle(ix + slot_w / 2, sy + slot_h / 2, 9, C_CYAN);
+    }
+
+    // Numeriek toetsenbord (0-9, geen komma)
+    int kx = PIN_OV_X + (PIN_OV_W - (3 * PIN_KW + 2 * PIN_KGAP)) / 2;
+    int ky = PIN_OV_Y + 104;
+    const char* krows[3] = {"789", "456", "123"};
+    for (int r = 0; r < 3; r++) {
+        for (int k = 0; k < 3; k++) {
+            int bkx = kx + k * (PIN_KW + PIN_KGAP);
+            int bky = ky + r * (PIN_KH + PIN_KGAP);
+            tft.fillRoundRect(bkx, bky, PIN_KW, PIN_KH, 5, C_SURFACE2);
+            tft.drawRoundRect(bkx, bky, PIN_KW, PIN_KH, 5, C_SURFACE3);
+            tft.setTextSize(3); tft.setTextColor(C_TEXT);
+            tft.setCursor(bkx + (PIN_KW - 18) / 2, bky + (PIN_KH - 24) / 2);
+            tft.print(krows[r][k]);
+        }
+    }
+    int ky4 = ky + 3 * (PIN_KH + PIN_KGAP);
+    // "0" breed (links 2/3)
+    tft.fillRoundRect(kx, ky4, PIN_KW * 2 + PIN_KGAP, PIN_KH, 5, C_SURFACE2);
+    tft.drawRoundRect(kx, ky4, PIN_KW * 2 + PIN_KGAP, PIN_KH, 5, C_SURFACE3);
+    tft.setTextSize(3); tft.setTextColor(C_TEXT);
+    tft.setCursor(kx + (PIN_KW * 2 + PIN_KGAP - 18) / 2, ky4 + (PIN_KH - 24) / 2);
+    tft.print("0");
+    // DEL (rechts)
+    int del_x = kx + 2 * (PIN_KW + PIN_KGAP);
+    tft.fillRoundRect(del_x, ky4, PIN_KW, PIN_KH, 5, C_SURFACE2);
+    tft.drawRoundRect(del_x, ky4, PIN_KW, PIN_KH, 5, C_RED_BRIGHT);
+    tft.setTextSize(2); tft.setTextColor(C_RED_BRIGHT);
+    int dlw = strlen("< DEL") * 12;
+    tft.setCursor(del_x + (PIN_KW - dlw) / 2, ky4 + (PIN_KH - 16) / 2);
+    tft.print("< DEL");
+
+    // ANNUL + OK
+    int btn_y = ky4 + PIN_KH + PIN_KGAP;
+    int btn_w = (3 * PIN_KW + 2 * PIN_KGAP) / 2 - PIN_KGAP / 2;
+    tft.fillRoundRect(kx, btn_y, btn_w, PIN_KH, 5, C_SURFACE2);
+    tft.drawRoundRect(kx, btn_y, btn_w, PIN_KH, 5, C_TEXT_DIM);
+    int atw = strlen("ANNUL") * 12;
+    tft.setTextSize(2); tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(kx + (btn_w - atw) / 2, btn_y + (PIN_KH - 16) / 2);
+    tft.print("ANNUL");
+
+    tft.fillRoundRect(kx + btn_w + PIN_KGAP, btn_y, btn_w, PIN_KH, 5, C_GREEN);
+    int otw = strlen("OK") * 12;
+    tft.setTextColor(C_TEXT_DARK);
+    tft.setCursor(kx + btn_w + PIN_KGAP + (btn_w - otw) / 2, btn_y + (PIN_KH - 16) / 2);
+    tft.print("OK");
+}
+
+static bool pin_verwerk_ok();  // forward
+
+static bool pin_overlay_run(int x, int y) {
+    int kx = PIN_OV_X + (PIN_OV_W - (3 * PIN_KW + 2 * PIN_KGAP)) / 2;
+    int ky = PIN_OV_Y + 104;
+    const char* krows[3] = {"789", "456", "123"};
+
+    for (int r = 0; r < 3; r++) {
+        int bky = ky + r * (PIN_KH + PIN_KGAP);
+        if (y >= bky && y < bky + PIN_KH) {
+            int k = (x - kx) / (PIN_KW + PIN_KGAP);
+            if (k >= 0 && k < 3) {
+                int bkx = kx + k * (PIN_KW + PIN_KGAP);
+                if (x >= bkx && x < bkx + PIN_KW && strlen(pin_invoer) < 4) {
+                    int len = strlen(pin_invoer);
+                    pin_invoer[len] = krows[r][k]; pin_invoer[len + 1] = '\0';
+                    pin_overlay_teken(); return false;
+                }
+            }
+        }
+    }
+    int ky4 = ky + 3 * (PIN_KH + PIN_KGAP);
+    if (y >= ky4 && y < ky4 + PIN_KH) {
+        int del_x = kx + 2 * (PIN_KW + PIN_KGAP);
+        if (x >= kx && x < del_x && strlen(pin_invoer) < 4) {  // "0"
+            int len = strlen(pin_invoer);
+            pin_invoer[len] = '0'; pin_invoer[len + 1] = '\0';
+            pin_overlay_teken(); return false;
+        }
+        if (x >= del_x && x < del_x + PIN_KW) {  // DEL
+            int len = strlen(pin_invoer);
+            if (len > 0) pin_invoer[len - 1] = '\0';
+            pin_overlay_teken(); return false;
+        }
+    }
+    int btn_y = ky4 + PIN_KH + PIN_KGAP;
+    int btn_w = (3 * PIN_KW + 2 * PIN_KGAP) / 2 - PIN_KGAP / 2;
+    if (y >= btn_y && y < btn_y + PIN_KH) {
+        if (x >= kx && x < kx + btn_w) {  // ANNUL
+            pin_invoer[0] = '\0'; pin_nieuw[0] = '\0';
+            pin_overlay_actief = false; pin_stap = 0;
+            pin_na_unlock_wijzigen = false;
+            return true;
+        }
+        if (x >= kx + btn_w + PIN_KGAP) {  // OK
+            return pin_verwerk_ok();
+        }
+    }
+    return false;
+}
+
+static bool pin_verwerk_ok() {
+    char opgeslagen[5]; pin_lezen(opgeslagen, sizeof(opgeslagen));
+
+    if (pin_stap == 0) {
+        if (strcmp(pin_invoer, opgeslagen) == 0) {
+            config_ontgrendeld = true;
+            pin_invoer[0] = '\0';
+            if (pin_na_unlock_wijzigen) {
+                pin_na_unlock_wijzigen = false;
+                pin_stap = 1;
+                pin_overlay_teken(); return false;
+            }
+            pin_overlay_actief = false;
+            return true;
+        }
+        pin_invoer[0] = '\0';
+        pin_overlay_teken();
+        tft.setTextSize(2); tft.setTextColor(C_RED_BRIGHT);
+        int ew = strlen("ONJUIST PINCODE") * 12;
+        tft.setCursor(PIN_OV_X + (PIN_OV_W - ew) / 2, PIN_OV_Y + 92);
+        tft.print("ONJUIST PINCODE");
+        return false;
+    }
+    if (pin_stap == 1) {
+        if (strlen(pin_invoer) == 4) {
+            strncpy(pin_nieuw, pin_invoer, 5);
+            pin_invoer[0] = '\0';
+            pin_stap = 2;
+            pin_overlay_teken(); return false;
+        }
+        return false;
+    }
+    if (pin_stap == 2) {
+        if (strcmp(pin_invoer, pin_nieuw) == 0) {
+            pin_schrijven(pin_nieuw);
+            config_ontgrendeld = true;
+            pin_invoer[0] = '\0'; pin_nieuw[0] = '\0';
+            pin_overlay_actief = false; pin_stap = 0;
+            return true;
+        }
+        pin_invoer[0] = '\0';
+        pin_stap = 1;
+        pin_overlay_teken();
+        tft.setTextSize(2); tft.setTextColor(C_RED_BRIGHT);
+        int ew = strlen("CODES KOMEN NIET OVEREEN") * 12;
+        tft.setCursor(PIN_OV_X + (PIN_OV_W - ew) / 2, PIN_OV_Y + 92);
+        tft.print("CODES KOMEN NIET OVEREEN");
+        return false;
+    }
+    return false;
+}
+
+static void pin_vereist_tonen() {
+    pin_stap = 0;
+    pin_invoer[0] = '\0';
+    pin_na_unlock_wijzigen = false;
+    pin_overlay_actief = true;
+    pin_overlay_teken();
+}
 
 // ─── Tab balk ───────────────────────────────────────────────────────────
 static void cfg_tabs_teken() {
@@ -249,6 +473,12 @@ static void cfg_instellingen_teken() {
     int iy = zy + 50;
     tft.fillRect(0, iy, TFT_W, 50, C_BG);
     ui_knop(10, iy + 4, TFT_W - 20, 42, "IO CONFIGURATIE  >", C_SURFACE2, C_CYAN);
+
+    // PIN code wijzigen
+    int py = iy + 52;
+    tft.fillRect(0, py, TFT_W, 50, C_BG);
+    ui_knop(10, py + 4, TFT_W - 20, 42, "PINCODE WIJZIGEN  >",
+            C_SURFACE2, config_ontgrendeld ? C_AMBER : C_TEXT_DIM);
 }
 
 static void cfg_instellingen_run(int x, int y) {
@@ -276,8 +506,9 @@ static void cfg_instellingen_run(int x, int y) {
 
     int sy = HLD_Y + HLD_H + 6;
 
-    // Kleurenschema (7 paletten)
+    // Kleurenschema (7 paletten) — PIN vereist
     if (y >= sy + 4 && y < sy + 54) {
+        if (!config_ontgrendeld) { pin_vereist_tonen(); return; }
         int sw = 95, gap = 6, start_x = 80;
         int idx = (x - start_x) / (sw + gap);
         if (idx >= 0 && idx < PALETTE_CNT) {
@@ -286,15 +517,16 @@ static void cfg_instellingen_run(int x, int y) {
                 kleurenschema = idx;
                 palette_toepassen(idx);
                 state_save();
-                scherm_bouwen = true;  // volledig hertekenen met nieuw thema
+                scherm_bouwen = true;
             }
         }
         return;
     }
 
     int by = sy + 64;
-    // Boot type
+    // Boot type — PIN vereist
     if (y >= by && y < by + 40) {
+        if (!config_ontgrendeld) { pin_vereist_tonen(); return; }
         int bw = 148, bx = 90;
         int idx = (x - bx) / (bw + 6);
         if (idx >= 0 && idx < 4) {
@@ -305,8 +537,9 @@ static void cfg_instellingen_run(int x, int y) {
     }
 
     int zy = by + 46;
-    // Zeilnummer
+    // Zeilnummer — PIN vereist
     if (y >= zy && y < zy + 40 && x >= 90 && x < 410) {
+        if (!config_ontgrendeld) { pin_vereist_tonen(); return; }
         cfg_bewerk_zeilnr = true;
         strncpy(cfg_invoer, zeilnummer, CFG_INVOER_LEN - 1);
         cfg_invoer[CFG_INVOER_LEN - 1] = '\0';
@@ -322,6 +555,24 @@ static void cfg_instellingen_run(int x, int y) {
     if (y >= iy && y < iy + 50) {
         actief_scherm = SCREEN_IO_CFG;
         scherm_bouwen = true;
+        return;
+    }
+
+    // PIN wijzigen
+    int py = iy + 52;
+    if (y >= py && y < py + 52) {
+        if (!config_ontgrendeld) {
+            pin_stap = 0;
+            pin_na_unlock_wijzigen = true;
+            pin_invoer[0] = '\0';
+            pin_overlay_actief = true;
+            pin_overlay_teken();
+        } else {
+            pin_stap = 1;
+            pin_invoer[0] = '\0';
+            pin_overlay_actief = true;
+            pin_overlay_teken();
+        }
     }
 }
 
@@ -844,23 +1095,22 @@ static void cfg_io_namen_run(int x, int y) {
 void screen_config_teken() {
     tft.fillScreen(C_BG);
     sb_scherm_teken("CONFIG", C_CYAN);
-
-    cfg_tabs_teken();
-
-    if (cfg_tab == 0) {
-        cfg_instellingen_teken();
-    } else {
-        helderheid_balk_teken();
-        ui_knop(TFT_W - 138, HLD_Y + 4, 130, HLD_H - 8, "PRESETS", C_SURFACE2, C_AMBER);
-        screen_config_rijen_teken();
-    }
-
+    cfg_instellingen_teken();
     nav_bar_teken();
 }
 
 void screen_config_run(int x, int y, bool aanraking) {
     if (!aanraking) return;
     if (millis() - cfg_kb_sloot < 400) return;
+
+    // PIN overlay heeft hoogste prioriteit
+    if (pin_overlay_actief) {
+        if (pin_overlay_run(x, y)) {
+            cfg_kb_sloot = millis();
+            scherm_bouwen = true;
+        }
+        return;
+    }
 
     if (cfg_preset_menu) {
         if (preset_menu_run(x, y)) {
@@ -880,38 +1130,12 @@ void screen_config_run(int x, int y, bool aanraking) {
 
     int nav = nav_bar_klik(x, y);
     if (nav >= 0 && nav != actief_scherm) {
+        config_ontgrendeld    = false;  // vergrendel bij verlaten CONFIG scherm
+        cfg_toetsenbord_actief = false;
+        pin_overlay_actief    = false;
+        pin_stap              = 0;
         actief_scherm = nav; scherm_bouwen = true; return;
     }
 
-    if (y >= CFG_TAB_Y && y < CFG_TAB_Y + CFG_TAB_H) {
-        byte nieuwe_tab = (x < TFT_W / 2) ? 0 : 1;
-        if (nieuwe_tab != cfg_tab) { cfg_tab = nieuwe_tab; scherm_bouwen = true; }
-        return;
-    }
-
-    if (cfg_tab == 0) {
-        cfg_instellingen_run(x, y);
-    } else {
-        // Helderheid balk
-        if (y >= HLD_Y && y < HLD_Y + HLD_H) {
-            if (x >= 12 && x < 12 + HLD_BTN_W) {
-                tft_helderheid = max(5, tft_helderheid - 5);
-                tft_helderheid_zet(tft_helderheid);
-                state_save(); helderheid_balk_teken(); return;
-            }
-            int plus_x = TFT_W - 12 - HLD_BTN_W - 120 - 4;
-            if (x >= plus_x && x < plus_x + HLD_BTN_W) {
-                tft_helderheid = min(100, tft_helderheid + 5);
-                tft_helderheid_zet(tft_helderheid);
-                state_save(); helderheid_balk_teken(); return;
-            }
-            // PRESETS knop
-            if (x >= TFT_W - 138 && x < TFT_W - 8) {
-                cfg_preset_menu = true;
-                preset_menu_teken();
-                return;
-            }
-        }
-        cfg_io_namen_run(x, y);
-    }
+    cfg_instellingen_run(x, y);
 }

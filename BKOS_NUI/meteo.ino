@@ -86,7 +86,8 @@ static String http_get(const char* url, bool https_onveilig = false) {
     } else {
         http.begin(wc, url);  // explicit WiFiClient for plain HTTP
     }
-    http.setTimeout(8000);
+    http.setTimeout(15000);
+    http.useHTTP10(true);  // chunked transfer vermijden op ESP32
     int code = http.GET();
     String body = "";
     if (code == 200) body = http.getString();
@@ -343,9 +344,9 @@ void meteo_getij_berekenen() {
 
     for (int dag = -1; dag < 5 && getij_ext_cnt < GETIJ_N; dag++) {
         time_t ds = dag_start + dag * 86400L;
-        // HW tijden op deze dag
+        float hw_uur_dag = fmodf(hw_uur + dag * 0.8333f, 24.0f);  // ~50 min verschuiving per dag
         for (float off = 0.0f; off < 24.0f && getij_ext_cnt < GETIJ_N; off += 12.417f) {
-            float hw_t = fmodf(hw_uur + off, 24.0f);
+            float hw_t = fmodf(hw_uur_dag + off, 24.0f);
             time_t hw_unix = ds + (time_t)(hw_t * 3600.0f);
             if (hw_unix > now - 7200L) {  // inclusief entries tot 2 uur geleden
                 GetijExtreme& e = getij_ext[getij_ext_cnt++];

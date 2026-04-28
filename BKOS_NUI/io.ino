@@ -136,6 +136,24 @@ void io_verlichting_update() {
         if (io_naam_is(i, "**anker"))  io_output[i] = (vaar_modus == MODE_ANKER)  ? IO_AAN : IO_UIT;
     }
 
+    // Navigatielichten per vaarmodus
+    // ZEILEN: 3kl (rood/groen/wit gecombineerd) + heklicht
+    // MOTOR:  stoomlicht + heklicht + navi (aparte boordlichten)
+    // ANKER:  ankerlicht
+    // HAVEN:  alle navigatieverlichting uit
+    for (int i = 0; i < io_kanalen_cnt && i < MAX_IO_KANALEN; i++) {
+        if (io_naam_is(i, "**L_3kl"))
+            io_output[i] = (vaar_modus == MODE_ZEILEN) ? IO_AAN : IO_UIT;
+        if (io_naam_is(i, "**L_navi"))
+            io_output[i] = (vaar_modus == MODE_ZEILEN || vaar_modus == MODE_MOTOR) ? IO_AAN : IO_UIT;
+        if (io_naam_is(i, "**L_stoom"))
+            io_output[i] = (vaar_modus == MODE_MOTOR) ? IO_AAN : IO_UIT;
+        if (io_naam_is(i, "**L_hek"))
+            io_output[i] = (vaar_modus == MODE_ZEILEN || vaar_modus == MODE_MOTOR) ? IO_AAN : IO_UIT;
+        if (io_naam_is(i, "**L_anker"))
+            io_output[i] = (vaar_modus == MODE_ANKER) ? IO_AAN : IO_UIT;
+    }
+
     bool ext_aan = (licht_instelling == LICHT_AAN) ||
                    (licht_instelling == LICHT_AUTO &&
                     (vaar_modus == MODE_ZEILEN || vaar_modus == MODE_MOTOR));

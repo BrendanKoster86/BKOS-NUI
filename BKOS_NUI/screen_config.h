@@ -5,9 +5,9 @@
 
 #define CFG_RIJ_H          38   // compact 2-kolom layout
 #define CFG_INVOER_LEN     30
-#define CFG_TAB_H          36
+#define CFG_TAB_H          0    // IO NAMEN tab verwijderd
 #define CFG_TAB_Y          CONTENT_Y
-#define CFG_CONT_Y         (CONTENT_Y + CFG_TAB_H)
+#define CFG_CONT_Y         CONTENT_Y
 
 // Helderheid balk (binnen tab 1 en tab 0)
 #define HLD_Y     (CFG_CONT_Y + 2)
