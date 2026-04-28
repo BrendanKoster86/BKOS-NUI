@@ -94,7 +94,7 @@ void wifi_taak_start() {
     xTaskCreatePinnedToCore(
         netwerk_taak,
         "netwerk",
-        12288,  // stack (HTTP client heeft veel stack nodig)
+        20480,  // stack (WiFiClientSecure TLS handshake heeft ~16KB nodig)
         NULL,
         1,
         &netwerk_task_handle,

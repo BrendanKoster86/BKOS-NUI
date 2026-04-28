@@ -69,6 +69,7 @@ byte        meteo_beaufort(float ms);
 
 float       meteo_maan_dag();
 const char* meteo_maan_fase_naam(float dag);
+void        meteo_maan_nautisc(float dag, char* buf, int buflen); // "NM +3", "EK +1" etc.
 
 float meteo_waterstand_nu();    // berekende waterstand huidig moment (m NAP)
 int   meteo_getij_richting();   // +1=opkomend, -1=afgaand, 0=onbekend

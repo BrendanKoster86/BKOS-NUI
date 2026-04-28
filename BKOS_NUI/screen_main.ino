@@ -563,14 +563,16 @@ static void meteo_strip_teken() {
     tft.setTextColor(C_CYAN);
     tft.print(getij_stations[meteo_station_idx].naam);
 
+    // Maansymbool + nautische fasecode (NM/EK/VM/LK + dagen)
     float maan_dag = meteo_maan_dag();
-    tft.setTextSize(1); tft.setTextColor(C_TEXT_DIM);
-    tft.setCursor(rx, ly + 12);
-    tft.print("Maan: ");
-    tft.setTextColor(C_CYAN);
-    tft.print(meteo_maan_fase_naam(maan_dag));
+    ui_maan_symbool(rx + 6, ly + 18, 5, maan_dag / 29.53f);
+    char maan_buf[10];
+    meteo_maan_nautisc(maan_dag, maan_buf, sizeof(maan_buf));
+    tft.setTextSize(1); tft.setTextColor(RGB565(200, 210, 150));
+    tft.setCursor(rx + 14, ly + 14);
+    tft.print(maan_buf);
 
-    // Volgende HW én LW (los van volgorde)
+    // Volgende HW én LW (chronologische volgorde)
     time_t nu = time(nullptr);
     int hw_i = -1, lw_i = -1;
     for (int i = 0; i < getij_ext_cnt && (hw_i < 0 || lw_i < 0); i++) {
@@ -579,8 +581,16 @@ static void meteo_strip_teken() {
             if (lw_i < 0 && !getij_ext[i].hoog_water) lw_i = i;
         }
     }
+    // Sorteer chronologisch: eerste komende bovenaan
+    int idxs[2];
+    if (hw_i >= 0 && lw_i >= 0) {
+        bool hw_eerst = (getij_ext[hw_i].tijd <= getij_ext[lw_i].tijd);
+        idxs[0] = hw_eerst ? hw_i : lw_i;
+        idxs[1] = hw_eerst ? lw_i : hw_i;
+    } else {
+        idxs[0] = hw_i; idxs[1] = lw_i;
+    }
     int rij = 0;
-    int idxs[2] = {hw_i, lw_i};
     for (int k = 0; k < 2; k++) {
         int i = idxs[k];
         if (i < 0) continue;
@@ -592,7 +602,7 @@ static void meteo_strip_teken() {
             lt->tm_hour, lt->tm_min, e.hoogte);
         uint16_t ec = e.hoog_water ? C_BLUE : RGB565(80, 150, 255);
         tft.setTextColor(ec);
-        tft.setCursor(rx, ly + 26 + rij * 16);
+        tft.setCursor(rx, ly + 28 + rij * 13);
         tft.print(ebuf);
         rij++;
     }
@@ -634,6 +644,7 @@ void screen_main_run(int x, int y, bool aanraking) {
         if (io_runned) {
             boot_lichten_teken();
             interieur_status_teken();
+            apparaat_knoppen_teken();
             io_runned = false;
         }
         // Meteo strip: hertekenen als data net geladen is

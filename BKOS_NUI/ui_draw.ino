@@ -121,3 +121,28 @@ void ui_scheidingslijn(int x, int y, int len, uint16_t kleur, bool horizontaal) 
 void ui_panel_bg(int x, int y, int w, int h, uint16_t kleur) {
     tft.fillRoundRect(x, y, w, h, 10, kleur);
 }
+
+void ui_maan_symbool(int cx, int cy, int r, float fase) {
+    uint16_t c_licht  = RGB565(230, 210, 110);
+    uint16_t c_donker = RGB565(20, 28, 50);
+    uint16_t c_rand   = RGB565(70, 70, 100);
+    tft.fillCircle(cx, cy, r, c_donker);
+    tft.drawCircle(cx, cy, r, c_rand);
+    if (fase < 0.02f || fase > 0.98f) return;  // Nieuwe Maan: volledig donker
+    float f_illum = (1.0f - cosf(2.0f * M_PI * fase)) / 2.0f;
+    bool wassend = (fase < 0.5f);
+    for (int dy = -r; dy <= r; dy++) {
+        int xr = (int)(sqrtf((float)(r*r) - (float)(dy*dy)) + 0.5f);
+        if (xr == 0) continue;
+        float term = xr * (1.0f - 2.0f * f_illum);
+        if (wassend) {
+            int sx = (int)term;
+            int len2 = cx + xr - (cx + sx) + 1;
+            if (len2 > 0) tft.drawFastHLine(cx + sx, cy + dy, len2, c_licht);
+        } else {
+            int ex = (int)(-term);
+            int len2 = (cx + ex) - (cx - xr) + 1;
+            if (len2 > 0) tft.drawFastHLine(cx - xr, cy + dy, len2, c_licht);
+        }
+    }
+}

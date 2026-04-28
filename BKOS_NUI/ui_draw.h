@@ -29,3 +29,4 @@ void ui_tekst_midden(int x, int y, int w, const char* tekst, uint16_t kleur, uin
 void ui_tekst_midden_v(int x, int y, int h, const char* tekst, uint16_t kleur, uint8_t grootte = 1);
 void ui_scheidingslijn(int x, int y, int len, uint16_t kleur, bool horizontaal = true);
 void ui_panel_bg(int x, int y, int w, int h, uint16_t kleur);
+void ui_maan_symbool(int cx, int cy, int r, float fase);  // fase 0..1

@@ -199,6 +199,11 @@ Touch debouncing via `touch_verwerkt` flag; eerste touch na display wake wordt g
 | 52 | Sessie 6 | PANEEL: toont altijd maanfase + eerstvolgende HW én LW; bij geen weer ook waterstand nu + richting | ✅ Afgerond |
 | 53 | Sessie 6 | Vlissingen stationsdata gecorrigeerd: MLWS -2.13m, MLWN -0.74m (waren -0.52/-0.07, onjuist) | ✅ Afgerond |
 | 54 | Sessie 6 | Open-Meteo API gewijzigd naar http:// (was https://) om SSL-handshake problemen op ESP32 te omzeilen | ✅ Afgerond |
+| 55 | Sessie 7 | PANEEL schakelaar sync: apparaat_knoppen_teken() toegevoegd aan io_runned update block | ✅ Afgerond |
+| 56 | Sessie 7 | Nautische maanfase: getekend maansymbool + kwartiercode (NM/EK/VM/LK) + "+X dagen" in PANEEL, GETIJ, WEER | ✅ Afgerond |
+| 57 | Sessie 7 | Getij tab: tijd ook size2 (was size1); "Di 14:30  HW" volledig groot | ✅ Afgerond |
+| 58 | Sessie 7 | PANEEL HW/LW chronologische volgorde: eerste komende event bovenaan, ongeacht type | ✅ Afgerond |
+| 59 | Sessie 7 | Weer API fix: https:// + setInsecure(); FreeRTOS stack 12KB→20KB voor WiFiClientSecure TLS | ✅ Afgerond |
 
 ---
 

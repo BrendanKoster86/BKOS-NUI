@@ -211,15 +211,15 @@ const char* meteo_wind_richting(int graden) {
 void meteo_weer_ophalen() {
     char url[256];
     snprintf(url, sizeof(url),
-        "http://api.open-meteo.com/v1/forecast"
+        "https://api.open-meteo.com/v1/forecast"
         "?latitude=%.4f&longitude=%.4f"
         "&current=temperature_2m,weathercode,windspeed_10m,winddirection_10m,windgusts_10m,is_day"
         "&daily=weathercode,temperature_2m_max,temperature_2m_min,windspeed_10m_max,winddirection_10m_dominant"
         "&timezone=Europe%%2FAmsterdam&forecast_days=4",
         meteo_lat, meteo_lon);
 
-    // http:// (geen SSL) voorkomt TLS-handshake problemen op ESP32
-    String body = http_get(url, false);
+    // https met setInsecure (geen certvalidatie) — api.open-meteo.com stuurt HTTP redirect naar HTTPS
+    String body = http_get(url, true);
     if (body.length() < 50) return;
 
     // Huidige weer — zoek "current" blok
@@ -418,6 +418,21 @@ int meteo_getij_richting() {
             return getij_ext[i+1].hoog_water ? 1 : -1;
     }
     return 0;
+}
+
+void meteo_maan_nautisc(float dag, char* buf, int buflen) {
+    static const float kw_dag[4]   = { 0.0f, 7.38f, 14.77f, 22.15f };
+    static const char* kw_naam[4]  = { "NM", "EK", "VM", "LK" };
+    int beste = 0;
+    float beste_d = 99.0f;
+    for (int k = 0; k < 4; k++) {
+        float d = dag - kw_dag[k];
+        if (d < 0.0f) d += 29.53f;
+        if (d < beste_d) { beste_d = d; beste = k; }
+    }
+    int plus = (int)beste_d;
+    if (plus == 0) snprintf(buf, buflen, "%s",     kw_naam[beste]);
+    else           snprintf(buf, buflen, "%s +%d", kw_naam[beste], plus);
 }
 
 const char* meteo_maan_fase_naam(float dag) {

@@ -287,27 +287,25 @@ static void meteo_weer_teken() {
         ui_tekst_midden(rx, ry + lh/2, rw, "Geen data", C_TEXT_DIM, 1);
     }
 
-    // Maanfase
+    // Maansymbool + nautische fase
     float maan_dag = meteo_maan_dag();
     int my = ry + 36 + min(cnt, 4) * 28 + 6;
     if (my < ry + rh - 24) {
-        tft.setTextSize(1);
-        tft.setTextColor(C_TEXT_DIM);
-        tft.setCursor(rx + 4, my);
-        tft.print("Maan: ");
-        tft.setTextColor(C_CYAN);
-        tft.print(meteo_maan_fase_naam(maan_dag));
+        ui_maan_symbool(rx + 9, my + 6, 5, maan_dag / 29.53f);
+        char maan_buf[10];
+        meteo_maan_nautisc(maan_dag, maan_buf, sizeof(maan_buf));
+        tft.setTextSize(1); tft.setTextColor(RGB565(200, 210, 150));
+        tft.setCursor(rx + 20, my);
+        tft.print(maan_buf);
 
-        // Spring/doodtij indicator
         float spring_f = (cosf(2.0f * M_PI * maan_dag / 29.53f) + 1.0f) / 2.0f;
-        tft.setTextColor(C_TEXT_DIM);
-        tft.setCursor(rx + 4, my + 12);
+        tft.setCursor(rx + 20, my + 12);
         if (spring_f > 0.7f) {
             tft.setTextColor(C_RED_BRIGHT); tft.print("SPRINGTIJ");
         } else if (spring_f < 0.3f) {
             tft.setTextColor(C_TEXT_DIM); tft.print("doodtij");
         } else {
-            tft.print("gemiddeld tij");
+            tft.setTextColor(C_TEXT_DIM); tft.print("gemidd. tij");
         }
     }
 }
@@ -365,20 +363,20 @@ static void meteo_getij_teken() {
         tft.setCursor(ax + 18, now_y + 4); tft.print("afgaand");
     }
 
-    // Maanfase rechts in NOW bar
+    // Maansymbool + nautische fase rechts in NOW bar
     float maan_dag = meteo_maan_dag();
-    tft.setTextSize(1); tft.setTextColor(C_TEXT_DIM);
-    const char* mfase = meteo_maan_fase_naam(maan_dag);
-    int mfase_w = strlen(mfase) * 6;
-    tft.setCursor(TFT_W - mfase_w - 8, now_y + 4);
-    tft.setTextColor(RGB565(200, 200, 150));
-    tft.print(mfase);
-    tft.setTextColor(C_TEXT_DIM);
-    tft.setCursor(TFT_W - mfase_w - 8, now_y + 14);
+    int mx = TFT_W - 120;
+    ui_maan_symbool(mx + 5, now_y + 13, 5, maan_dag / 29.53f);
+    char maan_buf[10];
+    meteo_maan_nautisc(maan_dag, maan_buf, sizeof(maan_buf));
+    tft.setTextSize(1); tft.setTextColor(RGB565(200, 210, 150));
+    tft.setCursor(mx + 14, now_y + 3);
+    tft.print(maan_buf);
     float spring_f = (cosf(2.0f * M_PI * maan_dag / 29.53f) + 1.0f) / 2.0f;
-    if      (spring_f > 0.70f) { tft.setTextColor(C_RED_BRIGHT);  tft.print("springtij"); }
-    else if (spring_f < 0.30f) { tft.setTextColor(C_TEXT_DIM);    tft.print("doodtij"); }
-    else                        { tft.setTextColor(C_TEXT_DIM);    tft.print("gemidd. tij"); }
+    tft.setCursor(mx + 14, now_y + 14);
+    if      (spring_f > 0.70f) { tft.setTextColor(C_RED_BRIGHT); tft.print("springtij"); }
+    else if (spring_f < 0.30f) { tft.setTextColor(C_TEXT_DIM);   tft.print("doodtij"); }
+    else                        { tft.setTextColor(C_TEXT_DIM);   tft.print("gemidd."); }
 
     // ── 2-kolom tabel: 8 rijen × 2 kolommen = 16 entries ─────────────────
     time_t nu = time(nullptr);
@@ -416,16 +414,18 @@ static void meteo_getij_teken() {
             struct tm* lt = localtime(&e.tijd);
             char tbuf[6]; snprintf(tbuf, sizeof(tbuf), "%02d:%02d", lt->tm_hour, lt->tm_min);
 
-            // Lijn 1: dag + tijd (size1 links) + HW/LW (size2 rechts)
-            tft.setTextSize(1); tft.setTextColor(verleden ? C_TEXT_DIM : C_TEXT_DIM);
-            tft.setCursor(bx + 5, ey + 3);
-            tft.print(dag_afk[lt->tm_wday]); tft.print(" "); tft.print(tbuf);
+            // Lijn 1: dag + tijd in size2 (links) + HW/LW in size2 (rechts)
+            char dagtijdbuf[12];
+            snprintf(dagtijdbuf, sizeof(dagtijdbuf), "%s %s", dag_afk[lt->tm_wday], tbuf);
+            tft.setTextSize(2); tft.setTextColor(verleden ? C_TEXT_DIM : C_TEXT_DIM);
+            tft.setCursor(bx + 5, ey + 1);
+            tft.print(dagtijdbuf);
 
             // HW/LW label rechts in size2
             const char* type_str = hw ? "HW" : "LW";
-            int type_w = 2 * 12;  // size2 = 12px per char
+            int type_w = 2 * 12;
             tft.setTextSize(2); tft.setTextColor(type_kleur);
-            tft.setCursor(bx + GTJ_COL_W - 4 - type_w - 4, ey + 3);
+            tft.setCursor(bx + GTJ_COL_W - 4 - type_w - 4, ey + 1);
             tft.print(type_str);
 
             // Lijn 2: hoogte NAP in size2 (groot, belangrijk!)
