@@ -15,6 +15,8 @@
 
 extern bool wifi_verbonden;
 extern bool wifi_aangesloten;
+extern volatile bool wifi_ota_modus;   // true = OTA scherm actief, WiFi aanhouden
+extern TaskHandle_t  netwerk_task_handle;
 
 void wifi_setup();
 void wifi_loop();
@@ -23,3 +25,7 @@ void wifi_reset();
 bool wifi_verbind(const char* ssid, const char* wachtwoord);
 void ntp_setup();
 void ntp_loop();
+
+void wifi_taak_start();          // start FreeRTOS background task
+void wifi_ota_zet(bool actief);  // OTA scherm aan/uit → WiFi beheer
+void wifi_verbind_aanvragen();   // directe verbinding aanvragen (OTA, versiecheck)

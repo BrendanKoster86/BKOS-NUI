@@ -90,7 +90,14 @@ void ota_push_inschakelen(bool aan) {
 }
 
 void ota_git_check() {
-    if (!wifi_verbonden) { ota_status_tekst = "Geen WiFi"; return; }
+    // Zorg voor WiFi verbinding (via achtergrond taak of direct)
+    if (!wifi_verbonden) {
+        wifi_verbind_aanvragen();
+        // Wacht even op verbinding
+        unsigned long t = millis();
+        while (!wifi_verbonden && millis() - t < 10000) delay(200);
+    }
+    if (!wifi_verbonden) return;
     HTTPClient http;
     http.begin(OTA_GITHUB_VERSIE_URL);
     int code = http.GET();
@@ -109,6 +116,13 @@ void ota_git_check() {
 }
 
 void ota_git_update() {
+    // Zorg voor WiFi verbinding (via achtergrond taak of direct)
+    if (!wifi_verbonden) {
+        wifi_verbind_aanvragen();
+        // Wacht even op verbinding
+        unsigned long t = millis();
+        while (!wifi_verbonden && millis() - t < 10000) delay(200);
+    }
     if (!wifi_verbonden) return;
     ota_status_tekst = "Downloaden...";
     ota_download_toepassen(String(OTA_GITHUB_FIRMWARE_URL));

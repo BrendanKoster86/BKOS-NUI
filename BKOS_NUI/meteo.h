@@ -50,8 +50,8 @@ extern GetijExtreme getij_ext[GETIJ_N];
 extern int          getij_ext_cnt;
 
 // ─── Status ───────────────────────────────────────────────────────────────
-extern bool          meteo_geladen;
-extern unsigned long meteo_laatste_update;
+extern volatile bool meteo_geladen;        // Core 0 schrijft, Core 1 leest
+extern volatile unsigned long meteo_laatste_update;
 extern unsigned long getij_laatste_berekend;
 extern time_t        meteo_update_tijd;
 
@@ -66,3 +66,6 @@ void meteo_stad_zoeken(const char* naam);
 const char* meteo_wind_richting(int graden);
 const char* meteo_weer_omschrijving(int code);
 byte        meteo_beaufort(float ms);
+
+float       meteo_maan_dag();
+const char* meteo_maan_fase_naam(float dag);

@@ -9,8 +9,8 @@ int meteo_tab = METEO_TAB_WEER;
 // ─── Getij tabel layout ───────────────────────────────────────────────────
 #define GTJ_HDR_H   22
 #define GTJ_SCR_H   32
-#define GTJ_ROW_H   28
-#define GTJ_ROWS_N  5       // rijen per kolom
+#define GTJ_ROW_H   36       // meer ruimte voor 2-regel weergave
+#define GTJ_ROWS_N  4        // rijen per kolom (2 col × 4 rij = 8 entries)
 #define GTJ_COLS_N  2
 #define GTJ_TABLE_Y (PANEL_Y + GTJ_HDR_H + GTJ_SCR_H + 2)
 #define GTJ_TABLE_H (GTJ_ROWS_N * GTJ_ROW_H)
@@ -292,6 +292,30 @@ static void meteo_weer_teken() {
     if (getij_ext_cnt == 0) {
         ui_tekst_midden(rx, ry + lh/2, rw, "Geen data", C_TEXT_DIM, 1);
     }
+
+    // Maanfase
+    float maan_dag = meteo_maan_dag();
+    int my = ry + 36 + min(cnt, 4) * 28 + 6;
+    if (my < ry + rh - 24) {
+        tft.setTextSize(1);
+        tft.setTextColor(C_TEXT_DIM);
+        tft.setCursor(rx + 4, my);
+        tft.print("Maan: ");
+        tft.setTextColor(C_CYAN);
+        tft.print(meteo_maan_fase_naam(maan_dag));
+
+        // Spring/doodtij indicator
+        float spring_f = (cosf(2.0f * M_PI * maan_dag / 29.53f) + 1.0f) / 2.0f;
+        tft.setTextColor(C_TEXT_DIM);
+        tft.setCursor(rx + 4, my + 12);
+        if (spring_f > 0.7f) {
+            tft.setTextColor(C_RED_BRIGHT); tft.print("SPRINGTIJ");
+        } else if (spring_f < 0.3f) {
+            tft.setTextColor(C_TEXT_DIM); tft.print("doodtij");
+        } else {
+            tft.print("gemiddeld tij");
+        }
+    }
 }
 
 // ─── GETIJ TAB ────────────────────────────────────────────────────────────
@@ -327,12 +351,12 @@ static void meteo_getij_teken() {
     const char* dag_afk[] = {"Zo","Ma","Di","Wo","Do","Vr","Za"};
 
     for (int col = 0; col < GTJ_COLS_N; col++) {
-        int col_x = 10 + col * GTJ_COL_W;
+        int bx = 10 + col * GTJ_COL_W;
         for (int rij = 0; rij < GTJ_ROWS_N; rij++) {
             int idx = getij_scroll + col * GTJ_ROWS_N + rij;
-            int ry  = GTJ_TABLE_Y + rij * GTJ_ROW_H;
+            int ey  = GTJ_TABLE_Y + rij * GTJ_ROW_H;
             if (idx >= getij_ext_cnt) {
-                tft.fillRect(col_x, ry, GTJ_COL_W - 4, GTJ_ROW_H - 2, C_BG);
+                tft.fillRect(bx, ey, GTJ_COL_W - 4, GTJ_ROW_H - 2, C_BG);
                 continue;
             }
             const GetijExtreme& e = getij_ext[idx];
@@ -340,7 +364,7 @@ static void meteo_getij_teken() {
             bool hw = e.hoog_water;
             uint16_t bg, fc;
             if (verleden) {
-                bg = RGB565(15, 20, 35);
+                bg = RGB565(15, 20, 40);
                 fc = C_TEXT_DIM;
             } else if (hw) {
                 bg = RGB565(0, 50, 120);
@@ -349,17 +373,31 @@ static void meteo_getij_teken() {
                 bg = RGB565(20, 30, 55);
                 fc = C_TEXT;
             }
-            tft.fillRoundRect(col_x, ry, GTJ_COL_W - 4, GTJ_ROW_H - 2, 3, bg);
+            tft.fillRoundRect(bx, ey, GTJ_COL_W - 4, GTJ_ROW_H - 2, 3, bg);
 
             struct tm* lt = localtime(&e.tijd);
-            char tbuf[24];
-            snprintf(tbuf, sizeof(tbuf), "%s %02d:%02d %s %.2fm",
-                dag_afk[lt->tm_wday], lt->tm_hour, lt->tm_min,
-                hw ? "HW" : "LW", e.hoogte);
+            char tbuf[8];
+            snprintf(tbuf, sizeof(tbuf), "%02d:%02d", lt->tm_hour, lt->tm_min);
+
+            // Lijn 1: HH:MM + dag + HW/LW
             tft.setTextSize(1);
             tft.setTextColor(verleden ? C_TEXT_DIM : fc);
-            tft.setCursor(col_x + 4, ry + (GTJ_ROW_H - 10) / 2);
+            tft.setCursor(bx + 4, ey + 4);
+            tft.print(dag_afk[lt->tm_wday]);
+            tft.print(" ");
             tft.print(tbuf);
+            tft.print("  ");
+            tft.setTextSize(2);
+            tft.print(hw ? "HW" : "LW");
+
+            // Lijn 2: hoogte NAP + LAT afwijking
+            tft.setTextSize(1);
+            tft.setTextColor(C_TEXT_DIM);
+            tft.setCursor(bx + 4, ey + 22);
+            char h2buf[20];
+            float lat_af = e.hoogte - getij_stations[meteo_station_idx].LAT_nap;
+            snprintf(h2buf, 20, "%.2fm NAP  +%.2fm LAT", e.hoogte, lat_af);
+            tft.print(h2buf);
         }
     }
 }

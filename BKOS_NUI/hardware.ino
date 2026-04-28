@@ -21,6 +21,7 @@ void hw_setup() {
     palette_toepassen(kleurenschema);
     tft_helderheid_zet(tft_helderheid);
 
+    // Splash scherm
     tft.fillScreen(C_BG);
     tft_logo(TFT_W / 2 - 100, TFT_H / 2 - 50, 1, C_CYAN);
     tft.setTextSize(2);
@@ -31,13 +32,16 @@ void hw_setup() {
     tft.setTextSize(1);
     tft.setTextColor(C_TEXT_DIM);
     tft.setCursor(TFT_W / 2 - 80, TFT_H / 2 + 62);
-    tft.print("WiFi verbinden...");
+    tft.print("Opstarten...");
 
-    wifi_setup();
-    ntp_setup();
-    ota_setup();
-    meteo_setup();
-    io_boot();
+    meteo_setup();   // laadt NVS-instellingen (snel, geen netwerk)
+    ota_setup();     // init OTA (snel)
+    io_boot();       // UART IO discovery
+
+    // Start netwerk taak op Core 0 (niet-blokkerend)
+    wifi_taak_start();
+
+    delay(1000);     // splash tonen
 
     scherm_bouwen = true;
     actief_scherm = SCREEN_MAIN;
@@ -50,9 +54,8 @@ void hw_loop() {
     tft_loop();
 
     io_loop();
-    wifi_loop();
+    ntp_loop();
     ota_loop();
-    meteo_loop();
 
     // Scherm (her)bouwen
     if (scherm_bouwen) {
@@ -109,6 +112,14 @@ void hw_loop() {
             case SCREEN_OTA:    screen_ota_run(0, 0, false);    break;
             default: break;
         }
+    }
+
+    // WiFi OTA modus aan/uit o.b.v. actief scherm
+    static int vorig_scherm = -1;
+    if (actief_scherm != vorig_scherm) {
+        vorig_scherm = actief_scherm;
+        bool ota_scherm = (actief_scherm == SCREEN_OTA);
+        wifi_ota_zet(ota_scherm || ota_push_actief);
     }
 
     vorige_touch = aanraking;

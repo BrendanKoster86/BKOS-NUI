@@ -410,8 +410,8 @@ static void apparaat_knoppen_teken() {
         schakelaars_knop(ap[i].x, ap[i].y, DKNOP_W, DKNOP_H,
                          ap[i].label, ap[i].icoon, C_CYAN, aan);
         if (mix) {
-            // Toon mix-toestand: halve accent balk
-            tft.fillRoundRect(ap[i].x, ap[i].y, DKNOP_W / 2, 4, 2, C_ORANGE);
+            // Toon mix-toestand: accent balk onderin knop
+            tft.fillRoundRect(ap[i].x + 4, ap[i].y + DKNOP_H - 6, DKNOP_W - 8, 4, 2, C_ORANGE);
         }
     }
 }
@@ -483,8 +483,8 @@ static void scheidingslijn_teken() {
 
 // ─── Hoofdfuncties ──────────────────────────────────────────────────
 // ─── Meteo strip onderaan bootpaneel ────────────────────────────────────
-#define METEO_SH  (BDH - 330)          // remaining space after boot (386-330=56)
-#define METEO_SY  (BDY + 330)          // directly below boot bottom at scale 2
+#define METEO_SH  56                  // strip hoogte
+#define METEO_SY  (BDY + BDH - METEO_SH)   // strip onderin paneel (433-56=377)
 
 static void meteo_strip_teken() {
     int sx = BDX, sy = METEO_SY, sw = BDW, sh = METEO_SH;
@@ -546,7 +546,7 @@ static void meteo_strip_teken() {
     snprintf(gbuf, 10, "%.1fm/s", meteo_wind_ms);
     tft.print(gbuf);
 
-    // ── Rechts: getij HW/LW ──────────────────────────────────────────
+    // ── Rechts: maanfase + getij HW/LW ──────────────────────────────────────
     int rx = sx + 200;
     tft.setTextSize(1);
     tft.setTextColor(C_TEXT_DIM);
@@ -554,6 +554,18 @@ static void meteo_strip_teken() {
     tft.print("Getij ");
     tft.setTextColor(C_CYAN);
     tft.print(getij_stations[meteo_station_idx].naam);
+
+    // Maanfase
+    float maan_dag = meteo_maan_dag();
+    tft.setTextSize(1);
+    tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(rx, ly + 12);
+    tft.print("Maan: ");
+    tft.setTextColor(C_CYAN);
+    tft.print(meteo_maan_fase_naam(maan_dag));
+    char maanbuf[12]; snprintf(maanbuf, 12, " (d%.1f)", maan_dag);
+    tft.setTextColor(C_TEXT_DIM);
+    tft.print(maanbuf);
 
     int cnt = min(getij_ext_cnt, 2);
     for (int i = 0; i < cnt; i++) {
@@ -567,12 +579,12 @@ static void meteo_strip_teken() {
             e.hoogte, lat_af);
         uint16_t ec = e.hoog_water ? C_BLUE : C_TEXT_DIM;
         tft.setTextColor(ec);
-        tft.setCursor(rx, ly + 12 + i * 18);
+        tft.setCursor(rx, ly + 14 + i * 18);
         tft.print(ebuf);
     }
     if (getij_ext_cnt == 0) {
         tft.setTextColor(C_TEXT_DIM);
-        tft.setCursor(rx, ly + 14);
+        tft.setCursor(rx, ly + 28);
         tft.print("Geen getijdata");
     }
 }

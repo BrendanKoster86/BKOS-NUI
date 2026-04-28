@@ -9,13 +9,13 @@
 #define BDW   (BOOT_PANEL_W - 10)   // 380
 #define BDH   (CONTENT_H - 10)      // 386
 
-// Boot tekening schaal: raw x 0..120, y 0..165 → display (schaal 2)
-// BX_OFF = 5 + (380-240)/2 = 77  BY_OFF = BDY = CONTENT_Y + 5 = 47
-#define BOOT_BX_OFF  77
-#define BOOT_BY_OFF  47
-#define BOOT_BX(x)   (BOOT_BX_OFF + (x)*2)
-#define BOOT_BY(y)   (BOOT_BY_OFF + (y)*2)
-#define BOOT_LICHT_R 10
+// Boot tekening schaal: raw x 0..120, y 0..165 → display (schaal 1.75 = *7/4)
+// Geeft 210px breed, ~289px hoog — vrije ruimte rondom boot
+#define BOOT_BX_OFF  90   // BDX + (BDW-210)/2 = 5+85
+#define BOOT_BY_OFF  67   // BDY + top marge 20px
+#define BOOT_BX(x)   (BOOT_BX_OFF + ((x)*7)/4)
+#define BOOT_BY(y)   (BOOT_BY_OFF + ((y)*7)/4)
+#define BOOT_LICHT_R  8   // iets kleiner bij schaal 1.75
 
 // Licht indicator posities (ruwe bootcoördinaten)
 #define BL_ANKER_RX  67

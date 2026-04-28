@@ -57,7 +57,7 @@ extern bool   updaten;
 
 // Klok
 extern String klok_tijd;
-extern bool   wifi_verbonden;
+extern volatile bool wifi_verbonden;  // geschreven door Core 0, gelezen door Core 1
 
 // Apparaat lokale staat (fallback als geen IO module)
 extern bool dev_lokaal[5];

@@ -188,6 +188,12 @@ Touch debouncing via `touch_verwerkt` flag; eerste touch na display wake wordt g
 | 41 | Sessie 5 | screen_meteo.h + screen_meteo.ino: METEO scherm met WEER/GETIJ/LOCATIE tabs | ✅ Afgerond |
 | 42 | Sessie 5 | Nav bar 6 items (PANEEL/IO/METEO/CONFIG/OTA/INFO); SCREEN_METEO=2 toegevoegd | ✅ Afgerond |
 | 43 | Sessie 5 | Meteo strip onderaan bootpaneel: actueel weer + wind + eerste 2 HW/LW extremen | ✅ Afgerond |
+| 44 | Sessie 5 | FreeRTOS netwerktaak op Core 0: HTTP/WiFi nooit meer in main loop → touch altijd responsief | ✅ Afgerond |
+| 45 | Sessie 5 | WiFi on-demand: verbindt alleen bij boot/30min-update/OTA; verbreekt daarna voor energiebesparing | ✅ Afgerond |
+| 46 | Sessie 5 | Boot instant naar PANEEL na 1s splash, geen wachten op WiFi meer | ✅ Afgerond |
+| 47 | Sessie 5 | Boot tekening schaal 1.75 (was 2): vrije ruimte rondom boot en boven meteo strip | ✅ Afgerond |
+| 48 | Sessie 5 | Maanfase: tekst + springtij/doodtij indicator in meteo strip en METEO WEER tab | ✅ Afgerond |
+| 49 | Sessie 5 | Getij tabel: 2-regelige weergave per rij (tijd+HW/LW groter, hoogte+LAT kleiner eronder) | ✅ Afgerond |
 
 ---
 

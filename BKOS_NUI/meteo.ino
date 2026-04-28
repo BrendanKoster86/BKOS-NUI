@@ -42,9 +42,9 @@ char  meteo_dag_naam[4][10] = {};
 GetijExtreme getij_ext[GETIJ_N] = {};
 int          getij_ext_cnt = 0;
 
-bool          meteo_geladen             = false;
-unsigned long meteo_laatste_update      = 0;
-unsigned long getij_laatste_berekend    = 0;
+volatile bool          meteo_geladen             = false;
+volatile unsigned long meteo_laatste_update      = 0;
+unsigned long          getij_laatste_berekend    = 0;
 time_t        meteo_update_tijd         = 0;
 
 // ─── NVS instellingen via Preferences ────────────────────────────────────
@@ -385,21 +385,25 @@ void meteo_setup() {
 }
 
 void meteo_loop() {
-    if (!wifi_verbonden) return;
-    unsigned long nu = millis();
-
-    // Ophalen als nog niet gedaan, of na 10 minuten
-    if (!meteo_geladen || nu - meteo_laatste_update > 600000UL) {
-        if (!meteo_geladen) {
-            // Eerste keer: ook locatie ophalen
-            meteo_locatie_ophalen();
-        }
-        meteo_weer_ophalen();
+    // Netwerk operaties verlopen nu via netwerk_taak in wifi.ino
+    // Getij wordt periodiek herberekend (geen netwerk nodig)
+    if (millis() - getij_laatste_berekend > 1800000UL) {
         meteo_getij_berekenen();
     }
+}
 
-    // Getij: elke 30 minuten opnieuw berekenen
-    if (meteo_geladen && nu - getij_laatste_berekend > 1800000UL) {
-        meteo_getij_berekenen();
-    }
+float meteo_maan_dag() {
+    return _maanleeftijd_uren() / 24.0f;  // 0..29.53 days
+}
+
+const char* meteo_maan_fase_naam(float dag) {
+    float f = dag / 29.53f;
+    if (f < 0.03f || f > 0.97f) return "Nieuwe Maan";
+    if (f < 0.22f) return "Wassende Sikkel";
+    if (f < 0.28f) return "Eerste Kwartier";
+    if (f < 0.47f) return "Wassende Maan";
+    if (f < 0.53f) return "Volle Maan";
+    if (f < 0.72f) return "Afnemende Maan";
+    if (f < 0.78f) return "Laatste Kwartier";
+    return "Afnemende Sikkel";
 }

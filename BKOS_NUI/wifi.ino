@@ -2,46 +2,107 @@
 #include "hw_scherm.h"
 #include "ui_colors.h"
 #include "app_state.h"
+#include "meteo.h"
 
-bool wifi_aangesloten = false;
+bool wifi_aangesloten     = false;
+volatile bool wifi_ota_modus = false;
+TaskHandle_t  netwerk_task_handle = NULL;
 
-static unsigned long wifi_last_check = 0;
-static unsigned long ntp_last_sync   = 0;
-static bool          ntp_gesync      = false;
+static bool   ntp_gesync      = false;
+static unsigned long ntp_last_sync = 0;
 
-void wifi_setup() {
-    // Probeer opgeslagen credentials
+// ─── WiFi verbinden (intern, vanuit background task) ─────────────────────
+static void _wifi_verbinden_intern() {
+    if (WiFi.status() == WL_CONNECTED) { wifi_verbonden = true; return; }
+    WiFi.mode(WIFI_STA);
     Preferences wprefs;
     wprefs.begin("wifi_creds", true);
-    String opgeslagen_ssid = wprefs.getString("ssid", "");
-    String opgeslagen_pass = wprefs.getString("pass", "");
+    String ssid = wprefs.getString("ssid", "");
+    String pass = wprefs.getString("pass", "");
     wprefs.end();
-
-    if (opgeslagen_ssid.length() > 0) {
-        WiFi.begin(opgeslagen_ssid.c_str(), opgeslagen_pass.c_str());
-        unsigned long t = millis();
-        while (WiFi.status() != WL_CONNECTED && millis() - t < 12000) delay(300);
-        if (WiFi.status() == WL_CONNECTED) { wifi_verbonden = true; return; }
+    if (ssid.length() == 0) { wifi_verbonden = false; return; }
+    WiFi.begin(ssid.c_str(), pass.c_str());
+    for (int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; i++) {
+        vTaskDelay(300 / portTICK_PERIOD_MS);
     }
+    wifi_verbonden = (WiFi.status() == WL_CONNECTED);
+}
 
-    // WiFiManager als fallback
-    WiFiManager wm;
-    wm.setConfigPortalTimeout(90);
-    wm.setConnectTimeout(20);
-    if (wm.autoConnect("BKOS-NUI-Setup")) {
-        wifi_verbonden = true;
-        wprefs.begin("wifi_creds", false);
-        wprefs.putString("ssid", WiFi.SSID());
-        wprefs.putString("pass", WiFi.psk());
-        wprefs.end();
-    } else {
-        wifi_verbonden = false;
+// ─── WiFi verbreken (energiebesparing) ───────────────────────────────────
+static void _wifi_verbreken_intern() {
+    if (wifi_ota_modus) return;   // OTA modus: verbonden houden
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
+    wifi_verbonden = false;
+}
+
+// ─── Achtergrond netwerk taak (Core 0) ───────────────────────────────────
+static void netwerk_taak(void* param) {
+    // Wacht tot main loop gestart is
+    vTaskDelay(1800 / portTICK_PERIOD_MS);
+
+    // ── Eerste verbinding: NTP + meteo ───────────────────────────────────
+    _wifi_verbinden_intern();
+    if (wifi_verbonden) {
+        configTime(NTP_GMT_OFFSET, NTP_DST_OFFSET, NTP_SERVER1, NTP_SERVER2);
+        vTaskDelay(2000 / portTICK_PERIOD_MS);  // even wachten op NTP sync
+        if (!meteo_geladen) meteo_locatie_ophalen();
+        meteo_weer_ophalen();
+        meteo_getij_berekenen();
     }
+    _wifi_verbreken_intern();
+
+    // ── Hoofd lus ────────────────────────────────────────────────────────
+    for (;;) {
+        // Wacht op notificatie (max 60 seconden), daarna periodichecheck
+        ulTaskNotifyTake(pdTRUE, 60000 / portTICK_PERIOD_MS);
+
+        unsigned long nu = millis();
+        bool update_nodig = (!meteo_geladen) ||
+                            (nu - meteo_laatste_update > 1800000UL);
+
+        if (!update_nodig && !wifi_ota_modus) continue;
+
+        // Verbinden
+        if (WiFi.status() != WL_CONNECTED) _wifi_verbinden_intern();
+
+        if (wifi_verbonden) {
+            if (update_nodig) {
+                meteo_weer_ophalen();
+                meteo_getij_berekenen();
+            }
+            // OTA modus: verbonden laten (OTA loop draait in main loop)
+        }
+
+        if (!wifi_ota_modus) _wifi_verbreken_intern();
+    }
+}
+
+// ─── Publieke API ─────────────────────────────────────────────────────────
+void wifi_taak_start() {
+    xTaskCreatePinnedToCore(
+        netwerk_taak,
+        "netwerk",
+        12288,  // stack (HTTP client heeft veel stack nodig)
+        NULL,
+        1,
+        &netwerk_task_handle,
+        0   // Core 0 (main loop draait op Core 1)
+    );
+}
+
+void wifi_ota_zet(bool actief) {
+    wifi_ota_modus = actief;
+    if (actief && netwerk_task_handle) xTaskNotifyGive(netwerk_task_handle);
+}
+
+void wifi_verbind_aanvragen() {
+    if (netwerk_task_handle) xTaskNotifyGive(netwerk_task_handle);
 }
 
 bool wifi_verbind(const char* ssid, const char* wachtwoord) {
     WiFi.disconnect(true);
-    delay(200);
+    vTaskDelay(200 / portTICK_PERIOD_MS);
     WiFi.begin(ssid, wachtwoord);
     unsigned long t = millis();
     while (WiFi.status() != WL_CONNECTED && millis() - t < 15000) delay(300);
@@ -57,12 +118,13 @@ bool wifi_verbind(const char* ssid, const char* wachtwoord) {
     return wifi_verbonden;
 }
 
+void wifi_setup() {
+    // Alleen WiFiManager state opschonen bij eerste gebruik
+    // Verbinding zelf gaat via wifi_taak_start()
+}
+
 void wifi_loop() {
-    if (millis() - wifi_last_check < 5000) return;
-    wifi_last_check = millis();
-    wifi_verbonden = (WiFi.status() == WL_CONNECTED);
-    if (wifi_verbonden && !ntp_gesync) ntp_setup();
-    ntp_loop();
+    // Leeg — verbinding beheer is nu in netwerk_taak
 }
 
 void wifi_reset() {
@@ -77,12 +139,6 @@ void wifi_reset() {
 
 bool wifi_check() {
     wifi_verbonden = (WiFi.status() == WL_CONNECTED);
-    if (!wifi_verbonden) {
-        WiFi.reconnect();
-        unsigned long t = millis();
-        while (WiFi.status() != WL_CONNECTED && millis() - t < 10000) delay(200);
-        wifi_verbonden = (WiFi.status() == WL_CONNECTED);
-    }
     return wifi_verbonden;
 }
 
@@ -93,11 +149,10 @@ void ntp_setup() {
 }
 
 void ntp_loop() {
-    if (!wifi_verbonden) return;
     if (millis() - ntp_last_sync < 30000) return;
     ntp_last_sync = millis();
     struct tm t;
-    if (getLocalTime(&t, 1000)) {
+    if (getLocalTime(&t, 0)) {  // 0ms = niet-blokkerend
         char buf[8];
         snprintf(buf, sizeof(buf), "%02d:%02d", t.tm_hour, t.tm_min);
         klok_tijd  = String(buf);
