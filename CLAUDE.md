@@ -217,6 +217,12 @@ Touch debouncing via `touch_verwerkt` flag; eerste touch na display wake wordt g
 | 70 | Sessie 9 | WiFi wachtwoord toetsenbord: volledig CONFIG keyboard (CAPS/SYM/kleine letters/speciale tekens), wachtwoord als sterretjes | ✅ Afgerond |
 | 71 | Sessie 9 | IO CONFIGURATIE achter PIN beveiliging in CONFIG scherm | ✅ Afgerond |
 | 72 | Sessie 9 | BKOS-NUI VERWIJDEREN knop in OTA scherm: bevestigingsoverlay, flash blanco firmware van brennyc86/BKOS-blanco | ✅ Afgerond |
+| 73 | Sessie 10 | IO verlichting fix: io_verlichting_update() gebruikt io_zichtbaar() i.p.v. io_kanalen_cnt | ✅ Afgerond |
+| 74 | Sessie 10 | Interieur verlichting: IL_wit standaard AAN; IL_rood bij ZEILEN/MOTOR + nav lichten aan + 15min na zonsondergang | ✅ Afgerond |
+| 75 | Sessie 10 | LICHT_AUTO klokgestuurd: nav_licht_ok = !meteo_is_dag; ankerlicht altijd aan bij ANKER (veiligheid) | ✅ Afgerond |
+| 76 | Sessie 10 | Nav bar herschikt: WIFI op positie 4 (altijd zichtbaar); OTA via CONFIG→UPDATEN (achter PIN) | ✅ Afgerond |
+| 77 | Sessie 10 | CONFIG vergrendeling visueel: gestreepte overlay op paletten, grijze tekst/knoppen; ONTGRENDELEN/VERGRENDELEN knop | ✅ Afgerond |
+| 78 | Sessie 10 | INFO scherm lees-alleen: BEWERK knop in statusbalk vraagt PIN; velden alleen bewerkbaar na ontgrendeling | ✅ Afgerond |
 
 ---
 

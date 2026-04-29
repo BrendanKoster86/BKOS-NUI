@@ -17,7 +17,9 @@ static const char* eig_labels[5]   = {"Naam", "Telefoon", "Stad", "Adres", "E-ma
 static const char* eig_keys[5]     = {"e_naam","e_tel","e_stad","e_adres","e_email"};
 static char        eig_vals[5][INFO_VELD_LEN];
 
-static bool info_geladen = false;
+static bool info_geladen   = false;
+static bool info_bewerkbaar = false;
+static bool info_pin_wacht  = false;
 
 const char* info_boot_naam() {
     if (!info_geladen) info_laden();
@@ -137,8 +139,10 @@ static void info_veld_teken(int idx, int y, const char* label, const char* waard
         tft.setCursor(VELD_LABEL_W + 18, y + (VELD_H - 16) / 2);
         tft.print(strlen(waarde) > 0 ? waarde : "(niet ingevuld)");
     }
-    tft.setTextColor(C_SURFACE3);
-    tft.setCursor(TFT_W - 30, y + (VELD_H - 8) / 2); tft.print(">");
+    if (info_bewerkbaar) {
+        tft.setTextColor(C_SURFACE3);
+        tft.setCursor(TFT_W - 30, y + (VELD_H - 8) / 2); tft.print(">");
+    }
 }
 
 static void info_velden_teken() {
@@ -162,6 +166,10 @@ void screen_info_teken() {
     if (!info_geladen) info_laden();
     tft.fillScreen(C_BG);
     sb_scherm_teken("BOOT & EIGENAAR", C_CYAN);
+    // BEWERK / VERGRENDELEN knop in status balk
+    ui_knop(SB_KLOK_X - 120, (SB_H - 26) / 2, 112, 26,
+            info_bewerkbaar ? "VERGRENDEL" : "BEWERK",
+            C_SURFACE2, info_bewerkbaar ? C_AMBER : C_TEXT_DIM);
     info_tabs_teken();
     info_velden_teken();
     nav_bar_teken();
@@ -170,6 +178,20 @@ void screen_info_teken() {
 void screen_info_run(int x, int y, bool aanraking) {
     if (!aanraking) return;
     if (millis() - info_kb_sloot < 400) return;
+
+    // PIN overlay voor BEWERK ontgrendeling
+    if (info_pin_wacht && pin_overlay_actief) {
+        if (pin_overlay_run(x, y)) {
+            info_kb_sloot = millis();
+            if (config_ontgrendeld) {
+                info_bewerkbaar    = true;
+                config_ontgrendeld = false;  // niet CONFIG ontgrendelen
+            }
+            info_pin_wacht = false;
+            scherm_bouwen  = true;
+        }
+        return;
+    }
 
     if (info_kb_actief) {
         bool klaar = screen_config_toetsenbord_run(x, y);
@@ -191,8 +213,22 @@ void screen_info_run(int x, int y, bool aanraking) {
         return;
     }
 
+    // BEWERK / VERGRENDELEN knop in status balk
+    if (y < SB_H && x >= SB_KLOK_X - 120 && x < SB_KLOK_X) {
+        if (info_bewerkbaar) {
+            info_bewerkbaar = false;
+            scherm_bouwen   = true;
+        } else {
+            info_pin_wacht = true;
+            pin_vereist_tonen();
+        }
+        return;
+    }
+
     int nav = nav_bar_klik(x, y);
     if (nav >= 0 && nav != actief_scherm) {
+        info_bewerkbaar = false;
+        info_pin_wacht  = false;
         actief_scherm = nav; scherm_bouwen = true; return;
     }
 
@@ -206,6 +242,9 @@ void screen_info_run(int x, int y, bool aanraking) {
         return;
     }
 
+    // Veld aanraken — alleen als bewerkbaar
+    if (!info_bewerkbaar) return;
+
     if (y >= VELD_START_Y) {
         int veld_idx = (y - VELD_START_Y) / VELD_H;
         int n_velden = (info_tab == 0) ? 6 : 5;
@@ -214,15 +253,14 @@ void screen_info_run(int x, int y, bool aanraking) {
             info_kb_boot = (info_tab == 0);
             const char* huidige = info_kb_boot ? boot_vals[veld_idx] : eig_vals[veld_idx];
             const char* lbl = info_kb_boot ? boot_labels[veld_idx] : eig_labels[veld_idx];
-            // Config keyboard instellen
             strncpy(cfg_invoer, huidige, CFG_INVOER_LEN - 1);
             cfg_invoer[CFG_INVOER_LEN - 1] = '\0';
             snprintf(cfg_kb_label, 24, "%s:", lbl);
             cfg_kb_numeriek    = info_kb_boot && boot_numeriek[veld_idx];
             cfg_geselecteerd   = -1;
             cfg_bewerk_zeilnr  = false;
-            cfg_kb_info_mode   = true;   // geen chips, OPSLAAN laat aan ons
-            cfg_kb_opgeslagen  = false;  // reset, wordt true bij OPSLAAN
+            cfg_kb_info_mode   = true;
+            cfg_kb_opgeslagen  = false;
             kb_sym             = false;
             info_kb_actief     = true;
             screen_config_toetsenbord_teken();

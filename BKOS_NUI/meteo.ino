@@ -42,6 +42,9 @@ char  meteo_dag_naam[4][10] = {};
 GetijExtreme getij_ext[GETIJ_N] = {};
 int          getij_ext_cnt = 0;
 
+time_t        meteo_zonsopgang          = 0;
+time_t        meteo_zonsondergang       = 0;
+
 volatile bool          meteo_geladen             = false;
 volatile unsigned long meteo_laatste_update      = 0;
 unsigned long          getij_laatste_berekend    = 0;
@@ -117,6 +120,34 @@ static String json_str(const String& json, const char* key) {
     int j = json.indexOf('"', i);
     if (j < 0) return "";
     return json.substring(i, j);
+}
+
+static String json_array_str_nth(const String& json, const char* key, int n) {
+    String k = "\""; k += key; k += "\":[\"";
+    int i = json.indexOf(k);
+    if (i < 0) return "";
+    i += k.length();
+    for (int c = 0; c < n; c++) {
+        i = json.indexOf("\",\"", i);
+        if (i < 0) return "";
+        i += 3;
+    }
+    int j = json.indexOf('"', i);
+    if (j < 0) return "";
+    return json.substring(i, j);
+}
+
+// "2026-04-29T21:12" → time_t (lokale tijd via mktime)
+static time_t iso_naar_epoch(const String& iso) {
+    if (iso.length() < 16) return 0;
+    struct tm t = {};
+    t.tm_year  = iso.substring(0, 4).toInt() - 1900;
+    t.tm_mon   = iso.substring(5, 7).toInt() - 1;
+    t.tm_mday  = iso.substring(8, 10).toInt();
+    t.tm_hour  = iso.substring(11, 13).toInt();
+    t.tm_min   = iso.substring(14, 16).toInt();
+    t.tm_isdst = -1;
+    return mktime(&t);
 }
 
 // Haal Nth getal op uit een JSON array (0-based)
@@ -215,7 +246,7 @@ void meteo_weer_ophalen() {
         "https://api.open-meteo.com/v1/forecast"
         "?latitude=%.4f&longitude=%.4f"
         "&current=temperature_2m,weathercode,windspeed_10m,winddirection_10m,windgusts_10m,is_day"
-        "&daily=weathercode,temperature_2m_max,temperature_2m_min,windspeed_10m_max,winddirection_10m_dominant"
+        "&daily=weathercode,temperature_2m_max,temperature_2m_min,windspeed_10m_max,winddirection_10m_dominant,sunrise,sunset"
         "&timezone=Europe%%2FAmsterdam&forecast_days=4",
         meteo_lat, meteo_lon);
 
@@ -247,6 +278,11 @@ void meteo_weer_ophalen() {
             meteo_dag_wind_dir[i]  = (int)json_array_nth(daily, "winddirection_10m_dominant", i);
             meteo_dag_code[i]      = (int)json_array_nth(daily, "weathercode", i);
         }
+        // Zonsopgang en -ondergang vandaag (voor interieur verlichting timing)
+        String sr = json_array_str_nth(daily, "sunrise", 0);
+        String ss = json_array_str_nth(daily, "sunset",  0);
+        if (sr.length() >= 16) meteo_zonsopgang    = iso_naar_epoch(sr);
+        if (ss.length() >= 16) meteo_zonsondergang = iso_naar_epoch(ss);
     }
 
     // Dagnamen (vandaag/morgen/overmorgen/...)

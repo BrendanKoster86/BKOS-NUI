@@ -7,9 +7,9 @@
 #define SCREEN_IO      1
 #define SCREEN_METEO   2
 #define SCREEN_CONFIG  3
-#define SCREEN_OTA     4
+#define SCREEN_WIFI    4  // in nav bar, altijd toegankelijk
 #define SCREEN_INFO    5
-#define SCREEN_WIFI    6  // niet in nav bar, toegankelijk via OTA scherm
+#define SCREEN_OTA     6  // niet in nav bar, via CONFIG → UPDATEN
 #define SCREEN_IO_CFG  7  // niet in nav bar, toegankelijk via config scherm
 
 // Vaarmodi

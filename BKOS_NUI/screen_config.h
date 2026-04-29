@@ -35,8 +35,13 @@ extern byte cfg_tab;
 extern bool kb_hoofdletters;
 extern bool kb_sym;
 
+extern bool config_ontgrendeld;
+extern bool pin_overlay_actief;
+
 void screen_config_teken();
 void screen_config_run(int x, int y, bool aanraking);
 void screen_config_rijen_teken();
 void screen_config_toetsenbord_teken();
 bool screen_config_toetsenbord_run(int x, int y);
+void pin_vereist_tonen();
+bool pin_overlay_run(int x, int y);

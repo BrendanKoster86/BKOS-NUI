@@ -38,7 +38,7 @@ static void wifi_verbind_uitvoeren() {
         tft.setCursor(40, CONTENT_Y + 80);
         tft.print("Verbonden! Instellingen opgeslagen.");
         delay(1500);
-        actief_scherm = SCREEN_OTA;
+        actief_scherm = SCREEN_CONFIG;
         scherm_bouwen = true;
     } else {
         wifi_staat = WIFI_ST_LIJST;
@@ -151,7 +151,7 @@ void screen_wifi_run(int x, int y, bool aanraking) {
 
     // Terug knop in status bar
     if (y < SB_H && x >= TFT_W - 110) {
-        actief_scherm = SCREEN_OTA;
+        actief_scherm = SCREEN_CONFIG;
         scherm_bouwen = true;
         wifi_staat = WIFI_ST_IDLE;
         return;

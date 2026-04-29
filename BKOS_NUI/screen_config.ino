@@ -40,8 +40,8 @@ static unsigned long cfg_kb_sloot = 0;
 static bool cfg_preset_menu     = false;
 
 // ─── PIN state ───────────────────────────────────────────────────────────
-static bool  config_ontgrendeld     = false;
-static bool  pin_overlay_actief     = false;
+bool  config_ontgrendeld     = false;
+bool  pin_overlay_actief     = false;
 static int   pin_stap               = 0;   // 0=unlock, 1=nieuw PIN, 2=bevestig PIN
 static char  pin_invoer[5]          = "";
 static char  pin_nieuw[5]           = "";
@@ -176,7 +176,7 @@ static void pin_overlay_teken() {
 
 static bool pin_verwerk_ok();  // forward
 
-static bool pin_overlay_run(int x, int y) {
+bool pin_overlay_run(int x, int y) {
     int kx = PIN_OV_X + (PIN_OV_W - (3 * PIN_KW + 2 * PIN_KGAP)) / 2;
     int ky = PIN_OV_Y + 104;
     const char* krows[3] = {"789", "456", "123"};
@@ -277,7 +277,7 @@ static bool pin_verwerk_ok() {
     return false;
 }
 
-static void pin_vereist_tonen() {
+void pin_vereist_tonen() {
     pin_stap = 0;
     pin_invoer[0] = '\0';
     pin_na_unlock_wijzigen = false;
@@ -432,58 +432,77 @@ static void cfg_instellingen_teken() {
 
     helderheid_balk_teken();
 
-    // Kleurenschema (7 paletten)
-    int sy = HLD_Y + HLD_H + 6;
+    bool ontg = config_ontgrendeld;
+
+    // WiFi + Ontgrendelen rij (altijd toegankelijk)
+    int wow_y = HLD_Y + HLD_H + 4;
+    tft.fillRoundRect(8, wow_y + 2, 300, 34, 6, C_SURFACE);
+    tft.setTextSize(2); tft.setTextColor(C_CYAN);
+    tft.setCursor(18, wow_y + 2 + (34 - 16) / 2); tft.print("WIFI NETWERKEN  >");
+    ui_knop(316, wow_y + 2, TFT_W - 324, 34,
+            ontg ? "VERGRENDELEN" : "ONTGRENDELEN",
+            C_SURFACE2, ontg ? C_AMBER : C_TEXT);
+
+    // Kleurpaletten (achter PIN — gedempt als vergrendeld)
+    int sy = wow_y + 38 + 4;
     palette_swatches_teken(sy);
+    if (!ontg) {
+        for (int dy = sy; dy < sy + 58; dy += 2)
+            tft.drawFastHLine(0, dy, TFT_W, C_BG);
+    }
 
     // Boot type
-    int by = sy + 64;
+    int by = sy + 62;
     tft.fillRoundRect(8, by, TFT_W - 16, 40, 6, C_SURFACE);
-    tft.setTextSize(1); tft.setTextColor(C_TEXT_DIM);
+    tft.setTextSize(1); tft.setTextColor(ontg ? C_TEXT_DIM : C_DARK_GRAY);
     tft.setCursor(18, by + (40 - 8) / 2); tft.print("BOOT");
     const char* boots[] = {"ZEILBOOT", "KRUIZER", "STRIJKIJZER", "CATAMARAN"};
-    int bw = 148, bx = 90;
+    int bw = 148, bx_off = 90;
     for (int i = 0; i < 4; i++) {
         bool act = (boot_type == i);
-        int bx_i = bx + i * (bw + 6);
-        uint16_t bbg = act ? C_CYAN : C_SURFACE2;
-        uint16_t bfg = act ? C_TEXT_DARK : C_TEXT_DIM;
+        int bx_i = bx_off + i * (bw + 6);
+        uint16_t bbg = act ? (ontg ? C_CYAN : C_SURFACE2) : (ontg ? C_SURFACE2 : C_SURFACE);
+        uint16_t bfg = act ? (ontg ? C_TEXT_DARK : C_TEXT_DIM) : (ontg ? C_TEXT_DIM : C_DARK_GRAY);
         tft.fillRoundRect(bx_i, by + 4, bw, 32, 5, bbg);
-        tft.drawRoundRect(bx_i, by + 4, bw, 32, 5, act ? C_WHITE : C_SURFACE3);
+        tft.drawRoundRect(bx_i, by + 4, bw, 32, 5, act && ontg ? C_WHITE : C_SURFACE3);
         tft.setTextSize(1); tft.setTextColor(bfg);
         tft.setCursor(bx_i + 5, by + 4 + (32 - 8) / 2);
         tft.print(boots[i]);
-        uint16_t mc = act ? C_TEXT_DARK : C_TEXT_DIM;
-        uint16_t mca = act ? RGB565(0,0,0) : C_CYAN;
-        mini_boot(i, bx_i + bw - 66, by + 7, 60, 22, mc, mca);
+        mini_boot(i, bx_i + bw - 66, by + 7, 60, 22, bfg, act && ontg ? RGB565(0,0,0) : C_SURFACE3);
     }
 
     // Zeilnummer
-    int zy = by + 46;
+    int zy = by + 44;
     tft.fillRoundRect(8, zy, TFT_W - 16, 40, 6, C_SURFACE);
-    tft.setTextSize(1); tft.setTextColor(C_TEXT_DIM);
+    tft.setTextSize(1); tft.setTextColor(ontg ? C_TEXT_DIM : C_DARK_GRAY);
     tft.setCursor(18, zy + (40 - 8) / 2); tft.print("ZEILNR");
-    tft.fillRoundRect(90, zy + 4, 320, 32, 5, C_SURFACE2);
+    tft.fillRoundRect(90, zy + 4, 320, 32, 5, ontg ? C_SURFACE2 : C_SURFACE);
     tft.drawRoundRect(90, zy + 4, 320, 32, 5, C_SURFACE3);
     tft.setTextSize(2);
-    tft.setTextColor(strlen(zeilnummer) > 0 ? C_TEXT : C_TEXT_DIM);
+    tft.setTextColor(ontg ? (strlen(zeilnummer) > 0 ? C_TEXT : C_TEXT_DIM) : C_DARK_GRAY);
     tft.setCursor(98, zy + 4 + (32 - 16) / 2);
-    tft.print(strlen(zeilnummer) > 0 ? zeilnummer : "(tik om in te stellen)");
+    tft.print(ontg ? (strlen(zeilnummer) > 0 ? zeilnummer : "(tik om in te stellen)") : "***");
 
-    // IO Configuratie knop
-    int iy = zy + 50;
-    tft.fillRect(0, iy, TFT_W, 50, C_BG);
-    ui_knop(10, iy + 4, TFT_W - 20, 42, "IO CONFIGURATIE  >", C_SURFACE2, C_CYAN);
+    // IO Configuratie
+    int iy = zy + 44;
+    ui_knop(10, iy + 4, TFT_W - 20, 38, "IO CONFIGURATIE  >",
+            ontg ? C_SURFACE2 : C_SURFACE, ontg ? C_CYAN : C_TEXT_DIM);
 
-    // PIN code wijzigen
-    int py = iy + 52;
-    tft.fillRect(0, py, TFT_W, 50, C_BG);
-    ui_knop(10, py + 4, TFT_W - 20, 42, "PINCODE WIJZIGEN  >",
-            C_SURFACE2, config_ontgrendeld ? C_AMBER : C_TEXT_DIM);
+    // Firmware updaten
+    int uy = iy + 46;
+    ui_knop(10, uy + 4, TFT_W - 20, 38, "FIRMWARE UPDATEN  >",
+            ontg ? C_SURFACE2 : C_SURFACE, ontg ? C_CYAN : C_TEXT_DIM);
+
+    // Pincode wijzigen
+    int py = uy + 46;
+    ui_knop(10, py + 4, TFT_W - 20, 38, "PINCODE WIJZIGEN  >",
+            C_SURFACE2, ontg ? C_AMBER : C_TEXT_DIM);
 }
 
 static void cfg_instellingen_run(int x, int y) {
-    // Helderheid
+    bool ontg = config_ontgrendeld;
+
+    // Helderheid (altijd vrij)
     if (y >= HLD_Y && y < HLD_Y + HLD_H) {
         if (x >= 12 && x < 12 + HLD_BTN_W) {
             tft_helderheid = max(5, tft_helderheid - 5);
@@ -505,11 +524,32 @@ static void cfg_instellingen_run(int x, int y) {
         }
     }
 
-    int sy = HLD_Y + HLD_H + 6;
+    int wow_y = HLD_Y + HLD_H + 4;
+    int sy    = wow_y + 38 + 4;
+    int by    = sy + 62;
+    int zy    = by + 44;
+    int iy    = zy + 44;
+    int uy    = iy + 46;
+    int py    = uy + 46;
 
-    // Kleurenschema (7 paletten) — PIN vereist
-    if (y >= sy + 4 && y < sy + 54) {
-        if (!config_ontgrendeld) { pin_vereist_tonen(); return; }
+    // WiFi + Ontgrendelen rij (altijd vrij)
+    if (y >= wow_y && y < wow_y + 38) {
+        if (x < 316) {
+            actief_scherm = SCREEN_WIFI; scherm_bouwen = true;
+        } else {
+            if (ontg) {
+                config_ontgrendeld = false;
+                scherm_bouwen = true;
+            } else {
+                pin_vereist_tonen();
+            }
+        }
+        return;
+    }
+
+    // Kleurpaletten — PIN vereist
+    if (y >= sy && y < sy + 58) {
+        if (!ontg) { pin_vereist_tonen(); return; }
         int sw = 95, gap = 6, start_x = 80;
         int idx = (x - start_x) / (sw + gap);
         if (idx >= 0 && idx < PALETTE_CNT) {
@@ -524,12 +564,11 @@ static void cfg_instellingen_run(int x, int y) {
         return;
     }
 
-    int by = sy + 64;
     // Boot type — PIN vereist
     if (y >= by && y < by + 40) {
-        if (!config_ontgrendeld) { pin_vereist_tonen(); return; }
-        int bw = 148, bx = 90;
-        int idx = (x - bx) / (bw + 6);
+        if (!ontg) { pin_vereist_tonen(); return; }
+        int bw = 148, bx_off = 90;
+        int idx = (x - bx_off) / (bw + 6);
         if (idx >= 0 && idx < 4) {
             boot_type = idx;
             state_save(); cfg_instellingen_teken();
@@ -537,10 +576,9 @@ static void cfg_instellingen_run(int x, int y) {
         return;
     }
 
-    int zy = by + 46;
     // Zeilnummer — PIN vereist
     if (y >= zy && y < zy + 40 && x >= 90 && x < 410) {
-        if (!config_ontgrendeld) { pin_vereist_tonen(); return; }
+        if (!ontg) { pin_vereist_tonen(); return; }
         cfg_bewerk_zeilnr = true;
         strncpy(cfg_invoer, zeilnummer, CFG_INVOER_LEN - 1);
         cfg_invoer[CFG_INVOER_LEN - 1] = '\0';
@@ -551,19 +589,25 @@ static void cfg_instellingen_run(int x, int y) {
         return;
     }
 
-    int iy = zy + 50;
     // IO Configuratie — PIN vereist
-    if (y >= iy && y < iy + 50) {
-        if (!config_ontgrendeld) { pin_vereist_tonen(); return; }
+    if (y >= iy && y < iy + 46) {
+        if (!ontg) { pin_vereist_tonen(); return; }
         actief_scherm = SCREEN_IO_CFG;
         scherm_bouwen = true;
         return;
     }
 
+    // Firmware updaten — PIN vereist
+    if (y >= uy && y < uy + 46) {
+        if (!ontg) { pin_vereist_tonen(); return; }
+        actief_scherm = SCREEN_OTA;
+        scherm_bouwen = true;
+        return;
+    }
+
     // PIN wijzigen
-    int py = iy + 52;
-    if (y >= py && y < py + 52) {
-        if (!config_ontgrendeld) {
+    if (y >= py && y < py + 46) {
+        if (!ontg) {
             pin_stap = 0;
             pin_na_unlock_wijzigen = true;
             pin_invoer[0] = '\0';

@@ -49,6 +49,10 @@ struct GetijExtreme {
 extern GetijExtreme getij_ext[GETIJ_N];
 extern int          getij_ext_cnt;
 
+// ─── Zon op/onder (van dagelijkse API) ────────────────────────────────────
+extern time_t meteo_zonsopgang;
+extern time_t meteo_zonsondergang;
+
 // ─── Status ───────────────────────────────────────────────────────────────
 extern volatile bool meteo_geladen;        // Core 0 schrijft, Core 1 leest
 extern volatile unsigned long meteo_laatste_update;

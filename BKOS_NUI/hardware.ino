@@ -116,7 +116,7 @@ void hw_loop() {
         }
     }
 
-    // WiFi OTA modus aan/uit o.b.v. actief scherm
+    // WiFi OTA modus aan/uit o.b.v. actief scherm (SCREEN_OTA = 6, niet meer in nav bar)
     static int vorig_scherm = -1;
     if (actief_scherm != vorig_scherm) {
         vorig_scherm = actief_scherm;
