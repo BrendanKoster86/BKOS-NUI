@@ -86,7 +86,7 @@ void nav_bar_teken() {
     int bw = TFT_W / NAV_ITEMS;
     for (int i = 0; i < NAV_ITEMS; i++) {
         int x = i * bw;
-        bool actief = (actief_scherm == i);
+        bool actief = (actief_scherm == nav_scherm[i]);
 
         if (actief) {
             tft.fillRect(x + 2, y + 2, bw - 4, NAV_H - 4, C_SURFACE2);
@@ -109,6 +109,6 @@ int nav_bar_klik(int x, int y) {
     if (y < NAV_Y || y >= TFT_H) return -1;
     int bw = TFT_W / NAV_ITEMS;
     int idx = x / bw;
-    if (idx >= 0 && idx < NAV_ITEMS) return idx;
+    if (idx >= 0 && idx < NAV_ITEMS) return nav_scherm[idx];
     return -1;
 }

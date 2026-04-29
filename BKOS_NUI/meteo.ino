@@ -241,42 +241,60 @@ const char* meteo_wind_richting(int graden) {
 
 // ─── Weer ophalen (Open-Meteo) ────────────────────────────────────────────
 void meteo_weer_ophalen() {
-    char url[256];
+    char url[800];
     snprintf(url, sizeof(url),
         "https://api.open-meteo.com/v1/forecast"
         "?latitude=%.4f&longitude=%.4f"
-        "&current=temperature_2m,weathercode,windspeed_10m,winddirection_10m,windgusts_10m,is_day"
-        "&daily=weathercode,temperature_2m_max,temperature_2m_min,windspeed_10m_max,winddirection_10m_dominant,sunrise,sunset"
-        "&timezone=Europe%%2FAmsterdam&forecast_days=4",
+        "&daily=sunrise,sunset,apparent_temperature_max,apparent_temperature_min,weather_code"
+        ",uv_index_max,sunshine_duration,wind_direction_10m_dominant,wind_gusts_10m_max,wind_speed_10m_max"
+        "&hourly=temperature_2m,cloud_cover,rain,wind_direction_10m,wind_gusts_10m,uv_index"
+        ",sunshine_duration,apparent_temperature,wind_speed_10m,pressure_msl,precipitation,visibility"
+        "&models=best_match,knmi_harmonie_arome_netherlands,knmi_harmonie_arome_europe,knmi_seamless"
+        "&current=temperature_2m,rain,wind_speed_10m,wind_direction_10m,pressure_msl"
+        "&minutely_15=wind_speed_10m,wind_direction_10m,is_day,rain,wind_gusts_10m"
+        ",visibility,lightning_potential,sunshine_duration,precipitation"
+        "&timezone=Europe%%2FBerlin&past_days=0&forecast_days=3&wind_speed_unit=kn",
         meteo_lat, meteo_lon);
 
-    // https met setInsecure (geen certvalidatie) — api.open-meteo.com stuurt HTTP redirect naar HTTPS
     String body = http_get(url, true);
     if (body.length() < 50) return;
 
-    // Huidige weer — zoek "current" blok
+    // Huidige weer — current blok (scalaire waarden, wind in knopen)
     int cur_start = body.indexOf("\"current\":");
     if (cur_start >= 0) {
         String cur = body.substring(cur_start, body.indexOf('}', cur_start) + 1);
-        meteo_temp      = json_float(cur, "temperature_2m");
-        meteo_wind_ms   = json_float(cur, "windspeed_10m") / 3.6f;
-        meteo_wind_max  = json_float(cur, "windgusts_10m") / 3.6f;
-        meteo_wind_dir  = json_int(cur, "winddirection_10m");
-        meteo_weer_code = json_int(cur, "weathercode");
-        meteo_is_dag    = json_int(cur, "is_day") == 1;
+        meteo_temp     = json_float(cur, "temperature_2m");
+        meteo_wind_ms  = json_float(cur, "wind_speed_10m") / 1.944f;   // kn -> m/s
+        meteo_wind_dir = json_int(cur, "wind_direction_10m");
     }
 
-    // Dagelijkse max temp (voor vandaag)
+    // minutely_15: windstoten + is_dag (eerste waarde = nu)
+    int m15_start = body.indexOf("\"minutely_15\":");
+    if (m15_start >= 0) {
+        int gust_pos = body.indexOf("\"wind_gusts_10m\":[", m15_start);
+        if (gust_pos >= 0) {
+            gust_pos += 18;
+            meteo_wind_max = body.substring(gust_pos, gust_pos + 20).toFloat() / 1.944f;
+        }
+        int isd_pos = body.indexOf("\"is_day\":[", m15_start);
+        if (isd_pos >= 0) {
+            isd_pos += 10;
+            meteo_is_dag = body.substring(isd_pos, isd_pos + 4).toFloat() > 0.5f;
+        }
+    }
+
+    // Dagelijkse data (apparent temp, weather_code, wind in knopen)
     int daily_start = body.indexOf("\"daily\":");
     if (daily_start >= 0) {
         String daily = body.substring(daily_start);
-        meteo_temp_max = json_array_nth(daily, "temperature_2m_max", 0);
+        meteo_temp_max  = json_array_nth(daily, "apparent_temperature_max", 0);
+        meteo_weer_code = (int)json_array_nth(daily, "weather_code", 0);
         for (int i = 0; i < 4; i++) {
-            meteo_dag_temp_max[i]  = json_array_nth(daily, "temperature_2m_max", i);
-            meteo_dag_temp_min[i]  = json_array_nth(daily, "temperature_2m_min", i);
-            meteo_dag_wind[i]      = json_array_nth(daily, "windspeed_10m_max", i) / 3.6f;
-            meteo_dag_wind_dir[i]  = (int)json_array_nth(daily, "winddirection_10m_dominant", i);
-            meteo_dag_code[i]      = (int)json_array_nth(daily, "weathercode", i);
+            meteo_dag_temp_max[i]  = json_array_nth(daily, "apparent_temperature_max", i);
+            meteo_dag_temp_min[i]  = json_array_nth(daily, "apparent_temperature_min", i);
+            meteo_dag_wind[i]      = json_array_nth(daily, "wind_speed_10m_max", i) / 1.944f;
+            meteo_dag_wind_dir[i]  = (int)json_array_nth(daily, "wind_direction_10m_dominant", i);
+            meteo_dag_code[i]      = (int)json_array_nth(daily, "weather_code", i);
         }
         // Zonsopgang en -ondergang vandaag (voor interieur verlichting timing)
         String sr = json_array_str_nth(daily, "sunrise", 0);

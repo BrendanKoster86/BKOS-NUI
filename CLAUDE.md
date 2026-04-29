@@ -223,6 +223,9 @@ Touch debouncing via `touch_verwerkt` flag; eerste touch na display wake wordt g
 | 76 | Sessie 10 | Nav bar herschikt: WIFI op positie 4 (altijd zichtbaar); OTA via CONFIG→UPDATEN (achter PIN) | ✅ Afgerond |
 | 77 | Sessie 10 | CONFIG vergrendeling visueel: gestreepte overlay op paletten, grijze tekst/knoppen; ONTGRENDELEN/VERGRENDELEN knop | ✅ Afgerond |
 | 78 | Sessie 10 | INFO scherm lees-alleen: BEWERK knop in statusbalk vraagt PIN; velden alleen bewerkbaar na ontgrendeling | ✅ Afgerond |
+| 79 | Sessie 11 | Open-Meteo API vernieuwd: apparent_temperature, weather_code, wind_speed_unit=kn, minutely_15 voor is_day+gusts, 4 KNMI modellen | ✅ Afgerond |
+| 80 | Sessie 11 | Getij tabel rijen 50% hoger: GTJ_ROW_H 25→38, GTJ_ROWS_N 12→7 (2×7=14 entries, meer rust in overzicht) | ✅ Afgerond |
+| 81 | Sessie 11 | WiFi knop verwijderd uit nav bar (was pos 4); 5 items met mapping array; WiFi via CONFIG bereikbaar | ✅ Afgerond |
 
 ---
 

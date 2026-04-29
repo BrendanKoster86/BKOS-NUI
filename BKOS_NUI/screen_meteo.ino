@@ -9,11 +9,11 @@ int meteo_tab = METEO_TAB_WEER;
 
 // ─── Getij tabel layout ───────────────────────────────────────────────────
 // PANEL_Y=82, NAV_Y=438 → tabel beschikbaar=438-138=300px
-// HDR(26) + NOW(26) + 4px gap + tabel(12×25=300px) = 356px totaal ✓
+// HDR(26) + NOW(26) + 4px gap + tabel(7×38=266px) = 322px totaal, 34px marge
 #define GTJ_HDR_H   26    // station + scroll knoppen + maan (links boven)
 #define GTJ_NOW_H   26    // huidige waterstand + richting
-#define GTJ_ROW_H   25    // één regel: dag DD-MM  tijd  HW/LW  hoogte
-#define GTJ_ROWS_N  12    // rijen per kolom (2 col × 12 rij = 24 entries)
+#define GTJ_ROW_H   38    // één regel: dag DD-MM  tijd  HW/LW  hoogte (+50% rust)
+#define GTJ_ROWS_N  7     // rijen per kolom (2 col × 7 rij = 14 entries)
 #define GTJ_COLS_N  2
 #define GTJ_TABLE_Y (PANEL_Y + GTJ_HDR_H + GTJ_NOW_H + 4)
 #define GTJ_COL_W   ((TFT_W - 20) / GTJ_COLS_N)

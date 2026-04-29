@@ -3,8 +3,9 @@
 #include "app_state.h"
 #include "meteo.h"
 
-#define NAV_ITEMS 6
-static const char* nav_labels[NAV_ITEMS] = {"PANEEL", "IO", "METEO", "CONFIG", "WIFI", "INFO"};
+#define NAV_ITEMS 5
+static const char* nav_labels[NAV_ITEMS] = {"PANEEL", "IO", "METEO", "CONFIG", "INFO"};
+static const int   nav_scherm[NAV_ITEMS] = {SCREEN_MAIN, SCREEN_IO, SCREEN_METEO, SCREEN_CONFIG, SCREEN_INFO};
 
 // Status bar vaste posities (SB_H = 42px):
 //   x=8:   WiFi signaal icoon (22px)
