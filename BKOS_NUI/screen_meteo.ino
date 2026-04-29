@@ -165,148 +165,76 @@ static void meteo_sb_teken() {
     }
 }
 
-// ─── WEER TAB ─────────────────────────────────────────────────────────────
+// ─── WEER TAB — DEBUG dump ────────────────────────────────────────────────
+// Toont ruwe HTTP response + geparsede waarden (tijdelijk voor diagnostiek)
 static void meteo_weer_teken() {
     tft.fillRect(0, PANEL_Y, TFT_W, PANEL_H, C_BG);
-
-    if (!meteo_geladen) {
-        ui_tekst_midden(0, PANEL_Y + PANEL_H/2 - 8, TFT_W, "Geen weerdata beschikbaar", C_TEXT_DIM, 1);
-        return;
-    }
-
-    // ── Linker blok: actueel weer ────────────────────────────────────────
-    int lx = 10, ly = PANEL_Y + 8;
-    int lw = 310, lh = 160;
-    tft.fillRoundRect(lx, ly, lw, lh, 6, C_SURFACE);
-
-    // Weericon (groot)
-    weer_icon(meteo_weer_code, lx + 50, ly + lh/2, 48, meteo_is_dag);
-
-    // Temperatuur
-    tft.setTextSize(3);
-    tft.setTextColor(C_TEXT);
-    char tbuf[10];
-    snprintf(tbuf, 10, "%.1f\xF7", meteo_temp);  // ° via 0xF7 in GFX font
-    tft.setCursor(lx + 100, ly + 20);
-    tft.print(tbuf);
-
     tft.setTextSize(1);
-    tft.setTextColor(C_TEXT_DIM);
-    tft.setCursor(lx + 100, ly + 60);
-    tft.print("max vandaag: ");
-    tft.setTextColor(C_TEXT);
-    char mxbuf[10]; snprintf(mxbuf, 10, "%.1f\xF7", meteo_temp_max);
-    tft.print(mxbuf);
 
-    tft.setTextColor(C_TEXT_DIM);
-    tft.setCursor(lx + 100, ly + 78);
-    tft.print(meteo_weer_omschrijving(meteo_weer_code));
+    int y = PANEL_Y + 4;
+    const int LH = 10;  // regel hoogte
 
-    tft.setTextColor(C_TEXT_DIM);
-    tft.setCursor(lx + 100, ly + 96);
-    tft.print("Wind: ");
-    tft.setTextColor(C_TEXT);
-    char wbuf[24];
-    snprintf(wbuf, 24, "%s  B%d  (%.1fm/s)", meteo_wind_richting(meteo_wind_dir), meteo_beaufort(meteo_wind_ms), meteo_wind_ms);
-    tft.print(wbuf);
-
-    tft.setTextColor(C_TEXT_DIM);
-    tft.setCursor(lx + 100, ly + 114);
-    tft.print("Stoten: B");
-    tft.setTextColor(meteo_beaufort(meteo_wind_max) >= 6 ? C_ORANGE : C_TEXT);
-    char gbuf[6]; snprintf(gbuf, 6, "%d", meteo_beaufort(meteo_wind_max));
-    tft.print(gbuf);
-    tft.setTextColor(C_TEXT_DIM);
-    snprintf(gbuf, 6, " (%.1f)", meteo_wind_max);
-    tft.print(gbuf);
-
-    // Windkompas
-    wind_kompas(lx + 260, ly + lh/2, 32, meteo_wind_dir, meteo_wind_ms);
-
-    // ── Midden blok: 4-daagse vooruitzichten ────────────────────────────
-    int dx = lx, dy = ly + lh + 8;
-    int dw = (TFT_W - 20) / 4 - 4;
-    int dh = PANEL_H - lh - 20;
-    if (dh < 80) dh = 80;
-
-    for (int i = 0; i < 4; i++) {
-        int bx = dx + i * (dw + 4);
-        bool vndg = (i == 0);
-        uint16_t dbg = vndg ? C_SURFACE2 : C_SURFACE;
-        tft.fillRoundRect(bx, dy, dw, dh, 5, dbg);
-        // Dagnaam
-        tft.setTextSize(1);
-        tft.setTextColor(vndg ? C_CYAN : C_TEXT_DIM);
-        ui_tekst_midden(bx, dy + 5, dw, meteo_dag_naam[i], vndg ? C_CYAN : C_TEXT_DIM, 1);
-        // Weericon (klein)
-        weer_icon(meteo_dag_code[i], bx + dw/2, dy + 36, 28, true);
-        // Temperatuur
-        char dmbuf[12];
-        snprintf(dmbuf, 12, "%.0f/%.0f\xF7", meteo_dag_temp_max[i], meteo_dag_temp_min[i]);
-        tft.setTextSize(1);
-        tft.setTextColor(C_TEXT);
-        ui_tekst_midden(bx, dy + 56, dw, dmbuf, C_TEXT, 1);
-        // Wind
-        char dwbuf[8];
-        snprintf(dwbuf, 8, "%s B%d", meteo_wind_richting(meteo_dag_wind_dir[i]), meteo_beaufort(meteo_dag_wind[i]));
-        tft.setTextColor(C_TEXT_DIM);
-        ui_tekst_midden(bx, dy + 70, dw, dwbuf, C_TEXT_DIM, 1);
-    }
-
-    // ── Rechter blok: compact getij ──────────────────────────────────────
-    int rx = lx + lw + 8, ry = ly;
-    int rw = TFT_W - rx - 10, rh = lh;
-    tft.fillRoundRect(rx, ry, rw, rh, 6, C_SURFACE);
-    tft.setTextSize(1);
+    // ── Status header ────────────────────────────────────────────────────
+    tft.fillRoundRect(4, y, TFT_W - 8, 22, 4, C_SURFACE);
     tft.setTextColor(C_CYAN);
-    ui_tekst_midden(rx, ry + 5, rw, "GETIJ", C_CYAN, 1);
-    tft.setTextColor(C_TEXT_DIM);
-    ui_tekst_midden(rx, ry + 18, rw, getij_stations[meteo_station_idx].naam, C_TEXT_DIM, 1);
+    tft.setCursor(10, y + 4);
+    if (meteo_debug_body_len == 0) {
+        tft.print("HTTP: geen response (0 bytes)  — WiFi verbonden: ");
+        tft.print(wifi_verbonden ? "JA" : "NEE");
+    } else {
+        char hdr[64];
+        snprintf(hdr, sizeof(hdr), "HTTP OK  %d bytes  temp[0]=%.1f C", meteo_debug_body_len, meteo_temp);
+        tft.print(hdr);
 
-    int cnt = min(getij_ext_cnt, 4);
-    for (int i = 0; i < cnt; i++) {
-        const GetijExtreme& e = getij_ext[i];
-        struct tm* lt = localtime(&e.tijd);
-        char tijdbuf[8]; snprintf(tijdbuf, 8, "%02d:%02d", lt->tm_hour, lt->tm_min);
-        char hbuf[12];
-        float lat_af = e.hoogte - getij_stations[meteo_station_idx].LAT_nap;
-        snprintf(hbuf, 12, "%.2fm+%.1f", e.hoogte, lat_af);
-        int ey = ry + 36 + i * 28;
-        uint16_t ec = e.hoog_water ? C_BLUE : C_TEXT_DIM;
-        uint16_t es = e.hoog_water ? RGB565(0,60,140) : C_SURFACE2;
-        tft.fillRoundRect(rx + 4, ey, rw - 8, 24, 4, es);
-        tft.setTextColor(ec);
-        tft.setCursor(rx + 8, ey + 5);
-        tft.print(e.hoog_water ? "HW " : "LW ");
-        tft.print(tijdbuf);
-        tft.setTextColor(C_TEXT);
-        tft.setCursor(rx + rw/2, ey + 5);
-        tft.print(hbuf);
-    }
-    if (getij_ext_cnt == 0) {
-        ui_tekst_midden(rx, ry + lh/2, rw, "Geen data", C_TEXT_DIM, 1);
-    }
-
-    // Maansymbool + nautische fase
-    float maan_dag = meteo_maan_dag();
-    int my = ry + 36 + min(cnt, 4) * 28 + 6;
-    if (my < ry + rh - 24) {
-        ui_maan_symbool(rx + 9, my + 6, 5, maan_dag / 29.53f);
-        char maan_buf[10];
-        meteo_maan_nautisc(maan_dag, maan_buf, sizeof(maan_buf));
-        tft.setTextSize(1); tft.setTextColor(RGB565(200, 210, 150));
-        tft.setCursor(rx + 20, my);
-        tft.print(maan_buf);
-
-        float spring_f = (cosf(2.0f * M_PI * maan_dag / 29.53f) + 1.0f) / 2.0f;
-        tft.setCursor(rx + 20, my + 12);
-        if (spring_f > 0.7f) {
-            tft.setTextColor(C_RED_BRIGHT); tft.print("SPRINGTIJ");
-        } else if (spring_f < 0.3f) {
-            tft.setTextColor(C_TEXT_DIM); tft.print("doodtij");
-        } else {
-            tft.setTextColor(C_TEXT_DIM); tft.print("gemidd. tij");
+        // Zonsopgang/-ondergang als geparsed
+        if (meteo_zonsopgang > 0) {
+            struct tm* sr = localtime(&meteo_zonsopgang);
+            struct tm* ss = localtime(&meteo_zonsondergang);
+            char zonbuf[32];
+            snprintf(zonbuf, sizeof(zonbuf), "  zon op %02d:%02d  onder %02d:%02d",
+                sr->tm_hour, sr->tm_min, ss->tm_hour, ss->tm_min);
+            tft.print(zonbuf);
         }
+    }
+    y += 26;
+
+    // ── Ruwe response tekst ───────────────────────────────────────────────
+    tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(6, y);
+    tft.print("URL: https://api.open-meteo.com/...latitude=52.52&longitude=5.41");
+    y += LH + 2;
+
+    if (meteo_debug_body_len > 0) {
+        tft.setTextColor(C_TEXT);
+        // Teken de body regel voor regel (max 130 chars per regel bij size 1)
+        const int MAX_PER_REGEL = 130;
+        int pos = 0;
+        int len = strlen(meteo_debug_body);
+        while (pos < len && y < NAV_Y - LH) {
+            int regel_len = min(len - pos, MAX_PER_REGEL);
+            char regelbuf[132];
+            strncpy(regelbuf, meteo_debug_body + pos, regel_len);
+            regelbuf[regel_len] = '\0';
+            tft.setCursor(6, y);
+            tft.print(regelbuf);
+            y += LH;
+            pos += regel_len;
+        }
+        if (pos < len) {
+            tft.setTextColor(C_TEXT_DIM);
+            tft.setCursor(6, y);
+            char restbuf[24];
+            snprintf(restbuf, sizeof(restbuf), "... (%d bytes meer)", len - pos);
+            tft.print(restbuf);
+        }
+    } else {
+        tft.setTextColor(C_RED_BRIGHT);
+        tft.setCursor(6, y);
+        tft.print("Geen data ontvangen.");
+        y += LH + 2;
+        tft.setTextColor(C_TEXT_DIM);
+        tft.setCursor(6, y);
+        tft.print("Mogelijke oorzaken: geen WiFi, SSL-fout, timeout (15s).");
     }
 }
 

@@ -53,6 +53,11 @@ extern int          getij_ext_cnt;
 extern time_t meteo_zonsopgang;
 extern time_t meteo_zonsondergang;
 
+// ─── Debug / diagnostiek ──────────────────────────────────────────────────
+#define METEO_DEBUG_LEN 512
+extern char meteo_debug_body[METEO_DEBUG_LEN];  // eerste bytes van laatste HTTP response
+extern int  meteo_debug_body_len;               // werkelijke Content-Length (0=mislukt)
+
 // ─── Status ───────────────────────────────────────────────────────────────
 extern volatile bool meteo_geladen;        // Core 0 schrijft, Core 1 leest
 extern volatile unsigned long meteo_laatste_update;
