@@ -244,13 +244,15 @@ const char* meteo_wind_richting(int graden) {
 
 // ─── Weer ophalen (diagnostische URL — hardcoded voor debug) ─────────────
 void meteo_weer_ophalen() {
-    // DIAGNOSTIEK: vaste URL zonder placeholders om HTTP + JSON parsing te testen
-    const char* url =
+    // DIAGNOSTIEK: variabele locatie, rest van URL hardcoded
+    char url[256];
+    snprintf(url, sizeof(url),
         "https://api.open-meteo.com/v1/forecast"
-        "?latitude=52.52&longitude=5.41"
+        "?latitude=%.4f&longitude=%.4f"
         "&daily=sunrise,sunset"
         "&hourly=temperature_2m,precipitation"
-        "&timezone=Europe%2FBerlin&past_days=0&forecast_days=3&wind_speed_unit=kn";
+        "&timezone=Europe%%2FBerlin&past_days=0&forecast_days=3&wind_speed_unit=kn",
+        meteo_lat, meteo_lon);
 
     meteo_debug_body[0]  = '\0';
     meteo_debug_body_len = 0;
