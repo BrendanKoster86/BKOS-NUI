@@ -19,7 +19,7 @@ static String _getij_iso8601(time_t t) {
 }
 
 static String _getij_maak_request_body(const char* code, time_t van, time_t tot) {
-    StaticJsonDocument<512> doc;
+    JsonDocument doc;
     doc["Locatie"]["Code"] = code;
     doc["AquoPlusWaarnemingMetadata"]["AquoMetadata"]["Grootheid"]["Code"]   = "WATHTE";
     doc["AquoPlusWaarnemingMetadata"]["AquoMetadata"]["Groepering"]["Code"]  = "GETETBRKD2";
@@ -46,7 +46,7 @@ static bool _getij_haal_op_en_sla_op(const GetijLocatie& loc, time_t van, time_t
     }
 
     // Verwerk response
-    DynamicJsonDocument response(32768);
+    JsonDocument response;
     DeserializationError err = deserializeJson(response, http.getStream());
     http.end();
 
@@ -56,15 +56,15 @@ static bool _getij_haal_op_en_sla_op(const GetijLocatie& loc, time_t van, time_t
     }
 
     // Bouw compact opslagformaat
-    DynamicJsonDocument opslag(16384);
+    JsonDocument opslag;
     opslag["naam"]        = loc.naam;
     opslag["bijgewerkt"]  = (long)time(nullptr);
     opslag["lat_offset"]  = loc.lat_offset_cm;
-    JsonArray metingen_arr = opslag.createNestedArray("metingen");
+    JsonArray metingen_arr = opslag["metingen"].to<JsonArray>();
 
-    JsonArray metingen = response["WaarnemingenLijst"][0]["MetingenLijst"];
+    JsonArray metingen = response["WaarnemingenLijst"][0]["MetingenLijst"].as<JsonArray>();
     for (JsonObject meting : metingen) {
-        JsonObject m = metingen_arr.createNestedObject();
+        JsonObject m = metingen_arr.add<JsonObject>();
         m["t"] = meting["Tijdstip"].as<String>();
         m["w"] = meting["Meetwaarde"]["Waarde_Numeriek"].as<float>();
     }
@@ -152,7 +152,7 @@ bool getijdata_get(int locatie_index, GetijExtreme* extremen, int max_aantal, in
         return false;
     }
 
-    DynamicJsonDocument doc(16384);
+    JsonDocument doc;
     DeserializationError err = deserializeJson(doc, f);
     f.close();
 
@@ -162,7 +162,7 @@ bool getijdata_get(int locatie_index, GetijExtreme* extremen, int max_aantal, in
     }
 
     int lat_offset = doc["lat_offset"] | loc.lat_offset_cm;
-    JsonArray arr  = doc["metingen"];
+    JsonArray arr  = doc["metingen"].as<JsonArray>();
 
     float w_vorige_vorige = 0;
     float w_vorige        = 0;
