@@ -80,6 +80,61 @@ static int l_rgb(lua_State* ls) {
     return 1;
 }
 
+// ─── Poortnummer resolver ─────────────────────────────────────────────────────
+// Accepteert: int, "A1"-"Z8" (poortgroep-notatie), of kanaalnaam
+static int _poort_resolve(lua_State* ls, int arg) {
+    if (lua_isinteger(ls, arg)) return (int)lua_tointeger(ls, arg);
+    if (lua_isnumber(ls, arg))  return (int)(int)lua_tonumber(ls, arg);
+    if (lua_isstring(ls, arg)) {
+        const char* s = lua_tostring(ls, arg);
+        int len = (int)strlen(s);
+        // "A1".."Z8": één hoofdletter + cijfer 1-8 → groep*8 + (cijfer-1)
+        if (len == 2 && s[0] >= 'A' && s[0] <= 'Z' && s[1] >= '1' && s[1] <= '8')
+            return (s[0] - 'A') * 8 + (s[1] - '1');
+        // Kanaalnaam opzoeken
+        int n = io_zichtbaar();
+        for (int i = 0; i < n; i++)
+            if (strncmp(io_namen[i], s, IO_NAAM_LEN - 1) == 0) return i;
+    }
+    return -1;
+}
+
+// ─── Arduino-stijl functies (digitalRead / digitalWrite / drawCircle / fillCircle)
+static int l_digitalRead(lua_State* ls) {
+    int p = _poort_resolve(ls, 1);
+    if (p < 0 || p >= io_kanalen_cnt) { lua_pushnil(ls); return 1; }
+    lua_pushboolean(ls, io_input[p] ? 1 : 0);
+    return 1;
+}
+
+static int l_digitalWrite(lua_State* ls) {
+    int p     = _poort_resolve(ls, 1);
+    int staat = (int)luaL_checkinteger(ls, 2);
+    if (p >= 0 && p < io_kanalen_cnt) {
+        io_output[p]    = (byte)staat;
+        io_gewijzigd[p] = true;
+    }
+    return 0;
+}
+
+static int l_drawCircle(lua_State* ls) {
+    int cx = (int)(luaL_checkinteger(ls, 1) * lua_sx);
+    int cy = (int)(luaL_checkinteger(ls, 2) * lua_sy);
+    int r  = (int)(luaL_checkinteger(ls, 3) * ((lua_sx + lua_sy) * 0.5f));
+    uint16_t kl = (uint16_t)luaL_checkinteger(ls, 4);
+    tft.drawCircle(cx, cy, r, kl);
+    return 0;
+}
+
+static int l_fillCircle(lua_State* ls) {
+    int cx = (int)(luaL_checkinteger(ls, 1) * lua_sx);
+    int cy = (int)(luaL_checkinteger(ls, 2) * lua_sy);
+    int r  = (int)(luaL_checkinteger(ls, 3) * ((lua_sx + lua_sy) * 0.5f));
+    uint16_t kl = (uint16_t)luaL_checkinteger(ls, 4);
+    tft.fillCircle(cx, cy, r, kl);
+    return 0;
+}
+
 // ─── bkos.io ─────────────────────────────────────────────────────────────────
 static int l_io_lees(lua_State* ls) {
     int nr = (int)luaL_checkinteger(ls, 1);
@@ -221,6 +276,14 @@ static void lua_registreer_api(lua_State* ls) {
     // IO constanten
     lua_pushinteger(ls, IO_UIT); lua_setfield(ls, -2, "IO_UIT");
     lua_pushinteger(ls, IO_AAN); lua_setfield(ls, -2, "IO_AAN");
+
+    // Arduino-stijl aliassen en constanten
+    lua_pushinteger(ls, 1);                      lua_setfield(ls, -2, "HIGH");
+    lua_pushinteger(ls, 0);                      lua_setfield(ls, -2, "LOW");
+    lua_pushcfunction(ls, l_digitalRead);        lua_setfield(ls, -2, "digitalRead");
+    lua_pushcfunction(ls, l_digitalWrite);       lua_setfield(ls, -2, "digitalWrite");
+    lua_pushcfunction(ls, l_drawCircle);         lua_setfield(ls, -2, "drawCircle");
+    lua_pushcfunction(ls, l_fillCircle);         lua_setfield(ls, -2, "fillCircle");
 
     // Schermdrawing functies
     lua_pushcfunction(ls, l_vul);     lua_setfield(ls, -2, "vul");

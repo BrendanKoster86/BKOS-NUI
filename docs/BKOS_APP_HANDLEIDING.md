@@ -1,5 +1,5 @@
 # BKOS App Handleiding
-**Versie:** 1.0 — BKOS-NUI v0.0.260503.3+
+**Versie:** 1.1 — BKOS-NUI v0.0.260503.4+
 
 Deze handleiding beschrijft hoe je een BKOS app schrijft, test en publiceert.  
 BKOS apps zijn Lua 5.4 scripts die draaien op het ESP32-S3 boordcomputer scherm.
@@ -347,6 +347,41 @@ end
 |---|---|---|
 | `bkos.IO_AAN` | 1 | Uitvoer aanzetten |
 | `bkos.IO_UIT` | 0 | Uitvoer uitzetten |
+| `bkos.HIGH`   | 1 | Arduino-alias voor IO_AAN |
+| `bkos.LOW`    | 0 | Arduino-alias voor IO_UIT |
+
+---
+
+#### Arduino-stijl aliassen
+
+Voor ontwikkelaars vertrouwd met Arduino zijn directe equivalenten beschikbaar rechtstreeks in de `bkos`-tabel (zonder de `bkos.io.` prefix).
+
+| BKOS alias | Beschrijving |
+|---|---|
+| `bkos.digitalRead(poort)` → bool | Lees IO-kanaal (invoer) |
+| `bkos.digitalWrite(poort, waarde)` | Schrijf IO-kanaal (uitvoer) |
+| `bkos.drawCircle(cx, cy, r, kleur)` | Teken cirkelomtrek |
+| `bkos.fillCircle(cx, cy, r, kleur)` | Teken gevulde schijf |
+
+**Poortnummer-notatie** — `poort` accepteert drie vormen:
+- **Integer:** direct kanaalnummer (0-gebaseerd), bijv. `5`
+- **`"A1"`–`"Z8"`:** letter = groep (A=kanalen 0–7, B=8–15, …), cijfer = bit 1–8. Voorbeeld: `"A1"` = kanaal 0, `"B3"` = kanaal 10
+- **Naam:** de naam ingesteld in CONFIG → IO CONFIGURATIE, bijv. `"ankerlicht"`
+
+```lua
+-- Alle drie zijn equivalent voor kanaal 0:
+bkos.digitalWrite(0,            bkos.HIGH)
+bkos.digitalWrite("A1",         bkos.HIGH)
+bkos.digitalWrite("ankerlicht", bkos.HIGH)
+
+local staat = bkos.digitalRead("A1")  -- leest kanaal 0, geeft true/false
+
+-- Arduino-stijl cirkels (geen gevuld-parameter nodig):
+bkos.drawCircle(400, 240, 50, bkos.kleur.cyaan)  -- omtrek
+bkos.fillCircle(400, 240, 30, bkos.kleur.rood)   -- gevuld
+```
+
+> **Tip voor Arduino-porters:** vervang `digitalRead(pin)` door `bkos.digitalRead(pin)` en `digitalWrite(pin, v)` door `bkos.digitalWrite(pin, v)`. Voeg `bkos.` toe aan `drawCircle`/`fillCircle`. De rest van de logica blijft vrijwel identiek.
 
 ---
 

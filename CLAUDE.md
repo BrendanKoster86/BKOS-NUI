@@ -241,6 +241,10 @@ Touch debouncing via `touch_verwerkt` flag; eerste touch na display wake wordt g
 | 94 | Sessie 13 | Lua-app scherm-override: hardware.ino dispatcht naar lua_app_teken/run als app_voor_scherm() iets vindt | ✅ Afgerond |
 | 95 | Sessie 13 | CI workflow: Lua 5.4.7 downloaden van lua.org, veilige kern-bestanden kopiëren, custom luaconf + linit | ✅ Afgerond |
 | 96 | Sessie 13 | appstore/index.json + voorbeeld_klok app (main.lua met bkos.teken/aanraking/update callbacks) | ✅ Afgerond |
+| 97 | Sessie 14 | APPS nav bar verplaatst: tussen METEO en CONFIG (was na CONFIG) | ✅ Afgerond |
+| 98 | Sessie 14 | screen_apps herschreven naar 2-panel layout: links=geïnstalleerd+SCHERMEN, rechts=APP STORE | ✅ Afgerond |
+| 99 | Sessie 14 | Arduino-stijl API: bkos.HIGH/LOW, bkos.digitalRead/digitalWrite(poort), bkos.drawCircle/fillCircle; poort = int, "A1"-"Z8" of naam | ✅ Afgerond |
+| 100 | Sessie 14 | BKOS_APP_HANDLEIDING.md bijgewerkt: Arduino aliassen, poortnummer-notatie, drawCircle/fillCircle | ✅ Afgerond |
 
 ---
 
