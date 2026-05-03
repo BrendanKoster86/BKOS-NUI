@@ -3,6 +3,7 @@
 #include "hw_io.h"
 #include "io.h"
 #include "ui_colors.h"
+#include "ota.h"
 #include <SPIFFS.h>
 
 bool  lua_fout_actief = false;
@@ -318,8 +319,8 @@ bool lua_app_laden(int app_idx) {
     lua_sx = (float)TFT_W / max(1, app.scherm_b);
     lua_sy = (float)TFT_H / max(1, app.scherm_h);
 
-    // Lade het main.lua bestand vanuit SPIFFS
-    String pad = app_pad(app.id) + "/main.lua";
+    // Laad het main.lua bestand vanuit SPIFFS
+    String pad = app_pad(app.id);   // geeft /app_<id>_main.lua
     File f = SPIFFS.open(pad, "r");
     if (!f) {
         snprintf(lua_fout_tekst, LUA_FOUT_LEN, "Bestand niet gevonden:\n%s", pad.c_str());

@@ -4,14 +4,30 @@
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
 
+// SPIFFS heeft geen echte mappen — bestanden worden plat opgeslagen:
+//   /app_<id>_manifest.json
+//   /app_<id>_main.lua
+//   /bkos_apps.json       ← lijst van geïnstalleerde app-IDs
+
 AppManifest apps[APP_MAX];
 int         apps_cnt = 0;
 
 AppManifest winkel[WINKEL_MAX];
-int         winkel_cnt   = 0;
+int         winkel_cnt    = 0;
 bool        winkel_geladen = false;
 
-// ─── Hulpfunctie: manifest JSON → struct ─────────────────────────────────────
+// ─── Bestandspaden ───────────────────────────────────────────────────────────
+static String _manifest_pad(const char* id) {
+    return String("/app_") + id + "_manifest.json";
+}
+
+static String _lua_pad(const char* id) {
+    return String("/app_") + id + "_main.lua";
+}
+
+static String _index_pad() { return "/bkos_apps.json"; }
+
+// ─── JSON ↔ manifest ─────────────────────────────────────────────────────────
 static void _json_naar_manifest(JsonObject obj, AppManifest& m) {
     strncpy(m.id,           obj["id"]          | "", APP_ID_LEN    - 1);
     strncpy(m.naam,         obj["naam"]        | "", APP_NAAM_LEN  - 1);
@@ -40,6 +56,15 @@ static void _manifest_naar_json(AppManifest& m, JsonObject obj) {
     obj["actief"]      = m.actief;
 }
 
+// ─── Index opslaan/laden ──────────────────────────────────────────────────────
+static void _index_opslaan() {
+    DynamicJsonDocument doc(512);
+    JsonArray arr = doc.createNestedArray("ids");
+    for (int i = 0; i < apps_cnt; i++) arr.add(apps[i].id);
+    File f = SPIFFS.open(_index_pad(), "w");
+    if (f) { serializeJson(doc, f); f.close(); }
+}
+
 // ─── Setup ───────────────────────────────────────────────────────────────────
 void app_setup() {
     app_manifesten_laden();
@@ -50,34 +75,32 @@ void app_setup() {
 void app_manifesten_laden() {
     apps_cnt = 0;
 
-    // Loop door /apps/<id>/manifest.json bestanden
-    File root = SPIFFS.open("/apps");
-    if (!root || !root.isDirectory()) return;
+    // Lees de index van geïnstalleerde app-IDs
+    if (!SPIFFS.exists(_index_pad())) return;
+    File idx = SPIFFS.open(_index_pad(), "r");
+    if (!idx) return;
 
-    File app_dir = root.openNextFile();
-    while (app_dir && apps_cnt < APP_MAX) {
-        if (app_dir.isDirectory()) {
-            String manifest_pad = String(app_dir.name()) + "/manifest.json";
-            if (SPIFFS.exists(manifest_pad)) {
-                File mf = SPIFFS.open(manifest_pad, "r");
-                if (mf) {
-                    DynamicJsonDocument doc(512);
-                    if (deserializeJson(doc, mf) == DeserializationError::Ok) {
-                        _json_naar_manifest(doc.as<JsonObject>(), apps[apps_cnt]);
-                        apps_cnt++;
-                    }
-                    mf.close();
-                }
-            }
-        }
-        app_dir = root.openNextFile();
+    DynamicJsonDocument idoc(512);
+    if (deserializeJson(idoc, idx) != DeserializationError::Ok) { idx.close(); return; }
+    idx.close();
+
+    JsonArray ids = idoc["ids"].as<JsonArray>();
+    for (const char* id : ids) {
+        if (!id || apps_cnt >= APP_MAX) break;
+        String pad = _manifest_pad(id);
+        if (!SPIFFS.exists(pad)) continue;
+        File mf = SPIFFS.open(pad, "r");
+        if (!mf) continue;
+        DynamicJsonDocument doc(512);
+        if (deserializeJson(doc, mf) == DeserializationError::Ok)
+            _json_naar_manifest(doc.as<JsonObject>(), apps[apps_cnt++]);
+        mf.close();
     }
 }
 
 void app_manifest_opslaan(int idx) {
     if (idx < 0 || idx >= apps_cnt) return;
-    String pad = app_pad(apps[idx].id) + "/manifest.json";
-    File f = SPIFFS.open(pad, "w");
+    File f = SPIFFS.open(_manifest_pad(apps[idx].id), "w");
     if (!f) return;
     DynamicJsonDocument doc(512);
     _manifest_naar_json(apps[idx], doc.as<JsonObject>());
@@ -107,23 +130,11 @@ void app_zet_actief(int idx, bool actief) {
 
 void app_verwijder(int idx) {
     if (idx < 0 || idx >= apps_cnt) return;
-
-    String pad = app_pad(apps[idx].id);
-    // Verwijder alle bestanden in de app-map
-    File dir = SPIFFS.open(pad);
-    if (dir && dir.isDirectory()) {
-        File f = dir.openNextFile();
-        while (f) {
-            SPIFFS.remove(f.name());
-            f = dir.openNextFile();
-        }
-    }
-    SPIFFS.rmdir(pad);
-
-    // Verschuif array
-    for (int i = idx; i < apps_cnt - 1; i++)
-        apps[i] = apps[i + 1];
+    SPIFFS.remove(_manifest_pad(apps[idx].id));
+    SPIFFS.remove(_lua_pad(apps[idx].id));
+    for (int i = idx; i < apps_cnt - 1; i++) apps[i] = apps[i + 1];
     apps_cnt--;
+    _index_opslaan();
 }
 
 // ─── Winkel: laden vanuit GitHub ─────────────────────────────────────────────
@@ -159,10 +170,6 @@ bool app_installeer_uit_winkel(int winkel_idx) {
     if (winkel_idx < 0 || winkel_idx >= winkel_cnt) return false;
     AppManifest& wm = winkel[winkel_idx];
 
-    // Maak map aan
-    String pad = app_pad(wm.id);
-    SPIFFS.mkdir(pad);
-
     // Download main.lua
     String lua_url = String("https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/appstore/apps/")
                      + wm.id + "/main.lua";
@@ -172,30 +179,28 @@ bool app_installeer_uit_winkel(int winkel_idx) {
     http.setTimeout(15000);
     if (http.GET() != 200) { http.end(); return false; }
 
-    File lf = SPIFFS.open(pad + "/main.lua", "w");
+    File lf = SPIFFS.open(_lua_pad(wm.id), "w");
     if (!lf) { http.end(); return false; }
-
     WiFiClient* stream = http.getStreamPtr();
     uint8_t buf[256];
     int len;
-    while ((len = stream->readBytes(buf, sizeof(buf))) > 0)
-        lf.write(buf, len);
+    while ((len = stream->readBytes(buf, sizeof(buf))) > 0) lf.write(buf, len);
     lf.close();
     http.end();
 
-    // Sla manifest op (kopie van winkel-entry)
-    int nieuw_idx = apps_cnt;
-    if (nieuw_idx >= APP_MAX) return false;
-
+    // Manifest opslaan
     int bestaand = app_vindt(wm.id);
-    if (bestaand >= 0) nieuw_idx = bestaand;
-    else apps_cnt++;
+    int nieuw_idx = (bestaand >= 0) ? bestaand : apps_cnt;
+    if (nieuw_idx >= APP_MAX) return false;
+    if (bestaand < 0) apps_cnt++;
 
     apps[nieuw_idx] = wm;
     app_manifest_opslaan(nieuw_idx);
+    _index_opslaan();
     return true;
 }
 
+// ─── Pad helper (geeft pad naar het Lua-script) ──────────────────────────────
 String app_pad(const char* id) {
-    return String("/apps/") + id;
+    return _lua_pad(id);
 }

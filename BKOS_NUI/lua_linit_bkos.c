@@ -7,7 +7,9 @@
 #define linit_c
 #define LUA_LIB
 
+#if __has_include("lprefix.h")
 #include "lprefix.h"
+#endif
 #include "lua.h"
 #include "lualib.h"
 #include "lauxlib.h"
