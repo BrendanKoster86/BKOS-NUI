@@ -4,6 +4,7 @@
 extern byte licht_cfg_idx;
 
 void io_boot();
+void io_bkoss_check();
 void io_detect();
 void io_cyclus();
 void io_loop();

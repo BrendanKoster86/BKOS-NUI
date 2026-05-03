@@ -91,22 +91,24 @@ static void meter_naar_ft(const char* val, char* buf, int len) {
 // ─── Tab balk ────────────────────────────────────────────────────────
 #define TAB_Y   CONTENT_Y
 #define TAB_H   36
-#define TAB_W   (TFT_W / 2)
+#define TAB_N   3
+#define TAB_W   (TFT_W / TAB_N)
+
+static const char* tab_labels[TAB_N] = {"BOOT", "EIGENAAR", "SYSTEEM"};
 
 static void info_tabs_teken() {
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < TAB_N; i++) {
         bool actief = (info_tab == (byte)i);
         tft.fillRect(i * TAB_W, TAB_Y, TAB_W, TAB_H, actief ? C_SURFACE2 : C_SURFACE);
         if (actief) {
             tft.drawFastHLine(i * TAB_W + 10, TAB_Y,     TAB_W - 20, C_CYAN);
             tft.drawFastHLine(i * TAB_W + 10, TAB_Y + 1, TAB_W - 20, C_CYAN);
         }
-        const char* lbl = (i == 0) ? "BOOT" : "EIGENAAR";
         tft.setTextSize(2);
         tft.setTextColor(actief ? C_CYAN : C_TEXT_DIM);
-        int tw = strlen(lbl) * 12;
+        int tw = strlen(tab_labels[i]) * 12;
         tft.setCursor(i * TAB_W + (TAB_W - tw) / 2, TAB_Y + (TAB_H - 16) / 2);
-        tft.print(lbl);
+        tft.print(tab_labels[i]);
     }
     tft.drawFastHLine(0, TAB_Y + TAB_H, TFT_W, C_SURFACE2);
 }
@@ -145,6 +147,14 @@ static void info_veld_teken(int idx, int y, const char* label, const char* waard
     }
 }
 
+static void systeem_rij(int y, const char* label, const char* waarde, uint16_t kleur, int idx) {
+    tft.fillRect(10, y, TFT_W - 20, VELD_H - 2, (idx % 2 == 0) ? C_SURFACE : C_BG);
+    tft.setTextSize(1); tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(18, y + (VELD_H / 2) - 12); tft.print(label);
+    tft.setTextSize(2); tft.setTextColor(kleur);
+    tft.setCursor(VELD_LABEL_W + 18, y + (VELD_H / 2) - 8); tft.print(waarde);
+}
+
 static void info_velden_teken() {
     int fy = VELD_START_Y;
     tft.fillRect(0, VELD_START_Y, TFT_W, TFT_H - NAV_H - VELD_START_Y, C_BG);
@@ -153,11 +163,35 @@ static void info_velden_teken() {
             info_veld_teken(i, fy, boot_labels[i], boot_vals[i], boot_numeriek[i]);
             fy += VELD_H;
         }
-    } else {
+    } else if (info_tab == 1) {
         for (int i = 0; i < 5; i++) {
             info_veld_teken(i, fy, eig_labels[i], eig_vals[i], false);
             fy += VELD_H;
         }
+    } else {
+        // SYSTEEM tab
+        systeem_rij(fy, "BKOS-NUI versie", BKOS_NUI_VERSIE,  C_CYAN,      0); fy += VELD_H;
+
+        char bkoss_buf[32];
+        if (bkoss_actief) {
+            snprintf(bkoss_buf, sizeof(bkoss_buf), "%s  OK", bkoss_versie);
+            systeem_rij(fy, "BKOSS module",   bkoss_buf,        C_GREEN,     1);
+        } else {
+            systeem_rij(fy, "BKOSS module",   "niet gevonden",  C_RED_BRIGHT,1);
+        }
+        fy += VELD_H;
+
+        char mod_buf[16];
+        snprintf(mod_buf, sizeof(mod_buf), "%d", io_aparaten_cnt);
+        systeem_rij(fy, "IO modules",     mod_buf,            C_TEXT,      2); fy += VELD_H;
+
+        char kan_buf[16];
+        snprintf(kan_buf, sizeof(kan_buf), "%d", io_kanalen_cnt);
+        systeem_rij(fy, "IO kanalen",     kan_buf,            C_TEXT,      3); fy += VELD_H;
+
+        systeem_rij(fy, "WiFi",
+            wifi_verbonden ? "verbonden" : "niet verbonden",
+            wifi_verbonden ? C_GREEN : C_AMBER, 4);
     }
 }
 
@@ -233,7 +267,8 @@ void screen_info_run(int x, int y, bool aanraking) {
     }
 
     if (y >= TAB_Y && y < TAB_Y + TAB_H) {
-        byte nieuwe_tab = (x < TFT_W / 2) ? 0 : 1;
+        byte nieuwe_tab = (byte)(x / TAB_W);
+        if (nieuwe_tab >= TAB_N) nieuwe_tab = TAB_N - 1;
         if (nieuwe_tab != info_tab) {
             info_tab = nieuwe_tab;
             info_tabs_teken();
@@ -242,8 +277,8 @@ void screen_info_run(int x, int y, bool aanraking) {
         return;
     }
 
-    // Veld aanraken — alleen als bewerkbaar
-    if (!info_bewerkbaar) return;
+    // Veld aanraken — alleen als bewerkbaar en niet SYSTEEM tab
+    if (!info_bewerkbaar || info_tab == 2) return;
 
     if (y >= VELD_START_Y) {
         int veld_idx = (y - VELD_START_Y) / VELD_H;

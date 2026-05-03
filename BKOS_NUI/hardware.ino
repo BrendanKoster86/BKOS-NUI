@@ -37,7 +37,25 @@ void hw_setup() {
     info_laden();    // boot naam en eigenaar uit SPIFFS (voor status bar)
     meteo_setup();   // laadt NVS-instellingen (snel, geen netwerk)
     ota_setup();     // init OTA (snel)
-    io_boot();       // UART IO discovery
+    io_boot();       // BKOSS check + UART IO discovery
+
+    // Splash: BKOSS status tonen
+    tft.setTextSize(1);
+    if (bkoss_actief) {
+        tft.setTextColor(C_GREEN);
+        tft.setCursor(TFT_W / 2 - 80, TFT_H / 2 + 80);
+        tft.print("BKOSS ");
+        tft.print(bkoss_versie);
+        tft.print(" — ");
+        tft.print(io_aparaten_cnt);
+        tft.print(" module(s), ");
+        tft.print(io_kanalen_cnt);
+        tft.print(" kanalen");
+    } else {
+        tft.setTextColor(C_RED_BRIGHT);
+        tft.setCursor(TFT_W / 2 - 100, TFT_H / 2 + 80);
+        tft.print("! BKOSS module niet gevonden");
+    }
 
     // Start netwerk taak op Core 0 (niet-blokkerend)
     wifi_taak_start();

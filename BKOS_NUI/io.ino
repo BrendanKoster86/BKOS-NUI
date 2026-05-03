@@ -4,8 +4,37 @@
 
 byte licht_cfg_idx = 0;
 
+void io_bkoss_check() {
+    bkoss_actief = false;
+    memset(bkoss_versie, 0, BKOSS_VERSIE_LEN);
+
+    while (Serial.available()) Serial.read();
+    Serial.print("?\n");   // BKOSS antwoordt: "BKOS Serial 3217 V 0.4\r\n"
+
+    String resp = "";
+    unsigned long t = millis();
+    while (millis() - t < 500) {
+        while (Serial.available()) {
+            char c = Serial.read();
+            if (c == '\n') {
+                resp.trim();
+                if (resp.startsWith("BKOS Serial ")) {
+                    bkoss_actief = true;
+                    String info = resp.substring(12);  // "3217 V 0.4"
+                    strncpy(bkoss_versie, info.c_str(), BKOSS_VERSIE_LEN - 1);
+                }
+                return;
+            }
+            if (c != '\r') resp += c;
+        }
+        yield();
+    }
+    // Timeout — BKOSS reageert niet
+}
+
 void io_boot() {
     Serial.flush();
+    io_bkoss_check();
     io_detect();
 }
 

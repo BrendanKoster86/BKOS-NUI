@@ -3,7 +3,11 @@
 #include <SPIFFS.h>
 
 // UART naar ATtiny3217 — standaard Serial (UART0, USB uitgang)
-#define IO_BAUD         9600
+#define IO_BAUD          9600
+#define BKOSS_VERSIE_LEN 24   // "3217 V 0.4" + marge
+
+extern char bkoss_versie[BKOSS_VERSIE_LEN];
+extern bool bkoss_actief;
 
 // IO limieten
 #define MAX_MODULES     30

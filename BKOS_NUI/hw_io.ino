@@ -1,5 +1,8 @@
 #include "hw_io.h"
 
+char  bkoss_versie[BKOSS_VERSIE_LEN] = "";
+bool  bkoss_actief     = false;
+
 int   io_kanalen_cnt   = 0;
 int   io_kanalen_cfg   = 0;
 byte  io_output[MAX_IO_KANALEN];
