@@ -53,9 +53,12 @@ jobs:
             [ -f /tmp/lua-5.4.7/src/${name}.c ] && cp /tmp/lua-5.4.7/src/${name}.c ~/Arduino/libraries/LuaBKOS/src/
             [ -f /tmp/lua-5.4.7/src/${name}.h ] && cp /tmp/lua-5.4.7/src/${name}.h ~/Arduino/libraries/LuaBKOS/src/
           done
-          cp /tmp/lua-5.4.7/src/lua.h   ~/Arduino/libraries/LuaBKOS/src/
-          cp /tmp/lua-5.4.7/src/lualib.h ~/Arduino/libraries/LuaBKOS/src/
-          cp /tmp/lua-5.4.7/src/lprefix.h ~/Arduino/libraries/LuaBKOS/src/ 2>/dev/null || true
+          cp /tmp/lua-5.4.7/src/lua.h      ~/Arduino/libraries/LuaBKOS/src/
+          cp /tmp/lua-5.4.7/src/lualib.h  ~/Arduino/libraries/LuaBKOS/src/
+          cp /tmp/lua-5.4.7/src/lprefix.h ~/Arduino/libraries/LuaBKOS/src/
+          cp /tmp/lua-5.4.7/src/llimits.h ~/Arduino/libraries/LuaBKOS/src/
+          cp /tmp/lua-5.4.7/src/ljumptab.h ~/Arduino/libraries/LuaBKOS/src/
+          cp /tmp/lua-5.4.7/src/lopnames.h ~/Arduino/libraries/LuaBKOS/src/
 
           # Gebruik onze aangepaste luaconf (PSRAM, stack-limiet)
           cp $GITHUB_WORKSPACE/BKOS_NUI/lua_bkos_conf.h ~/Arduino/libraries/LuaBKOS/src/luaconf.h
