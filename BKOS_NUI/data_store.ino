@@ -25,7 +25,7 @@ void data_setup() {
     File f = SPIFFS.open(DATA_BESTAND, "r");
     if (!f) return;
 
-    DynamicJsonDocument doc(4096);
+    JsonDocument doc;
     if (deserializeJson(doc, f) != DeserializationError::Ok) { f.close(); return; }
     f.close();
 
@@ -49,10 +49,10 @@ void data_opslaan() {
     if (!data_vuil) return;
     data_vuil = false;
 
-    DynamicJsonDocument doc(4096);
-    JsonArray arr = doc.createNestedArray("e");
+    JsonDocument doc;
+    JsonArray arr = doc["e"].to<JsonArray>();
     for (int i = 0; i < entries_cnt; i++) {
-        JsonObject obj = arr.createNestedObject();
+        JsonObject obj = arr.add<JsonObject>();
         obj["k"] = entries[i].sleutel;
         obj["v"] = entries[i].waarde;
         obj["t"] = (long)entries[i].tijdstip;

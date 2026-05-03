@@ -58,8 +58,8 @@ static void _manifest_naar_json(AppManifest& m, JsonObject obj) {
 
 // ─── Index opslaan/laden ──────────────────────────────────────────────────────
 static void _index_opslaan() {
-    DynamicJsonDocument doc(512);
-    JsonArray arr = doc.createNestedArray("ids");
+    JsonDocument doc;
+    JsonArray arr = doc["ids"].to<JsonArray>();
     for (int i = 0; i < apps_cnt; i++) arr.add(apps[i].id);
     File f = SPIFFS.open(_index_pad(), "w");
     if (f) { serializeJson(doc, f); f.close(); }
@@ -80,7 +80,7 @@ void app_manifesten_laden() {
     File idx = SPIFFS.open(_index_pad(), "r");
     if (!idx) return;
 
-    DynamicJsonDocument idoc(512);
+    JsonDocument idoc;
     if (deserializeJson(idoc, idx) != DeserializationError::Ok) { idx.close(); return; }
     idx.close();
 
@@ -91,7 +91,7 @@ void app_manifesten_laden() {
         if (!SPIFFS.exists(pad)) continue;
         File mf = SPIFFS.open(pad, "r");
         if (!mf) continue;
-        DynamicJsonDocument doc(512);
+        JsonDocument doc;
         if (deserializeJson(doc, mf) == DeserializationError::Ok)
             _json_naar_manifest(doc.as<JsonObject>(), apps[apps_cnt++]);
         mf.close();
@@ -102,8 +102,8 @@ void app_manifest_opslaan(int idx) {
     if (idx < 0 || idx >= apps_cnt) return;
     File f = SPIFFS.open(_manifest_pad(apps[idx].id), "w");
     if (!f) return;
-    DynamicJsonDocument doc(512);
-    _manifest_naar_json(apps[idx], doc.as<JsonObject>());
+    JsonDocument doc;
+    _manifest_naar_json(apps[idx], doc.to<JsonObject>());
     serializeJson(doc, f);
     f.close();
 }
@@ -149,7 +149,7 @@ void app_winkel_laden() {
     int code = http.GET();
     if (code != 200) { http.end(); return; }
 
-    DynamicJsonDocument doc(4096);
+    JsonDocument doc;
     if (deserializeJson(doc, http.getStream()) != DeserializationError::Ok) {
         http.end(); return;
     }
