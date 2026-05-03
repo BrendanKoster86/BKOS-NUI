@@ -4,19 +4,6 @@
 
 byte licht_cfg_idx = 0;
 
-static unsigned long io_timeout_start = 0;
-static char io_buf[4];
-
-static bool io_wacht_byte(char &c, unsigned long timeout_ms = IO_TIMEOUT) {
-    unsigned long t = millis();
-    while (!Serial.available()) {
-        if (millis() - t > timeout_ms) return false;
-        yield();
-    }
-    c = Serial.read();
-    return true;
-}
-
 void io_boot() {
     Serial.flush();
     io_detect();
@@ -26,41 +13,29 @@ void io_detect() {
     io_aparaten_cnt = 0;
     io_kanalen_cnt  = 0;
 
-    Serial.print("IOD\n");   // newline vereist (origineel protocol)
-    delay(50);
     while (Serial.available()) Serial.read();
+    Serial.print("IOD\n");
+    // ATtiny leest "IOD" en gaat in cmd_io(ID) modus
 
     for (int m = 0; m < MAX_MODULES; m++) {
-        Serial.print("00000000");
-
-        // Wacht op eerste byte (ATtiny heeft tijd nodig)
-        unsigned long t = millis();
-        while (!Serial.available() && millis() - t < 500) delay(10);
-        if (!Serial.available()) break;
-
-        // Lees 8 bits (LSB eerst)
-        byte id  = 0;
-        int  bit = 0;
-        unsigned long tbit = millis();
-        while (bit < 8) {
-            if (Serial.available()) {
-                char c = Serial.read();
-                if (c == '1') id |= (1 << bit);
-                bit++;
-                tbit = millis();
-            } else if (millis() - tbit > 150) {
-                break;
-            }
-            delay(2);
+        // Stuur 8 bits, lees per bit direct de ID-pin respons terug
+        byte id = 0;
+        bool ok = true;
+        for (int bit = 0; bit < 8; bit++) {
+            Serial.print('0');
+            unsigned long t = millis();
+            while (!Serial.available() && millis() - t < 150) yield();
+            if (!Serial.available()) { ok = false; break; }
+            char c = Serial.read();
+            if (c == '1') id |= (1 << bit);
         }
-        if (bit < 8) break;      // timeout — geen volledig ID
-        if (id == 0 || id == 255) break;
+        if (!ok || id == 0 || id == 255) break;
 
         io_aparaten[io_aparaten_cnt++] = id;
         io_kanalen_cnt += (id == MODULE_LOGICA16 || id == MODULE_SCHAKEL16) ? 16 : 8;
     }
 
-    Serial.print('\n');
+    Serial.print('\n');   // sluit IOD commando af
     delay(50);
     while (Serial.available()) Serial.read();
 }
@@ -74,19 +49,17 @@ void io_cyclus() {
 
     while (Serial.available()) Serial.read();
     Serial.print("IO\n");
-    delay(10);
-    while (Serial.available()) Serial.read();
+    // ATtiny leest "IO" en gaat in cmd_io(MISO) modus
 
-    // Stuur eerste min(8,n) outputs in omgekeerde volgorde (shift-register pipeline)
-    int eerste = min(8, n);
-    for (int i = 0; i < eerste; i++) {
-        byte out = io_output[n - (i + 1)];
-        Serial.print((out == IO_AAN || out == IO_INV_UIT || out == IO_INV_GEBLOKKEERD) ? '1' : '0');
-    }
-
-    // Interleaved: per kanaal wacht op input, stuur daarna volgend output
+    // Per kanaal: stuur output bit (omgekeerde volgorde, shift-register),
+    // ATtiny stuurt direct de bijbehorende input bit terug
     for (int i = 0; i < n; i++) {
-        delay(25);
+        byte out = io_output[n - 1 - i];   // omgekeerd voor shift registers
+        Serial.print((out == IO_AAN || out == IO_INV_UIT || out == IO_INV_GEBLOKKEERD) ? '1' : '0');
+
+        unsigned long t = millis();
+        while (!Serial.available() && millis() - t < 50) yield();
+
         char c = '0';
         if (Serial.available()) c = Serial.read();
 
@@ -100,16 +73,12 @@ void io_cyclus() {
             io_input[i] = nieuw;
             io_gewijzigd[i] = true;
         }
-
-        if (i + 8 < n) {
-            byte out = io_output[n - (i + 9)];
-            Serial.print((out == IO_AAN || out == IO_INV_UIT || out == IO_INV_GEBLOKKEERD) ? '1' : '0');
-        } else if (i + 8 == n) {
-            Serial.print('\n');
-        }
     }
 
+    Serial.print('\n');   // sluit IO commando af
+    delay(30);
     while (Serial.available()) Serial.read();
+
     io_runned = true;
     io_actief = false;
     io_gecheckt = millis();
