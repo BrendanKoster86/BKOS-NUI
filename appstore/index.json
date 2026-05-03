@@ -1,0 +1,14 @@
+[
+  {
+    "id": "voorbeeld_klok",
+    "naam": "Voorbeeld Klok",
+    "versie": "1.0.0",
+    "auteur": "BKOS-NUI Team",
+    "beschrijving": "Grote klok als voorbeeld voor app-ontwikkelaars. Toont tijd, datum en actuele temperatuur uit de data-opslag.",
+    "scherm_b": 800,
+    "scherm_h": 480,
+    "vervangt": -1,
+    "api_versie": 1,
+    "actief": true
+  }
+]

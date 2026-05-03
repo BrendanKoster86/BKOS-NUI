@@ -39,6 +39,42 @@ jobs:
           arduino-cli lib install "TAMC_GT911@1.0.2"
           arduino-cli lib install "ArduinoJson"
 
+      - name: Install Lua 5.4 (embedded scripting voor apps)
+        run: |
+          curl -L https://www.lua.org/ftp/lua-5.4.7.tar.gz -o /tmp/lua.tgz
+          tar xzf /tmp/lua.tgz -C /tmp
+          mkdir -p ~/Arduino/libraries/LuaBKOS/src
+
+          # Kopieer alleen veilige kern-bestanden (geen os/io/package/loadlib)
+          for name in lapi lauxlib lbaselib lcode lctype ldebug ldo ldump \
+                      lfunc lgc llex lmathlib lmem lobject lopcodes lparser \
+                      lstate lstring lstrlib ltable ltablib ltm lundump \
+                      lvm lzio lcorolib; do
+            [ -f /tmp/lua-5.4.7/src/${name}.c ] && cp /tmp/lua-5.4.7/src/${name}.c ~/Arduino/libraries/LuaBKOS/src/
+            [ -f /tmp/lua-5.4.7/src/${name}.h ] && cp /tmp/lua-5.4.7/src/${name}.h ~/Arduino/libraries/LuaBKOS/src/
+          done
+          cp /tmp/lua-5.4.7/src/lua.h   ~/Arduino/libraries/LuaBKOS/src/
+          cp /tmp/lua-5.4.7/src/lualib.h ~/Arduino/libraries/LuaBKOS/src/
+          cp /tmp/lua-5.4.7/src/lprefix.h ~/Arduino/libraries/LuaBKOS/src/ 2>/dev/null || true
+
+          # Gebruik onze aangepaste luaconf (PSRAM, stack-limiet)
+          cp $GITHUB_WORKSPACE/BKOS_NUI/lua_bkos_conf.h ~/Arduino/libraries/LuaBKOS/src/luaconf.h
+          # Gebruik onze aangepaste linit (alleen veilige libs: base/math/string/table/coroutine)
+          cp $GITHUB_WORKSPACE/BKOS_NUI/lua_linit_bkos.c ~/Arduino/libraries/LuaBKOS/src/linit.c
+
+          # Library metadata
+          cat > ~/Arduino/libraries/LuaBKOS/library.properties << 'PROPS'
+          name=LuaBKOS
+          version=5.4.7
+          author=PUC-Rio (stripped for ESP32)
+          maintainer=BKOS-NUI
+          sentence=Lua 5.4 embedded interpreter voor BKOS apps
+          paragraph=Zonder os/io/package bibliotheken; gebruikt PSRAM heap
+          category=Other
+          url=https://lua.org
+          architectures=esp32
+          PROPS
+
       - name: Compile firmware
         run: |
           arduino-cli compile \

@@ -5,8 +5,12 @@
 #include "screen_config.h"
 #include "screen_ota.h"
 #include "screen_info.h"
+#include "screen_apps.h"
 #include "meteo.h"
 #include "nav_bar.h"
+#include "data_store.h"
+#include "app_manager.h"
+#include "lua_runtime.h"
 
 static bool          vorige_touch        = false;
 static bool          touch_verwerkt      = false;
@@ -35,9 +39,11 @@ void hw_setup() {
     tft.print("Opstarten...");
 
     info_laden();    // boot naam en eigenaar uit SPIFFS (voor status bar)
+    data_setup();    // gestructureerde data-opslag laden
     meteo_setup();   // laadt NVS-instellingen (snel, geen netwerk)
     ota_setup();     // init OTA (snel)
     io_boot();       // BKOSS check + UART IO discovery
+    app_setup();     // app-manifesten laden + Lua runtime initialiseren
 
     // Splash: BKOSS status tonen
     tft.setTextSize(1);
@@ -80,15 +86,29 @@ void hw_loop() {
     if (scherm_bouwen) {
         scherm_bouwen = false;
         touch_verwerkt = false;
-        switch (actief_scherm) {
-            case SCREEN_MAIN:   screen_main_teken();   break;
-            case SCREEN_IO:     screen_io_teken();     break;
-            case SCREEN_METEO:  screen_meteo_teken();  break;
-            case SCREEN_CONFIG: screen_config_teken(); break;
-            case SCREEN_OTA:    screen_ota_teken();    break;
-            case SCREEN_INFO:   screen_info_teken();     break;
-            case SCREEN_WIFI:   screen_wifi_teken();     break;
-            case SCREEN_IO_CFG: screen_io_cfg_teken();   break;
+        int app_idx = app_voor_scherm(actief_scherm);
+        if (app_idx >= 0) {
+            // Lua-app vervangt dit scherm: laad alleen bij schermwissel
+            static int lua_geladen_voor = -1;
+            static int lua_geladen_app  = -1;
+            if (actief_scherm != lua_geladen_voor || app_idx != lua_geladen_app) {
+                lua_app_laden(app_idx);
+                lua_geladen_voor = actief_scherm;
+                lua_geladen_app  = app_idx;
+            }
+            lua_app_teken(app_idx);
+        } else {
+            switch (actief_scherm) {
+                case SCREEN_MAIN:   screen_main_teken();   break;
+                case SCREEN_IO:     screen_io_teken();     break;
+                case SCREEN_METEO:  screen_meteo_teken();  break;
+                case SCREEN_CONFIG: screen_config_teken(); break;
+                case SCREEN_OTA:    screen_ota_teken();    break;
+                case SCREEN_INFO:   screen_info_teken();   break;
+                case SCREEN_WIFI:   screen_wifi_teken();   break;
+                case SCREEN_IO_CFG: screen_io_cfg_teken(); break;
+                case SCREEN_APPS:   screen_apps_teken();   break;
+            }
         }
     }
 
@@ -107,15 +127,30 @@ void hw_loop() {
         if (millis() - laatste_touch_ms >= TOUCH_DEBOUNCE_MS) {
             touch_verwerkt = true;
             laatste_touch_ms = millis();
-            switch (actief_scherm) {
-                case SCREEN_MAIN:   screen_main_run(ts_x, ts_y, true);   break;
-                case SCREEN_IO:     screen_io_run(ts_x, ts_y, true);     break;
-                case SCREEN_METEO:  screen_meteo_run(ts_x, ts_y, true);  break;
-                case SCREEN_CONFIG: screen_config_run(ts_x, ts_y, true); break;
-                case SCREEN_OTA:    screen_ota_run(ts_x, ts_y, true);    break;
-                case SCREEN_INFO:   screen_info_run(ts_x, ts_y, true);     break;
-                case SCREEN_WIFI:   screen_wifi_run(ts_x, ts_y, true);     break;
-                case SCREEN_IO_CFG: screen_io_cfg_run(ts_x, ts_y, true);   break;
+            {
+                int app_idx = app_voor_scherm(actief_scherm);
+                if (app_idx >= 0) {
+                    // Nav bar altijd bereikbaar (bovenste schermhelft = app, onder = nav)
+                    int nav = nav_bar_klik(ts_x, ts_y);
+                    if (nav >= 0 && nav != actief_scherm) {
+                        lua_app_sluiten();
+                        actief_scherm = nav; scherm_bouwen = true;
+                    } else {
+                        lua_app_run(app_idx, ts_x, ts_y, true);
+                    }
+                } else {
+                    switch (actief_scherm) {
+                        case SCREEN_MAIN:   screen_main_run(ts_x, ts_y, true);   break;
+                        case SCREEN_IO:     screen_io_run(ts_x, ts_y, true);     break;
+                        case SCREEN_METEO:  screen_meteo_run(ts_x, ts_y, true);  break;
+                        case SCREEN_CONFIG: screen_config_run(ts_x, ts_y, true); break;
+                        case SCREEN_OTA:    screen_ota_run(ts_x, ts_y, true);    break;
+                        case SCREEN_INFO:   screen_info_run(ts_x, ts_y, true);   break;
+                        case SCREEN_WIFI:   screen_wifi_run(ts_x, ts_y, true);   break;
+                        case SCREEN_IO_CFG: screen_io_cfg_run(ts_x, ts_y, true); break;
+                        case SCREEN_APPS:   screen_apps_run(ts_x, ts_y, true);   break;
+                    }
+                }
             }
         } else {
             touch_verwerkt = true;  // te snel na vorige touch — negeren
@@ -125,12 +160,24 @@ void hw_loop() {
     // Geen aanraking: periodieke updates
     if (!aanraking) {
         touch_verwerkt = false;
-        switch (actief_scherm) {
-            case SCREEN_MAIN:   screen_main_run(0, 0, false);   break;
-            case SCREEN_IO:     screen_io_run(0, 0, false);     break;
-            case SCREEN_OTA:    screen_ota_run(0, 0, false);    break;
-            default: break;
+        int app_upd = app_voor_scherm(actief_scherm);
+        if (app_upd >= 0) {
+            lua_app_run(app_upd, 0, 0, false);
+        } else {
+            switch (actief_scherm) {
+                case SCREEN_MAIN:   screen_main_run(0, 0, false);   break;
+                case SCREEN_IO:     screen_io_run(0, 0, false);     break;
+                case SCREEN_OTA:    screen_ota_run(0, 0, false);    break;
+                default: break;
+            }
         }
+    }
+
+    // Periodieke data-opslag (elke 60s als er wijzigingen zijn)
+    static unsigned long data_opgeslagen_ms = 0;
+    if (millis() - data_opgeslagen_ms >= 60000) {
+        data_opgeslagen_ms = millis();
+        data_opslaan();
     }
 
     // WiFi OTA modus aan/uit o.b.v. actief scherm (SCREEN_OTA = 6, niet meer in nav bar)

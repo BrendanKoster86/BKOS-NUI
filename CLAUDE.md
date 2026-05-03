@@ -226,8 +226,106 @@ Touch debouncing via `touch_verwerkt` flag; eerste touch na display wake wordt g
 | 79 | Sessie 11 | Open-Meteo API vernieuwd: apparent_temperature, weather_code, wind_speed_unit=kn, minutely_15 voor is_day+gusts, 4 KNMI modellen | ✅ Afgerond |
 | 80 | Sessie 11 | Getij tabel rijen 50% hoger: GTJ_ROW_H 25→38, GTJ_ROWS_N 12→7 (2×7=14 entries, meer rust in overzicht) | ✅ Afgerond |
 | 81 | Sessie 11 | WiFi knop verwijderd uit nav bar (was pos 4); 5 items met mapping array; WiFi via CONFIG bereikbaar | ✅ Afgerond |
+| 82 | Sessie 12 | ArduinoJson toegevoegd aan GitHub Actions workflow — getijdata.cpp dependency veroorzaakte CI-build fout | ✅ Afgerond |
+| 83 | Sessie 12 | IO_SERIAL macro verwijderd — directe Serial.print() calls; Serial2 pins verwijderd uit hw_io.h | ✅ Afgerond |
+| 84 | Sessie 12 | Serial.begin(115200) verwijderd uit hardware.ino — conflict met Serial.begin(9600) voor IO op UART0 | ✅ Afgerond |
+| 85 | Sessie 12 | IO protocol herschreven op basis van BKOSS broncode: 1:1 per-bit (stuur '0' → ATtiny echoet input direct terug) | ✅ Afgerond |
+| 86 | Sessie 12 | CDCOnBoot=default bevestigd via binaire vergelijking — Serial = UART0 = ATtiny (niet USB CDC) | ✅ Afgerond |
+| 87 | Sessie 12 | BKOSS versiecheck bij opstart: io_bkoss_check() stuurt "?\n", parseert "BKOS Serial 3217 V 0.4"; splash toont module/kanaal info | ✅ Afgerond |
+| 88 | Sessie 12 | INFO scherm SYSTEEM tab (3e tab): BKOS-NUI versie, BKOSS module+versie, IO modules/kanalen, WiFi status | ✅ Afgerond |
+| 89 | Sessie 13 | data_store.h/.ino: genaamde key-value opslag met tijdstempel + TTL, ArduinoJson persistentie in SPIFFS | ✅ Afgerond |
+| 90 | Sessie 13 | app_manager.h/.ino: app-manifesten (JSON), SPIFFS /apps/<id>/, GitHub winkel (APPSTORE_INDEX_URL), installeren/verwijderen | ✅ Afgerond |
+| 91 | Sessie 13 | lua_runtime.h/.ino: Lua 5.4 runtime met PSRAM-allocator; bkos.scherm/io/data/sys API; schaalbare coördinaten | ✅ Afgerond |
+| 92 | Sessie 13 | screen_apps.h/.ino: app-beheer scherm (3 tabs: GEÏNSTALLEERD / WINKEL / INSTELLINGEN) | ✅ Afgerond |
+| 93 | Sessie 13 | Nav bar uitgebreid naar 6 items: PANEEL / IO / METEO / CONFIG / APPS / INFO | ✅ Afgerond |
+| 94 | Sessie 13 | Lua-app scherm-override: hardware.ino dispatcht naar lua_app_teken/run als app_voor_scherm() iets vindt | ✅ Afgerond |
+| 95 | Sessie 13 | CI workflow: Lua 5.4.7 downloaden van lua.org, veilige kern-bestanden kopiëren, custom luaconf + linit | ✅ Afgerond |
+| 96 | Sessie 13 | appstore/index.json + voorbeeld_klok app (main.lua met bkos.teken/aanraking/update callbacks) | ✅ Afgerond |
 
 ---
+
+## App Systeem (Sessie 13)
+
+### Architectuur
+
+```
+SPIFFS/
+  /apps/<id>/
+    manifest.json    ← app-metadata (naam, versie, vervangt, api_versie)
+    main.lua         ← Lua 5.4 script
+  /bkos_data.json    ← gestructureerde data-opslag (key-value + tijdstempel)
+```
+
+### Data-opslag sleutels (genaamde conventies)
+| Sleutel | Type | Beschrijving |
+|---|---|---|
+| `meteo.temp` | float | Actuele temperatuur |
+| `meteo.wind_kn` | float | Windsnelheid in knopen |
+| `meteo.code` | int | Open-Meteo weather code |
+| `getij.station` | string | Naam van getij-station |
+| `sys.tijd` | string | Huidige tijd HH:MM (NTP) |
+| `sys.datum` | string | Huidige datum |
+
+### Lua BKOS API
+```lua
+-- Scherm (gecoördineerd in app-ontwerpruimte, automatisch geschaald)
+bkos.W, bkos.H                   -- ontwerp-dimensies
+bkos.vul(x, y, b, h, kleur)
+bkos.lijn(x1, y1, x2, y2, kleur)
+bkos.tekst(x, y, str, size, kleur)
+bkos.cirkel(cx, cy, r, kleur, gevuld)
+bkos.rgb(r, g, b)                 -- RGB565 kleur maken
+bkos.kleur.bg/tekst/cyaan/groen/amber/rood  -- palette kleuren
+
+-- IO (per nummer of naam)
+bkos.io.lees(nr)  bkos.io.lees_naam(naam)
+bkos.io.zet(nr, staat)  bkos.io.zet_naam(naam, staat)
+bkos.io.wissel(nr)  bkos.io.wissel_naam(naam)
+bkos.IO_AAN, bkos.IO_UIT
+
+-- Data store
+bkos.data.lees(k)  bkos.data.lees_f(k, std)
+bkos.data.schrijf(k, v)  bkos.data.schrijf_f(k, v)
+bkos.data.leeftijd(k)    -- seconden geleden
+
+-- Systeem
+bkos.sys.versie()  bkos.sys.millis()  bkos.sys.log(str)
+
+-- App callbacks (ingesteld door het script)
+bkos.teken = function() ... end
+bkos.aanraking = function(x, y) ... end
+bkos.update = function() ... end
+```
+
+### App manifest formaat
+```json
+{
+  "id": "mijn_app",
+  "naam": "Mijn App",
+  "versie": "1.0.0",
+  "auteur": "naam",
+  "beschrijving": "...",
+  "scherm_b": 800,
+  "scherm_h": 480,
+  "vervangt": -1,
+  "api_versie": 1,
+  "actief": true
+}
+```
+`vervangt` is een SCREEN_* constante (0=PANEEL, 2=METEO, 5=INFO, enz.) of -1 voor geen override.
+
+### App store
+- Index URL: `https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/appstore/index.json`
+- Apps: `https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/appstore/apps/<id>/main.lua`
+- Lokale map: `appstore/` in de repo-root
+
+### Lua installatie (lokale Arduino IDE compilatie)
+De CI downloadt Lua 5.4.7 automatisch van lua.org. Voor lokale compilatie:
+1. Download `https://www.lua.org/ftp/lua-5.4.7.tar.gz`
+2. Pak uit naar `~/Arduino/libraries/LuaBKOS/src/`
+3. Kopieer `BKOS_NUI/lua_bkos_conf.h` → `~/Arduino/libraries/LuaBKOS/src/luaconf.h`
+4. Kopieer `BKOS_NUI/lua_linit_bkos.c` → `~/Arduino/libraries/LuaBKOS/src/linit.c`
+5. Verwijder: `loadlib.c`, `loslib.c`, `liolib.c`, `luac.c`
 
 ## Conventies
 
