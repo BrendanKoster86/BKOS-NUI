@@ -1,8 +1,10 @@
 #include "app_manager.h"
 #include "lua_runtime.h"
+#include "wifi.h"
 #include <SPIFFS.h>
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 
 // SPIFFS heeft geen echte mappen — bestanden worden plat opgeslagen:
 //   /app_<id>_manifest.json
@@ -142,10 +144,19 @@ void app_winkel_laden() {
     winkel_cnt    = 0;
     winkel_geladen = false;
 
+    if (!wifi_verbonden) {
+        wifi_verbind_aanvragen();
+        unsigned long t = millis();
+        while (!wifi_verbonden && millis() - t < 10000) delay(100);
+    }
+    if (!wifi_verbonden) return;
+
+    WiFiClientSecure sc;
+    sc.setInsecure();
     HTTPClient http;
-    http.begin(APPSTORE_INDEX_URL);
+    http.begin(sc, APPSTORE_INDEX_URL);
     http.useHTTP10(true);
-    http.setTimeout(10000);
+    http.setTimeout(15000);
     int code = http.GET();
     if (code != 200) { http.end(); return; }
 
@@ -173,8 +184,10 @@ bool app_installeer_uit_winkel(int winkel_idx) {
     // Download main.lua
     String lua_url = String("https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/appstore/apps/")
                      + wm.id + "/main.lua";
+    WiFiClientSecure sc;
+    sc.setInsecure();
     HTTPClient http;
-    http.begin(lua_url);
+    http.begin(sc, lua_url);
     http.useHTTP10(true);
     http.setTimeout(15000);
     if (http.GET() != 200) { http.end(); return false; }
