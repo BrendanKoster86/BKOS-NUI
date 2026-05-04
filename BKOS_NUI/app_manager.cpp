@@ -150,12 +150,15 @@ void app_winkel_laden() {
     winkel_cnt    = 0;
     winkel_geladen = false;
 
-    if (!wifi_verbonden) {
+    if (WiFi.status() != WL_CONNECTED) {
         wifi_verbind_aanvragen();
         unsigned long t = millis();
-        while (!wifi_verbonden && millis() - t < 10000) delay(100);
+        while (WiFi.status() != WL_CONNECTED && millis() - t < 10000)
+            vTaskDelay(100 / portTICK_PERIOD_MS);
     }
-    if (!wifi_verbonden) return;
+    if (WiFi.status() != WL_CONNECTED) return;
+    wifi_verbonden = true;
+    wifi_ota_modus = true;
 
     WiFiClientSecure sc;
     sc.setInsecure();
@@ -164,13 +167,14 @@ void app_winkel_laden() {
     http.useHTTP10(true);
     http.setTimeout(15000);
     int code = http.GET();
-    if (code != 200) { http.end(); return; }
+    if (code != 200) { http.end(); wifi_ota_modus = false; return; }
 
     JsonDocument doc;
     if (deserializeJson(doc, http.getStream()) != DeserializationError::Ok) {
-        http.end(); return;
+        http.end(); wifi_ota_modus = false; return;
     }
     http.end();
+    wifi_ota_modus = false;
 
     JsonArray arr = doc.as<JsonArray>();
     for (JsonObject obj : arr) {
@@ -198,19 +202,24 @@ static void _installeer_taak(void* param) {
     // Maak een lokale kopie zodat de winkel-array veilig is
     AppManifest wm = winkel[idx];
 
-    // Stap 1: WiFi
+    // Stap 1: WiFi — check hardware-status direct, niet de bool (kan achter lopen)
     app_ins_status = APP_INS_VERBINDEN;
-    strncpy(app_ins_bericht, "WiFi verbinden...", sizeof(app_ins_bericht) - 1);
-    if (!wifi_verbonden) {
+    if (WiFi.status() != WL_CONNECTED) {
+        strncpy(app_ins_bericht, "WiFi verbinden...", sizeof(app_ins_bericht) - 1);
         wifi_verbind_aanvragen();
         unsigned long t = millis();
-        while (!wifi_verbonden && millis() - t < 12000) delay(200);
+        while (WiFi.status() != WL_CONNECTED && millis() - t < 12000)
+            vTaskDelay(200 / portTICK_PERIOD_MS);
     }
-    if (!wifi_verbonden) {
+    if (WiFi.status() != WL_CONNECTED) {
         strncpy(app_ins_bericht, "Geen WiFi verbinding", sizeof(app_ins_bericht) - 1);
         app_ins_status = APP_INS_MISLUKT;
         vTaskDelete(NULL); return;
     }
+    wifi_verbonden = true;
+
+    // Voorkom dat netwerk_taak WiFi verbreekt terwijl wij downloaden
+    wifi_ota_modus = true;
 
     // Stap 2: Download main.lua
     app_ins_status = APP_INS_DOWNLOADEN;
@@ -228,12 +237,15 @@ static void _installeer_taak(void* param) {
     if (code != 200) {
         snprintf(app_ins_bericht, sizeof(app_ins_bericht), "HTTP fout %d", code);
         http.end();
+        wifi_ota_modus = false;
         app_ins_status = APP_INS_MISLUKT;
         vTaskDelete(NULL); return;
     }
     // getString() buffers het volledige antwoord — veilig voor kleine Lua-scripts
     String inhoud = http.getString();
     http.end();
+    wifi_ota_modus = false;  // download klaar, netwerk_taak mag weer beheren
+
     if (inhoud.length() == 0) {
         strncpy(app_ins_bericht, "Leeg antwoord van server", sizeof(app_ins_bericht) - 1);
         app_ins_status = APP_INS_MISLUKT;
