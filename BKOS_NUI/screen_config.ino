@@ -1,6 +1,7 @@
 #include "screen_config.h"
 #include "nav_bar.h"
 #include "meteo.h"
+#include "fout_log.h"
 #include <SPIFFS.h>
 
 // ─── PIN code helpers ────────────────────────────────────────────────────
@@ -35,6 +36,7 @@ bool cfg_kb_opgeslagen          = false;
 bool cfg_kb_numeriek            = false;
 bool cfg_kb_meteo_stad          = false;
 bool cfg_kb_wachtwoord          = false;
+bool cfg_kb_foutlog_token       = false;
 char cfg_kb_label[24]           = "Naam:";
 static unsigned long cfg_kb_sloot = 0;
 static bool cfg_preset_menu     = false;
@@ -434,12 +436,31 @@ static void cfg_instellingen_teken() {
 
     bool ontg = config_ontgrendeld;
 
-    // WiFi + Ontgrendelen rij (altijd toegankelijk)
+    // WiFi | Foutrapportage | Ontgrendelen (altijd toegankelijk, 3 knoppen in één rij)
     int wow_y = HLD_Y + HLD_H + 4;
-    tft.fillRoundRect(8, wow_y + 2, 300, 34, 6, C_SURFACE);
+
+    // WiFi (links)
+    tft.fillRoundRect(8, wow_y + 2, 220, 34, 6, C_SURFACE);
     tft.setTextSize(2); tft.setTextColor(C_CYAN);
     tft.setCursor(18, wow_y + 2 + (34 - 16) / 2); tft.print("WIFI NETWERKEN  >");
-    ui_knop(316, wow_y + 2, TFT_W - 324, 34,
+
+    // Foutrapportage toggle (midden)
+    {
+        bool frap = fout_rapportage;
+        bool tok  = fout_log_token_aanwezig();
+        uint16_t fbg  = frap ? RGB565(0, 22, 8)   : C_SURFACE2;
+        uint16_t facc = frap ? (tok ? C_GREEN : C_AMBER) : C_TEXT_DIM;
+        tft.fillRoundRect(236, wow_y + 2, 264, 34, 6, fbg);
+        tft.drawRoundRect(236, wow_y + 2, 264, 34, 6, facc);
+        tft.setTextSize(1); tft.setTextColor(facc);
+        const char* flbl = frap ? (tok ? "FOUTRAP  AAN" : "FOUTRAP  AAN !") : "FOUTRAP  UIT";
+        int ftw = strlen(flbl) * 6;
+        tft.setCursor(236 + (264 - ftw) / 2, wow_y + 2 + (34 - 8) / 2);
+        tft.print(flbl);
+    }
+
+    // Vergrendelen (rechts)
+    ui_knop(508, wow_y + 2, TFT_W - 516, 34,
             ontg ? "VERGRENDELEN" : "ONTGRENDELEN",
             C_SURFACE2, ontg ? C_AMBER : C_TEXT);
 
@@ -493,10 +514,21 @@ static void cfg_instellingen_teken() {
     ui_knop(10, uy + 4, TFT_W - 20, 38, "FIRMWARE UPDATEN  >",
             ontg ? C_SURFACE2 : C_SURFACE, ontg ? C_CYAN : C_TEXT_DIM);
 
-    // Pincode wijzigen
+    // Pincode wijzigen + (als foutrap ON en ontgrendeld) Token instellen
     int py = uy + 46;
-    ui_knop(10, py + 4, TFT_W - 20, 38, "PINCODE WIJZIGEN  >",
-            C_SURFACE2, ontg ? C_AMBER : C_TEXT_DIM);
+    {
+        bool heeft_tok_knop = fout_rapportage && ontg;
+        int  pw = heeft_tok_knop ? (TFT_W / 2 - 14) : (TFT_W - 20);
+        ui_knop(10, py + 4, pw, 38, "PINCODE WIJZIGEN  >",
+                C_SURFACE2, ontg ? C_AMBER : C_TEXT_DIM);
+        if (heeft_tok_knop) {
+            bool tok = fout_log_token_aanwezig();
+            ui_knop(TFT_W / 2 + 4, py + 4, TFT_W / 2 - 14, 38,
+                    tok ? "TOKEN WIJZIGEN  >" : "TOKEN INSTELLEN  >",
+                    tok ? C_SURFACE2 : RGB565(28, 8, 0),
+                    tok ? C_CYAN    : C_AMBER);
+        }
+    }
 }
 
 static void cfg_instellingen_run(int x, int y) {
@@ -532,10 +564,14 @@ static void cfg_instellingen_run(int x, int y) {
     int uy    = iy + 46;
     int py    = uy + 46;
 
-    // WiFi + Ontgrendelen rij (altijd vrij)
+    // WiFi | Foutrapportage | Ontgrendelen rij (altijd vrij)
     if (y >= wow_y && y < wow_y + 38) {
-        if (x < 316) {
+        if (x < 236) {
             actief_scherm = SCREEN_WIFI; scherm_bouwen = true;
+        } else if (x < 508) {
+            fout_rapportage = !fout_rapportage;
+            state_save();
+            cfg_instellingen_teken();
         } else {
             if (ontg) {
                 config_ontgrendeld = false;
@@ -605,9 +641,21 @@ static void cfg_instellingen_run(int x, int y) {
         return;
     }
 
-    // PIN wijzigen
+    // PIN wijzigen + Token instellen
     if (y >= py && y < py + 46) {
-        if (!ontg) {
+        bool heeft_tok_knop = fout_rapportage && ontg;
+        if (heeft_tok_knop && x >= TFT_W / 2 + 4) {
+            // TOKEN INSTELLEN/WIJZIGEN
+            cfg_invoer[0] = '\0';
+            strncpy(cfg_kb_label, "GitHub Token:", sizeof(cfg_kb_label) - 1);
+            cfg_kb_numeriek      = false;
+            cfg_kb_info_mode     = false;
+            cfg_kb_opgeslagen    = false;
+            cfg_kb_wachtwoord    = false;
+            cfg_kb_foutlog_token = true;
+            cfg_toetsenbord_actief = true;
+            screen_config_toetsenbord_teken();
+        } else if (!ontg) {
             pin_stap = 0;
             pin_na_unlock_wijzigen = true;
             pin_invoer[0] = '\0';
@@ -900,6 +948,7 @@ bool screen_config_toetsenbord_run(int x, int y) {
                 cfg_kb_opgeslagen      = false;
                 cfg_kb_numeriek        = false;
                 cfg_kb_wachtwoord      = false;
+                cfg_kb_foutlog_token   = false;
                 return true;
             }
         }
@@ -962,6 +1011,9 @@ bool screen_config_toetsenbord_run(int x, int y) {
                 actief_scherm          = SCREEN_METEO;
                 scherm_bouwen          = true;
                 return true;
+            } else if (cfg_kb_foutlog_token) {
+                fout_log_token_zet(cfg_invoer);
+                cfg_kb_foutlog_token = false;
             } else if (cfg_kb_info_mode) {
                 cfg_kb_opgeslagen = true;   // caller slaat op via cfg_invoer
             } else if (cfg_bewerk_zeilnr) {
@@ -978,6 +1030,7 @@ bool screen_config_toetsenbord_run(int x, int y) {
             cfg_kb_info_mode       = false;
             cfg_kb_numeriek        = false;
             cfg_kb_wachtwoord      = false;
+            cfg_kb_foutlog_token   = false;
             kb_sym = false;
             return true;
         } else if (x >= KB_X + KB_CAN_X) {
@@ -1000,6 +1053,7 @@ bool screen_config_toetsenbord_run(int x, int y) {
             cfg_kb_opgeslagen      = false;
             cfg_kb_numeriek        = false;
             cfg_kb_wachtwoord      = false;
+            cfg_kb_foutlog_token   = false;
             kb_sym                 = false;
             return true;
         }

@@ -11,6 +11,7 @@
 #include "data_store.h"
 #include "app_manager.h"
 #include "lua_runtime.h"
+#include "fout_log.h"
 
 static bool          vorige_touch        = false;
 static bool          touch_verwerkt      = false;
@@ -38,12 +39,13 @@ void hw_setup() {
     tft.setCursor(TFT_W / 2 - 80, TFT_H / 2 + 62);
     tft.print("Opstarten...");
 
-    info_laden();    // boot naam en eigenaar uit SPIFFS (voor status bar)
-    data_setup();    // gestructureerde data-opslag laden
-    meteo_setup();   // laadt NVS-instellingen (snel, geen netwerk)
-    ota_setup();     // init OTA (snel)
-    io_boot();       // BKOSS check + UART IO discovery
-    app_setup();     // app-manifesten laden + Lua runtime initialiseren
+    info_laden();       // boot naam en eigenaar uit SPIFFS (voor status bar)
+    data_setup();       // gestructureerde data-opslag laden
+    meteo_setup();      // laadt NVS-instellingen (snel, geen netwerk)
+    ota_setup();        // init OTA (snel)
+    fout_log_setup();   // laad foutrapportage token uit Preferences
+    io_boot();          // BKOSS check + UART IO discovery
+    app_setup();        // app-manifesten laden + Lua runtime initialiseren
 
     // Splash: BKOSS status tonen
     tft.setTextSize(1);

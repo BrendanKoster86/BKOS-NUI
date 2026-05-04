@@ -14,6 +14,7 @@ bool  dev_lokaal[5]    = {false, false, false, false, false};
 byte  kleurenschema    = 0;
 byte  boot_type        = 0;
 char  zeilnummer[ZEILNR_LEN] = "";
+bool  fout_rapportage  = false;
 
 #define CONFIG_BESTAND "/bkos_config.csv"
 
@@ -27,6 +28,7 @@ void state_save() {
     f.printf("schema=%d\n",  (int)kleurenschema);
     f.printf("btype=%d\n",   (int)boot_type);
     f.printf("zeilnr=%s\n",  zeilnummer);
+    f.printf("foutrap=%d\n", (int)fout_rapportage);
     f.close();
 }
 
@@ -63,6 +65,7 @@ void state_load() {
             strncpy(zeilnummer, val.c_str(), ZEILNR_LEN - 1);
             zeilnummer[ZEILNR_LEN - 1] = '\0';
         }
+        if (key == "foutrap") fout_rapportage = (val.toInt() != 0);
     }
     f.close();
 }

@@ -69,5 +69,8 @@ extern byte kleurenschema;   // 0=donker, 1=licht, 2=nacht
 extern byte boot_type;       // 0=zeilboot, 1=motorboot, 2=catamaran, 3=motorzeiler
 extern char zeilnummer[];
 
+// Privacy
+extern bool fout_rapportage;  // automatisch foutrapportage naar GitHub (standaard UIT)
+
 void state_save();
 void state_load();
