@@ -245,6 +245,8 @@ Touch debouncing via `touch_verwerkt` flag; eerste touch na display wake wordt g
 | 98 | Sessie 14 | screen_apps herschreven naar 2-panel layout: links=geïnstalleerd+SCHERMEN, rechts=APP STORE | ✅ Afgerond |
 | 99 | Sessie 14 | Arduino-stijl API: bkos.HIGH/LOW, bkos.digitalRead/digitalWrite(poort), bkos.drawCircle/fillCircle; poort = int, "A1"-"Z8" of naam | ✅ Afgerond |
 | 100 | Sessie 14 | BKOS_APP_HANDLEIDING.md bijgewerkt: Arduino aliassen, poortnummer-notatie, drawCircle/fillCircle | ✅ Afgerond |
+| 101 | Sessie 15 | fout_log.h + fout_log.cpp: foutrapportage naar GitHub Issues (BKOS-NUI-logs); privacy-toggle + TOKEN INSTELLEN in CONFIG | ✅ Afgerond |
+| 102 | Sessie 15 | App installatie WiFi-fix: WiFi.status() ipv bool, wifi_ota_modus lock tijdens download, vTaskDelay in wacht-loops | ✅ Afgerond |
 
 ---
 
