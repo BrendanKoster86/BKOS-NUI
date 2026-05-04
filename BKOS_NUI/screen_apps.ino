@@ -26,14 +26,24 @@ static char apps_status[64] = "";
 static bool apps_bezig       = false;
 
 // Installeer-keuze popup
-static bool apps_popup_actief = false;
-static int  apps_popup_idx    = -1;   // winkel index
+static bool apps_popup_actief  = false;
+static int  apps_popup_idx     = -1;
 
-// Popup layout constanten
+// Voortgang popup
+static bool apps_voortgang_actief     = false;
+static AppInstallatieStatus apps_voortgang_vorige = APP_INS_IDLE;
+
+// Gedeelde popup layout
 #define POP_W  620
 #define POP_H  280
 #define POP_X  ((TFT_W - POP_W) / 2)
 #define POP_Y  ((TFT_H - NAV_H - POP_H) / 2 + CONTENT_Y)
+
+// Voortgang popup hoogte (kleiner)
+#define VPOP_W  560
+#define VPOP_H  220
+#define VPOP_X  ((TFT_W - VPOP_W) / 2)
+#define VPOP_Y  ((TFT_H - NAV_H - VPOP_H) / 2 + CONTENT_Y)
 
 // ─── Deelscherm-headers ───────────────────────────────────────────────────────
 static void _apps_headers_teken() {
@@ -339,6 +349,76 @@ static void _apps_popup_teken() {
     ui_knop(POP_X + 18, POP_Y + POP_H - 52, 150, 36, "ANNULEER", C_SURFACE2, C_AMBER);
 }
 
+// ─── Voortgang popup ─────────────────────────────────────────────────────────
+static void _apps_voortgang_teken(bool volledig) {
+    AppInstallatieStatus status = app_ins_status;
+
+    if (volledig) {
+        // Eerste keer: teken het kader
+        tft.fillRect(0, CONTENT_Y, TFT_W, TFT_H - NAV_H - CONTENT_Y, 0x2104); // donker overlay
+        tft.fillRoundRect(VPOP_X, VPOP_Y, VPOP_W, VPOP_H, 10, C_SURFACE);
+        tft.drawRoundRect(VPOP_X, VPOP_Y, VPOP_W, VPOP_H, 10, C_CYAN);
+
+        tft.setTextSize(2);
+        tft.setTextColor(C_CYAN);
+        tft.setCursor(VPOP_X + 18, VPOP_Y + 16);
+        tft.print("INSTALLEREN");
+    }
+
+    // Stap-indicator (stap 1-4 als blokjes)
+    static const char* stap_namen[] = { "", "WiFi", "Download", "SPIFFS", "Klaar" };
+    int stap_nr = (status == APP_INS_VERBINDEN)  ? 1 :
+                  (status == APP_INS_DOWNLOADEN)  ? 2 :
+                  (status == APP_INS_SCHRIJVEN)   ? 3 :
+                  (status == APP_INS_KLAAR ||
+                   status == APP_INS_MISLUKT)     ? 4 : 0;
+
+    int blok_y = VPOP_Y + 52;
+    int blok_w = (VPOP_W - 36 - 3 * 8) / 4;
+    for (int i = 0; i < 4; i++) {
+        int bx = VPOP_X + 18 + i * (blok_w + 8);
+        bool actief  = (i + 1 == stap_nr);
+        bool gedaan  = (i + 1 < stap_nr);
+        bool fout    = (status == APP_INS_MISLUKT && i + 1 == stap_nr);
+        uint16_t kleur = fout ? C_RED_BRIGHT : (gedaan ? C_GREEN : (actief ? C_CYAN : C_SURFACE2));
+        tft.fillRoundRect(bx, blok_y, blok_w, 28, 4, kleur);
+        tft.setTextSize(1);
+        tft.setTextColor(gedaan || actief ? C_TEXT_DARK : C_TEXT_DIM);
+        int tw = strlen(stap_namen[i + 1]) * 6;
+        tft.setCursor(bx + (blok_w - tw) / 2, blok_y + 10);
+        tft.print(stap_namen[i + 1]);
+    }
+
+    // Statusbericht
+    tft.fillRect(VPOP_X + 18, VPOP_Y + 92, VPOP_W - 36, 20, C_SURFACE);
+    tft.setTextSize(1);
+    tft.setTextColor(status == APP_INS_MISLUKT ? C_RED_BRIGHT : C_TEXT);
+    tft.setCursor(VPOP_X + 18, VPOP_Y + 96);
+    tft.print(app_ins_bericht);
+
+    // Voortgangsbalk
+    int bar_y = VPOP_Y + 120;
+    int bar_w = VPOP_W - 36;
+    tft.drawRect(VPOP_X + 18, bar_y, bar_w, 16, C_SURFACE2);
+    int vul = (stap_nr * bar_w) / 4;
+    if (status == APP_INS_KLAAR) vul = bar_w;
+    if (vul > 0) {
+        uint16_t bar_k = (status == APP_INS_MISLUKT) ? C_RED_BRIGHT : C_CYAN;
+        tft.fillRect(VPOP_X + 19, bar_y + 1, vul - 1, 14, bar_k);
+    }
+    // Animatiepulsje terwijl bezig
+    if (status != APP_INS_KLAAR && status != APP_INS_MISLUKT) {
+        int dot_x = VPOP_X + 19 + (int)((millis() / 300) % (bar_w - 10));
+        tft.fillRect(dot_x, bar_y + 1, 10, 14, C_TEXT);
+    }
+
+    // Klaar/mislukt: toon SLUITEN knop
+    if (status == APP_INS_KLAAR || status == APP_INS_MISLUKT) {
+        ui_knop(VPOP_X + VPOP_W / 2 - 80, VPOP_Y + VPOP_H - 52, 160, 36,
+                "SLUITEN", C_SURFACE2, status == APP_INS_KLAAR ? C_GREEN : C_AMBER);
+    }
+}
+
 // ─── Hoofdfuncties ────────────────────────────────────────────────────────────
 void screen_apps_teken() {
     tft.fillScreen(C_BG);
@@ -352,12 +432,44 @@ void screen_apps_teken() {
 
     _apps_winkel_teken();
 
-    if (apps_bevestig_actief) _apps_bevestig_teken();
-    if (apps_popup_actief)    _apps_popup_teken();
+    if (apps_bevestig_actief)   _apps_bevestig_teken();
+    if (apps_popup_actief)      _apps_popup_teken();
+    if (apps_voortgang_actief)  _apps_voortgang_teken(true);
     nav_bar_teken();
 }
 
 void screen_apps_run(int x, int y, bool aanraking) {
+
+    // Voortgang popup: updaten ook zonder aanraking
+    if (apps_voortgang_actief) {
+        AppInstallatieStatus status = app_ins_status;
+        bool veranderd = (status != apps_voortgang_vorige);
+        if (veranderd || status == APP_INS_DOWNLOADEN) {
+            // Herteken alleen het dynamische deel (niet het kader opnieuw)
+            _apps_voortgang_teken(veranderd);
+            apps_voortgang_vorige = status;
+        }
+
+        if (aanraking && (status == APP_INS_KLAAR || status == APP_INS_MISLUKT)) {
+            // SLUITEN knop
+            int btn_x = VPOP_X + VPOP_W / 2 - 80;
+            int btn_y = VPOP_Y + VPOP_H - 52;
+            if (x >= btn_x && x <= btn_x + 160 && y >= btn_y && y <= btn_y + 36) {
+                apps_voortgang_actief = false;
+                if (status == APP_INS_KLAAR) {
+                    strncpy(apps_status, app_ins_bericht, sizeof(apps_status) - 1);
+                    app_manifesten_laden();
+                    lua_setup();
+                } else {
+                    strncpy(apps_status, app_ins_bericht, sizeof(apps_status) - 1);
+                }
+                app_ins_status = APP_INS_IDLE;
+                scherm_bouwen = true;
+            }
+        }
+        return;
+    }
+
     if (!aanraking) return;
 
     // Installeer-keuze popup
@@ -369,17 +481,11 @@ void screen_apps_run(int x, int y, bool aanraking) {
         if (had_ruimte &&
             x >= POP_X + POP_W - 158 && x <= POP_X + POP_W - 16 &&
             y >= POP_Y + 92           && y <= POP_Y + 128) {
-            apps_popup_actief = false;
-            apps_bezig        = true;
-            scherm_bouwen     = true;
-
-            bool ok = app_installeer_op_spiffs(apps_popup_idx);
-            apps_bezig = false;
-            strncpy(apps_status,
-                    ok ? "Installatie geslaagd!" : "Installatie mislukt.",
-                    sizeof(apps_status) - 1);
-            if (ok) { app_manifesten_laden(); lua_setup(); }
-            scherm_bouwen = true;
+            apps_popup_actief     = false;
+            apps_voortgang_actief = true;
+            apps_voortgang_vorige = APP_INS_IDLE;
+            scherm_bouwen         = true;
+            app_installeer_start(apps_popup_idx);
             return;
         }
 

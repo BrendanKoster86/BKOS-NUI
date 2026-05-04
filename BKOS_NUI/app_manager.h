@@ -49,13 +49,25 @@ int   app_voor_scherm(int scherm_id);  // returns app_idx, or -1
 
 void  app_zet_actief(int idx, bool actief);
 void  app_verwijder(int idx);
-bool  app_installeer_op_spiffs(int winkel_idx);
-bool  app_installeer_uit_winkel(int winkel_idx);  // wrapper → SPIFFS
+bool  app_installeer_uit_winkel(int winkel_idx);  // synchroon, voor intern gebruik
 
 void  app_winkel_laden();
 String app_pad(const char* id);
 
-size_t app_spiffs_vrij();   // bytes vrij op SPIFFS
-size_t app_spiffs_totaal(); // totale SPIFFS grootte
-bool   app_sd_aanwezig();   // true als SD kaart gemount
-size_t app_sd_vrij();       // bytes vrij op SD (0 als niet aanwezig)
+size_t app_spiffs_vrij();
+size_t app_spiffs_totaal();
+bool   app_sd_aanwezig();
+size_t app_sd_vrij();
+
+// Asynchrone installatie (FreeRTOS Core 0) — gebruik dit vanuit de UI
+enum AppInstallatieStatus {
+    APP_INS_IDLE = 0,
+    APP_INS_VERBINDEN,
+    APP_INS_DOWNLOADEN,
+    APP_INS_SCHRIJVEN,
+    APP_INS_KLAAR,
+    APP_INS_MISLUKT
+};
+extern volatile AppInstallatieStatus app_ins_status;
+extern char app_ins_bericht[80];
+void app_installeer_start(int winkel_idx);  // start FreeRTOS taak

@@ -182,17 +182,39 @@ void app_winkel_laden() {
     winkel_geladen = true;
 }
 
-// ─── App installeren op SPIFFS ────────────────────────────────────────────────
-bool app_installeer_op_spiffs(int winkel_idx) {
-    if (winkel_idx < 0 || winkel_idx >= winkel_cnt) return false;
-    AppManifest& wm = winkel[winkel_idx];
+// ─── Asynchrone installatie (FreeRTOS Core 0) ────────────────────────────────
+volatile AppInstallatieStatus app_ins_status = APP_INS_IDLE;
+char app_ins_bericht[80] = "";
 
+static int _ins_winkel_idx = -1;
+
+static void _installeer_taak(void* param) {
+    int idx = _ins_winkel_idx;
+    if (idx < 0 || idx >= winkel_cnt) {
+        strncpy(app_ins_bericht, "Ongeldig app-index", sizeof(app_ins_bericht) - 1);
+        app_ins_status = APP_INS_MISLUKT;
+        vTaskDelete(NULL); return;
+    }
+    // Maak een lokale kopie zodat de winkel-array veilig is
+    AppManifest wm = winkel[idx];
+
+    // Stap 1: WiFi
+    app_ins_status = APP_INS_VERBINDEN;
+    strncpy(app_ins_bericht, "WiFi verbinden...", sizeof(app_ins_bericht) - 1);
     if (!wifi_verbonden) {
         wifi_verbind_aanvragen();
         unsigned long t = millis();
-        while (!wifi_verbonden && millis() - t < 10000) delay(100);
+        while (!wifi_verbonden && millis() - t < 12000) delay(200);
     }
-    if (!wifi_verbonden) return false;
+    if (!wifi_verbonden) {
+        strncpy(app_ins_bericht, "Geen WiFi verbinding", sizeof(app_ins_bericht) - 1);
+        app_ins_status = APP_INS_MISLUKT;
+        vTaskDelete(NULL); return;
+    }
+
+    // Stap 2: Download main.lua
+    app_ins_status = APP_INS_DOWNLOADEN;
+    snprintf(app_ins_bericht, sizeof(app_ins_bericht), "Downloaden: %s...", wm.naam);
 
     String lua_url = String("https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/appstore/apps/")
                      + wm.id + "/main.lua";
@@ -203,39 +225,67 @@ bool app_installeer_op_spiffs(int winkel_idx) {
     http.useHTTP10(true);
     http.setTimeout(20000);
     int code = http.GET();
-    if (code != 200) { http.end(); return false; }
+    if (code != 200) {
+        snprintf(app_ins_bericht, sizeof(app_ins_bericht), "HTTP fout %d", code);
+        http.end();
+        app_ins_status = APP_INS_MISLUKT;
+        vTaskDelete(NULL); return;
+    }
+    // getString() buffers het volledige antwoord — veilig voor kleine Lua-scripts
+    String inhoud = http.getString();
+    http.end();
+    if (inhoud.length() == 0) {
+        strncpy(app_ins_bericht, "Leeg antwoord van server", sizeof(app_ins_bericht) - 1);
+        app_ins_status = APP_INS_MISLUKT;
+        vTaskDelete(NULL); return;
+    }
+
+    // Stap 3: Schrijven naar SPIFFS
+    app_ins_status = APP_INS_SCHRIJVEN;
+    strncpy(app_ins_bericht, "Opslaan op SPIFFS...", sizeof(app_ins_bericht) - 1);
 
     File lf = SPIFFS.open(_lua_pad(wm.id), "w");
-    if (!lf) { http.end(); return false; }
-
-    // Stream in blokken schrijven totdat verbinding sluit
-    WiFiClientSecure* stream = (WiFiClientSecure*)http.getStreamPtr();
-    uint8_t buf[512];
-    int len;
-    unsigned long deadline = millis() + 20000;
-    while (millis() < deadline) {
-        len = stream->readBytes(buf, sizeof(buf));
-        if (len > 0) { lf.write(buf, len); deadline = millis() + 5000; }
-        else if (!stream->connected()) break;
-        else delay(10);
+    if (!lf) {
+        strncpy(app_ins_bericht, "SPIFFS: bestand niet te openen", sizeof(app_ins_bericht) - 1);
+        app_ins_status = APP_INS_MISLUKT;
+        vTaskDelete(NULL); return;
     }
+    lf.print(inhoud);
     lf.close();
-    http.end();
 
+    // Stap 4: Manifest opslaan
     int bestaand = app_vindt(wm.id);
     int nieuw_idx = (bestaand >= 0) ? bestaand : apps_cnt;
-    if (nieuw_idx >= APP_MAX) return false;
+    if (nieuw_idx >= APP_MAX) {
+        strncpy(app_ins_bericht, "Maximum aantal apps bereikt", sizeof(app_ins_bericht) - 1);
+        app_ins_status = APP_INS_MISLUKT;
+        vTaskDelete(NULL); return;
+    }
     if (bestaand < 0) apps_cnt++;
-
     apps[nieuw_idx] = wm;
     apps[nieuw_idx].actief = true;
     app_manifest_opslaan(nieuw_idx);
     _index_opslaan();
-    return true;
+
+    snprintf(app_ins_bericht, sizeof(app_ins_bericht),
+             "%s geinstalleerd (%d bytes)", wm.naam, (int)inhoud.length());
+    app_ins_status = APP_INS_KLAAR;
+    vTaskDelete(NULL);
+}
+
+void app_installeer_start(int winkel_idx) {
+    _ins_winkel_idx = winkel_idx;
+    app_ins_status  = APP_INS_VERBINDEN;
+    strncpy(app_ins_bericht, "Starten...", sizeof(app_ins_bericht) - 1);
+    xTaskCreatePinnedToCore(_installeer_taak, "app_ins", 16384, NULL, 1, NULL, 0);
 }
 
 bool app_installeer_uit_winkel(int winkel_idx) {
-    return app_installeer_op_spiffs(winkel_idx);
+    // Synchroon pad (voor interne aanroepen)
+    app_installeer_start(winkel_idx);
+    while (app_ins_status != APP_INS_KLAAR && app_ins_status != APP_INS_MISLUKT)
+        delay(100);
+    return (app_ins_status == APP_INS_KLAAR);
 }
 
 // ─── Pad helper ───────────────────────────────────────────────────────────────
