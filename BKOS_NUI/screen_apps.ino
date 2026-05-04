@@ -48,7 +48,8 @@ static void _apps_headers_teken() {
 }
 
 // ─── Linker deelscherm: GEÏNSTALLEERD ─────────────────────────────────────────
-static void _apps_rij_links(int y, AppManifest& m, int visueel_idx) {
+static void _apps_rij_links(int y, int app_idx, int visueel_idx) {
+    AppManifest& m = apps[app_idx];
     bool even = (visueel_idx % 2 == 0);
     tft.fillRect(0, y, APPS_PNL_W - 1, APPS_RIJ_H - 1, even ? C_SURFACE : C_BG);
     tft.drawFastHLine(0, y + APPS_RIJ_H - 1, APPS_PNL_W - 1, C_SURFACE2);
@@ -94,7 +95,7 @@ static void _apps_geinstalleerd_teken() {
         for (int i = 0; i < rijen; i++) {
             int idx = apps_scroll + i;
             if (idx >= apps_cnt) break;
-            _apps_rij_links(APPS_LIST_Y + i * APPS_RIJ_H, apps[idx], i);
+            _apps_rij_links(APPS_LIST_Y + i * APPS_RIJ_H, idx, i);
         }
     }
 
@@ -151,7 +152,8 @@ static void _apps_schermen_teken() {
 }
 
 // ─── Rechter deelscherm: APP STORE ───────────────────────────────────────────
-static void _apps_rij_rechts(int y, AppManifest& m, int visueel_idx) {
+static void _apps_rij_rechts(int y, int winkel_idx, int visueel_idx) {
+    AppManifest& m = winkel[winkel_idx];
     bool even = (visueel_idx % 2 == 0);
     tft.fillRect(APPS_PNL_W + 1, y, APPS_PNL_W - 1, APPS_RIJ_H - 1, even ? C_SURFACE : C_BG);
     tft.drawFastHLine(APPS_PNL_W + 1, y + APPS_RIJ_H - 1, APPS_PNL_W - 1, C_SURFACE2);
@@ -204,7 +206,7 @@ static void _apps_winkel_teken() {
     for (int i = 0; i < APPS_RIJEN_N; i++) {
         int idx = apps_winkel_scroll + i;
         if (idx >= winkel_cnt) break;
-        _apps_rij_rechts(APPS_LIST_Y + i * APPS_RIJ_H, winkel[idx], i);
+        _apps_rij_rechts(APPS_LIST_Y + i * APPS_RIJ_H, idx, i);
     }
 
     // Status feedback

@@ -62,8 +62,8 @@ jobs:
 
           # Gebruik onze aangepaste luaconf (PSRAM, stack-limiet)
           cp $GITHUB_WORKSPACE/BKOS_NUI/lua_bkos_conf.h ~/Arduino/libraries/LuaBKOS/src/luaconf.h
-          # Gebruik onze aangepaste linit (alleen veilige libs: base/math/string/table/coroutine)
-          cp $GITHUB_WORKSPACE/BKOS_NUI/lua_linit_bkos.c ~/Arduino/libraries/LuaBKOS/src/linit.c
+          # Verwijder library linit.c — sketch compileert lua_linit_bkos.c direct
+          rm -f ~/Arduino/libraries/LuaBKOS/src/linit.c
 
           # Library metadata
           cat > ~/Arduino/libraries/LuaBKOS/library.properties << 'PROPS'
