@@ -28,6 +28,7 @@ struct AppManifest {
     int   scherm_h;       // ontwerphoogte  (bijv. 480)
     int   vervangt;       // SCREEN_* constante of APP_VERVANGT_GEEN
     int   api_versie;
+    int   grootte_kb;     // geschatte installatiegrootte in KB
     bool  actief;
 };
 
@@ -48,7 +49,13 @@ int   app_voor_scherm(int scherm_id);  // returns app_idx, or -1
 
 void  app_zet_actief(int idx, bool actief);
 void  app_verwijder(int idx);
-bool  app_installeer_uit_winkel(int winkel_idx);  // download + installeer
+bool  app_installeer_op_spiffs(int winkel_idx);
+bool  app_installeer_uit_winkel(int winkel_idx);  // wrapper → SPIFFS
 
-void  app_winkel_laden();   // async via netwerk
-String app_pad(const char* id);   // "/apps/<id>"
+void  app_winkel_laden();
+String app_pad(const char* id);
+
+size_t app_spiffs_vrij();   // bytes vrij op SPIFFS
+size_t app_spiffs_totaal(); // totale SPIFFS grootte
+bool   app_sd_aanwezig();   // true als SD kaart gemount
+size_t app_sd_vrij();       // bytes vrij op SD (0 als niet aanwezig)

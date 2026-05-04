@@ -9,6 +9,7 @@
     "scherm_h": 480,
     "vervangt": -1,
     "api_versie": 1,
+    "grootte_kb": 3,
     "actief": true
   },
   {
@@ -21,6 +22,7 @@
     "scherm_h": 480,
     "vervangt": -1,
     "api_versie": 1,
+    "grootte_kb": 8,
     "actief": true
   }
 ]

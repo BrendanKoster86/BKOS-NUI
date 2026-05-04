@@ -2,9 +2,13 @@
 #include "lua_runtime.h"
 #include "wifi.h"
 #include <SPIFFS.h>
+#include <SD_MMC.h>
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
+
+static bool _sd_geinitialiseerd = false;
+static bool _sd_aanwezig        = false;
 
 // SPIFFS heeft geen echte mappen — bestanden worden plat opgeslagen:
 //   /app_<id>_manifest.json
@@ -42,6 +46,7 @@ static void _json_naar_manifest(JsonObject obj, AppManifest& m) {
     m.scherm_h   = obj["scherm_h"]   | 480;
     m.vervangt   = obj["vervangt"]   | APP_VERVANGT_GEEN;
     m.api_versie = obj["api_versie"] | 1;
+    m.grootte_kb = obj["grootte_kb"] | 0;
     m.actief     = obj["actief"]     | true;
 }
 
@@ -55,6 +60,7 @@ static void _manifest_naar_json(AppManifest& m, JsonObject obj) {
     obj["scherm_h"]    = m.scherm_h;
     obj["vervangt"]    = m.vervangt;
     obj["api_versie"]  = m.api_versie;
+    obj["grootte_kb"]  = m.grootte_kb;
     obj["actief"]      = m.actief;
 }
 
@@ -176,12 +182,18 @@ void app_winkel_laden() {
     winkel_geladen = true;
 }
 
-// ─── App installeren vanuit winkel ───────────────────────────────────────────
-bool app_installeer_uit_winkel(int winkel_idx) {
+// ─── App installeren op SPIFFS ────────────────────────────────────────────────
+bool app_installeer_op_spiffs(int winkel_idx) {
     if (winkel_idx < 0 || winkel_idx >= winkel_cnt) return false;
     AppManifest& wm = winkel[winkel_idx];
 
-    // Download main.lua
+    if (!wifi_verbonden) {
+        wifi_verbind_aanvragen();
+        unsigned long t = millis();
+        while (!wifi_verbonden && millis() - t < 10000) delay(100);
+    }
+    if (!wifi_verbonden) return false;
+
     String lua_url = String("https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/appstore/apps/")
                      + wm.id + "/main.lua";
     WiFiClientSecure sc;
@@ -189,31 +201,68 @@ bool app_installeer_uit_winkel(int winkel_idx) {
     HTTPClient http;
     http.begin(sc, lua_url);
     http.useHTTP10(true);
-    http.setTimeout(15000);
-    if (http.GET() != 200) { http.end(); return false; }
+    http.setTimeout(20000);
+    int code = http.GET();
+    if (code != 200) { http.end(); return false; }
 
     File lf = SPIFFS.open(_lua_pad(wm.id), "w");
     if (!lf) { http.end(); return false; }
-    WiFiClient* stream = http.getStreamPtr();
-    uint8_t buf[256];
+
+    // Stream in blokken schrijven totdat verbinding sluit
+    WiFiClientSecure* stream = (WiFiClientSecure*)http.getStreamPtr();
+    uint8_t buf[512];
     int len;
-    while ((len = stream->readBytes(buf, sizeof(buf))) > 0) lf.write(buf, len);
+    unsigned long deadline = millis() + 20000;
+    while (millis() < deadline) {
+        len = stream->readBytes(buf, sizeof(buf));
+        if (len > 0) { lf.write(buf, len); deadline = millis() + 5000; }
+        else if (!stream->connected()) break;
+        else delay(10);
+    }
     lf.close();
     http.end();
 
-    // Manifest opslaan
     int bestaand = app_vindt(wm.id);
     int nieuw_idx = (bestaand >= 0) ? bestaand : apps_cnt;
     if (nieuw_idx >= APP_MAX) return false;
     if (bestaand < 0) apps_cnt++;
 
     apps[nieuw_idx] = wm;
+    apps[nieuw_idx].actief = true;
     app_manifest_opslaan(nieuw_idx);
     _index_opslaan();
     return true;
 }
 
-// ─── Pad helper (geeft pad naar het Lua-script) ──────────────────────────────
+bool app_installeer_uit_winkel(int winkel_idx) {
+    return app_installeer_op_spiffs(winkel_idx);
+}
+
+// ─── Pad helper ───────────────────────────────────────────────────────────────
 String app_pad(const char* id) {
     return _lua_pad(id);
+}
+
+// ─── Storage info ─────────────────────────────────────────────────────────────
+size_t app_spiffs_vrij() {
+    return SPIFFS.totalBytes() - SPIFFS.usedBytes();
+}
+
+size_t app_spiffs_totaal() {
+    return SPIFFS.totalBytes();
+}
+
+bool app_sd_aanwezig() {
+    if (!_sd_geinitialiseerd) {
+        _sd_geinitialiseerd = true;
+        // 1-bit modus, geen pin-remapping — lukt alleen als kaart aanwezig is
+        _sd_aanwezig = SD_MMC.begin("/sdcard", true);
+        if (!_sd_aanwezig) SD_MMC.end();
+    }
+    return _sd_aanwezig;
+}
+
+size_t app_sd_vrij() {
+    if (!app_sd_aanwezig()) return 0;
+    return (size_t)SD_MMC.totalBytes() - (size_t)SD_MMC.usedBytes();
 }

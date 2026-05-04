@@ -25,6 +25,16 @@ static int  apps_bevestig_idx    = -1;
 static char apps_status[64] = "";
 static bool apps_bezig       = false;
 
+// Installeer-keuze popup
+static bool apps_popup_actief = false;
+static int  apps_popup_idx    = -1;   // winkel index
+
+// Popup layout constanten
+#define POP_W  620
+#define POP_H  280
+#define POP_X  ((TFT_W - POP_W) / 2)
+#define POP_Y  ((TFT_H - NAV_H - POP_H) / 2 + CONTENT_Y)
+
 // ─── Deelscherm-headers ───────────────────────────────────────────────────────
 static void _apps_headers_teken() {
     const char* links_label = apps_toewijzing_modus ? "SCHERMEN" : "GEINSTALLEERD";
@@ -241,6 +251,94 @@ static void _apps_bevestig_teken() {
     ui_knop(460, 260, 200, 50, "ANNULEER",  C_SURFACE2,   C_TEXT);
 }
 
+// ─── Installeer-keuze popup ───────────────────────────────────────────────────
+static void _apps_popup_teken() {
+    if (apps_popup_idx < 0 || apps_popup_idx >= winkel_cnt) return;
+    AppManifest& m = winkel[apps_popup_idx];
+
+    // Semitransparante overlay
+    tft.fillRect(0, CONTENT_Y, TFT_W, TFT_H - NAV_H - CONTENT_Y, C_BG);
+
+    // Popup kader
+    tft.fillRoundRect(POP_X, POP_Y, POP_W, POP_H, 10, C_SURFACE);
+    tft.drawRoundRect(POP_X, POP_Y, POP_W, POP_H, 10, C_CYAN);
+
+    // Titel
+    tft.setTextSize(2);
+    tft.setTextColor(C_CYAN);
+    tft.setCursor(POP_X + 18, POP_Y + 16);
+    tft.print("APP INSTALLEREN");
+
+    // App naam + versie + grootte
+    tft.setTextSize(1);
+    tft.setTextColor(C_TEXT);
+    tft.setCursor(POP_X + 18, POP_Y + 48);
+    tft.print(m.naam);
+    tft.setTextColor(C_TEXT_DIM);
+    tft.print("  v"); tft.print(m.versie);
+    tft.print("  \xB7  ");  // middenpunt
+    if (m.grootte_kb > 0) {
+        tft.print(m.grootte_kb); tft.print(" KB");
+    } else {
+        tft.print("grootte onbekend");
+    }
+
+    // Beschrijving
+    tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(POP_X + 18, POP_Y + 64);
+    tft.print(m.beschrijving);
+
+    tft.drawFastHLine(POP_X + 12, POP_Y + 82, POP_W - 24, C_SURFACE2);
+
+    // ── SPIFFS rij ────────────────────────────────────────────────────────────
+    size_t vrij  = app_spiffs_vrij();
+    size_t tot   = app_spiffs_totaal();
+    int vrij_kb  = (int)(vrij  / 1024);
+    int tot_kb   = (int)(tot   / 1024);
+    bool heeft_ruimte = (m.grootte_kb == 0) || (vrij_kb > m.grootte_kb);
+
+    tft.setTextSize(1);
+    tft.setTextColor(C_TEXT);
+    tft.setCursor(POP_X + 18, POP_Y + 96);
+    tft.print("Intern geheugen (SPIFFS)");
+    tft.setTextColor(heeft_ruimte ? C_TEXT_DIM : C_RED_BRIGHT);
+    tft.setCursor(POP_X + 18, POP_Y + 112);
+    char spiffs_buf[48];
+    snprintf(spiffs_buf, sizeof(spiffs_buf), "Vrij: %d KB / %d KB totaal", vrij_kb, tot_kb);
+    tft.print(spiffs_buf);
+
+    ui_knop(POP_X + POP_W - 158, POP_Y + 92, 142, 36,
+            "INSTALLEER",
+            heeft_ruimte ? C_CYAN : C_SURFACE2,
+            heeft_ruimte ? C_TEXT_DARK : C_SURFACE3);
+
+    tft.drawFastHLine(POP_X + 12, POP_Y + 142, POP_W - 24, C_SURFACE2);
+
+    // ── SD kaart rij ──────────────────────────────────────────────────────────
+    bool sd_ok = app_sd_aanwezig();
+    tft.setTextColor(sd_ok ? C_TEXT : C_SURFACE3);
+    tft.setCursor(POP_X + 18, POP_Y + 154);
+    tft.print("SD kaart");
+
+    tft.setTextColor(sd_ok ? C_TEXT_DIM : C_SURFACE3);
+    tft.setCursor(POP_X + 18, POP_Y + 170);
+    if (sd_ok) {
+        int sd_vrij_kb = (int)(app_sd_vrij() / 1024);
+        char sd_buf[32];
+        snprintf(sd_buf, sizeof(sd_buf), "Vrij: %d KB", sd_vrij_kb);
+        tft.print(sd_buf);
+    } else {
+        tft.print("Niet aanwezig");
+    }
+
+    ui_knop(POP_X + POP_W - 158, POP_Y + 150, 142, 36,
+            "INSTALLEER",
+            C_SURFACE2, C_SURFACE3);
+
+    // ── Annuleer ──────────────────────────────────────────────────────────────
+    ui_knop(POP_X + 18, POP_Y + POP_H - 52, 150, 36, "ANNULEER", C_SURFACE2, C_AMBER);
+}
+
 // ─── Hoofdfuncties ────────────────────────────────────────────────────────────
 void screen_apps_teken() {
     tft.fillScreen(C_BG);
@@ -255,11 +353,51 @@ void screen_apps_teken() {
     _apps_winkel_teken();
 
     if (apps_bevestig_actief) _apps_bevestig_teken();
+    if (apps_popup_actief)    _apps_popup_teken();
     nav_bar_teken();
 }
 
 void screen_apps_run(int x, int y, bool aanraking) {
     if (!aanraking) return;
+
+    // Installeer-keuze popup
+    if (apps_popup_actief) {
+        bool had_ruimte = (winkel[apps_popup_idx].grootte_kb == 0) ||
+                          ((int)(app_spiffs_vrij() / 1024) > winkel[apps_popup_idx].grootte_kb);
+
+        // SPIFFS installeer knop
+        if (had_ruimte &&
+            x >= POP_X + POP_W - 158 && x <= POP_X + POP_W - 16 &&
+            y >= POP_Y + 92           && y <= POP_Y + 128) {
+            apps_popup_actief = false;
+            apps_bezig        = true;
+            scherm_bouwen     = true;
+
+            bool ok = app_installeer_op_spiffs(apps_popup_idx);
+            apps_bezig = false;
+            strncpy(apps_status,
+                    ok ? "Installatie geslaagd!" : "Installatie mislukt.",
+                    sizeof(apps_status) - 1);
+            if (ok) { app_manifesten_laden(); lua_setup(); }
+            scherm_bouwen = true;
+            return;
+        }
+
+        // ANNULEER knop
+        if (x >= POP_X + 18          && x <= POP_X + 168 &&
+            y >= POP_Y + POP_H - 52  && y <= POP_Y + POP_H - 16) {
+            apps_popup_actief = false;
+            scherm_bouwen = true;
+            return;
+        }
+
+        // Klik buiten popup → annuleer
+        if (x < POP_X || x > POP_X + POP_W || y < POP_Y || y > POP_Y + POP_H) {
+            apps_popup_actief = false;
+            scherm_bouwen = true;
+        }
+        return;
+    }
 
     // Bevestig overlay
     if (apps_bevestig_actief) {
@@ -378,19 +516,11 @@ void screen_apps_run(int x, int y, bool aanraking) {
     int idx = apps_winkel_scroll + rij;
     if (idx < 0 || idx >= winkel_cnt) return;
 
-    // INSTALLEER knop
+    // INSTALLEER knop → open keuze popup
     if (x >= TFT_W - 112) {
         if (app_vindt(winkel[idx].id) >= 0) return;
-        apps_bezig = true;
-        snprintf(apps_status, sizeof(apps_status), "Installeren: %s...", winkel[idx].naam);
-        scherm_bouwen = true;
-
-        bool ok = app_installeer_uit_winkel(idx);
-        apps_bezig = false;
-        strncpy(apps_status,
-                ok ? "Installatie geslaagd!" : "Installatie mislukt.",
-                sizeof(apps_status) - 1);
-        if (ok) { app_manifesten_laden(); lua_setup(); }
-        scherm_bouwen = true;
+        apps_popup_idx    = idx;
+        apps_popup_actief = true;
+        scherm_bouwen     = true;
     }
 }
