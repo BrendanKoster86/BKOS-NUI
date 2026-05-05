@@ -82,11 +82,13 @@ void sb_scherm_teken(const char* titel, uint16_t kleur) {
 void sb_app_teken(const char* app_naam) {
     sb_teken_basis();
 
+    // App naam
     tft.setTextSize(2);
     tft.setTextColor(C_CYAN);
     tft.setCursor(86, (SB_H - 16) / 2);
     tft.print(app_naam);
 
+    // X knop
     int bx = TFT_W - SB_H;
     tft.fillRect(bx, 0, SB_H, SB_H, C_RED_BRIGHT);
     tft.drawFastVLine(bx, 0, SB_H, C_SURFACE3);
@@ -94,6 +96,16 @@ void sb_app_teken(const char* app_naam) {
     tft.setTextColor(C_TEXT);
     tft.setCursor(bx + (SB_H - 12) / 2, (SB_H - 16) / 2);
     tft.print("X");
+
+    // Klok opschuiven: sb_teken_basis() zette hem op SB_KLOK_X=732, maar dat
+    // overlapt met het X-blokje (758..800). Overschrijf en zet links van X.
+    int klok_breedte = 60;                       // 5 tekens × 12px bij textSize 2
+    int klok_x = bx - klok_breedte - 4;         // 4px marge vóór X knop
+    tft.fillRect(SB_KLOK_X, 0, TFT_W - SB_KLOK_X, SB_H, C_STATUSBAR);
+    tft.setTextSize(2);
+    tft.setTextColor(C_TEXT);
+    tft.setCursor(klok_x, (SB_H - 16) / 2);
+    tft.print(klok_tijd.c_str());
 }
 
 // ─── Navigatiebalk onderaan ───────────────────────────────────────────────
