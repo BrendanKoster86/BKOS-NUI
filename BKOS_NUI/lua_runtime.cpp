@@ -1,4 +1,5 @@
 #include "lua_runtime.h"
+#include "ui_draw.h"
 #include "data_store.h"
 #include "hw_io.h"
 #include "io.h"
