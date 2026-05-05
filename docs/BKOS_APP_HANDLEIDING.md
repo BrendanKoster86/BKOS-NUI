@@ -50,15 +50,15 @@ Beschikbare Lua-bibliotheken: `math`, `string`, `table`, `coroutine` en de ingeb
 De kleinste werkende BKOS app:
 
 ```lua
--- Mijn eerste BKOS app
+-- My first BKOS app
 
-function bkos.teken()
-    bkos.vul(0, 0, bkos.W, bkos.H, bkos.kleur.bg)
-    bkos.tekst(100, 200, "Hallo BKOS!", 3, bkos.kleur.cyaan)
+function bkos.draw()
+    bkos.fillScreen(bkos.colors.bg)
+    bkos.drawText(100, 200, "Hello BKOS!", 3, bkos.colors.cyan)
 end
 
-function bkos.aanraking(x, y)
-    bkos.tekst(x, y, "!", 2, bkos.kleur.groen)
+function bkos.touch(x, y)
+    bkos.drawText(x, y, "!", 2, bkos.colors.green)
 end
 ```
 
@@ -133,357 +133,336 @@ Op het apparaat zelf worden apps opgeslagen als platte SPIFFS-bestanden:
 
 ## 5. Lua API — volledig overzicht
 
-Alle BKOS-functies zitten in de globale tabel `bkos`.
+Alle BKOS-functies zitten in de globale tabel `bkos`. De tekencommando's volgen de standaard Arduino GFX naamgeving, maar dan met het prefix `bkos.`. Coördinaten zijn in de **ontwerp-ruimte** (`scherm_b × scherm_h`) en worden automatisch geschaald.
+
+---
 
 ### 5.1 Scherm tekenen
 
-Coördinaten zijn in de **ontwerp-ruimte** van de app (`scherm_b × scherm_h`).  
-De runtime schaalt automatisch naar de werkelijke schermresolutie.
-
----
-
-#### `bkos.vul(x, y, breedte, hoogte, kleur)`
-Vul een rechthoek met een kleur.
+#### `bkos.fillScreen(color)`
+Vult het volledige beschikbare tekengebied met één kleur. Raakt de header en footer niet aan.
 
 ```lua
-bkos.vul(0, 0, bkos.W, bkos.H, bkos.kleur.bg)  -- wis het scherm
-bkos.vul(10, 50, 200, 80, bkos.rgb(20, 60, 100))
-```
-
-| Parameter | Type | Beschrijving |
-|---|---|---|
-| `x`, `y` | int | Linker-bovenhoek |
-| `breedte` | int | Breedte in pixels |
-| `hoogte` | int | Hoogte in pixels |
-| `kleur` | int | RGB565 kleurwaarde |
-
----
-
-#### `bkos.lijn(x1, y1, x2, y2, kleur)`
-Teken een rechte lijn.
-
-```lua
-bkos.lijn(0, 0, bkos.W - 1, bkos.H - 1, bkos.kleur.cyaan)  -- diagonaal
-bkos.lijn(0, 100, bkos.W, 100, bkos.rgb(80, 80, 80))         -- horizontaal
+bkos.fillScreen(bkos.colors.bg)   -- wis scherm met achtergrondkleur
+bkos.fillScreen(bkos.color565(0, 0, 80))
 ```
 
 ---
 
-#### `bkos.tekst(x, y, tekst, grootte, kleur)`
-Teken tekst. Grootte 1 = 6×8 pixels per karakter, grootte 2 = 12×16, grootte 3 = 18×24, etc.
+#### `bkos.fillRect(x, y, w, h, color)`
 
 ```lua
-bkos.tekst(20, 30, "Temperatuur:", 1, bkos.kleur.tekst_dim)
-bkos.tekst(20, 45, "22.5 C",       3, bkos.kleur.cyaan)
-
--- Tekst centreren (grootte 2 = 12px per karakter):
-local s = "Goed zo!"
-bkos.tekst(math.floor((bkos.W - #s * 12) / 2), 200, s, 2, bkos.kleur.groen)
+bkos.fillRect(10, 50, 200, 80, bkos.colors.surface)
+bkos.fillRect(0, 0, bkos.W, bkos.H, bkos.colors.bg)
 ```
 
-> **Lettertypebreedte per grootte:** grootte N = N × 6 pixels per karakter.
+#### `bkos.drawRect(x, y, w, h, color)`
+Teken alleen de omtrek van een rechthoek.
+
+```lua
+bkos.drawRect(10, 10, 100, 60, bkos.colors.cyan)
+```
+
+#### `bkos.fillRoundRect(x, y, w, h, r, color)`
+Gevulde afgeronde rechthoek. `r` = hoekstraal in ontwerp-pixels.
+
+```lua
+bkos.fillRoundRect(20, 100, 160, 50, 8, bkos.colors.surface)
+```
+
+#### `bkos.drawRoundRect(x, y, w, h, r, color)`
+
+```lua
+bkos.drawRoundRect(20, 100, 160, 50, 8, bkos.colors.cyan)
+```
 
 ---
 
-#### `bkos.cirkel(cx, cy, straal, kleur, gevuld)`
-Teken een cirkel.
+#### `bkos.drawLine(x0, y0, x1, y1, color)`
 
 ```lua
-bkos.cirkel(400, 240, 50, bkos.kleur.rood, false)  -- omtrek
-bkos.cirkel(400, 240, 50, bkos.kleur.rood, true)   -- gevuld
+bkos.drawLine(0, 0, bkos.W - 1, bkos.H - 1, bkos.colors.cyan)   -- diagonaal
+bkos.drawLine(0, 100, bkos.W, 100, bkos.color565(80, 80, 80))    -- horizontaal
 ```
 
-| Parameter | Type | Beschrijving |
-|---|---|---|
-| `cx`, `cy` | int | Middelpunt |
-| `straal` | int | Straal in pixels |
-| `kleur` | int | RGB565 kleurwaarde |
-| `gevuld` | bool | `true` = gevulde schijf, `false` = ring |
+#### `bkos.drawFastHLine(x, y, w, color)`
+Geoptimaliseerde horizontale lijn.
+
+#### `bkos.drawFastVLine(x, y, h, color)`
+Geoptimaliseerde verticale lijn.
 
 ---
 
-#### `bkos.rgb(rood, groen, blauw)` → int
-Maak een RGB565 kleurwaarde van 8-bit R, G, B componenten.
+#### `bkos.drawCircle(cx, cy, r, color)`
 
 ```lua
-local zeeblauw = bkos.rgb(0, 105, 148)
-local geel     = bkos.rgb(255, 220, 0)
+bkos.drawCircle(400, 240, 50, bkos.colors.red)   -- omtrek
+```
+
+#### `bkos.fillCircle(cx, cy, r, color)`
+
+```lua
+bkos.fillCircle(400, 240, 50, bkos.colors.green)  -- gevuld
+```
+
+---
+
+#### `bkos.drawTriangle(x0, y0, x1, y1, x2, y2, color)`
+
+```lua
+bkos.drawTriangle(100, 200, 200, 50, 300, 200, bkos.colors.amber)
+```
+
+#### `bkos.fillTriangle(x0, y0, x1, y1, x2, y2, color)`
+
+---
+
+#### `bkos.drawPixel(x, y, color)`
+
+```lua
+bkos.drawPixel(400, 240, bkos.colors.text)
+```
+
+---
+
+### 5.2 Tekst
+
+#### `bkos.drawText(x, y, text, size, color)` — gemaksfunctie
+Stel grootte en kleur in en teken tekst in één aanroep.
+
+```lua
+bkos.drawText(20, 30, "Temperature:", 1, bkos.colors.textDim)
+bkos.drawText(20, 45, "22.5 C",       3, bkos.colors.cyan)
+
+-- Tekst centreren (size 2 = 12px per karakter):
+local s = "Hello!"
+bkos.drawText(math.floor((bkos.W - #s * 12) / 2), 200, s, 2, bkos.colors.green)
+```
+
+> **Font breedte:** size N = N × 6 pixels per karakter.
+
+#### Losse Arduino-stijl tekst functies
+
+```lua
+bkos.setTextSize(2)
+bkos.setTextColor(bkos.colors.text)
+bkos.setCursor(100, 200)
+bkos.print("Hello")
+bkos.println("World")   -- met newline
+```
+
+---
+
+### 5.3 Kleur
+
+#### `bkos.color565(r, g, b)` → int
+Converteert 8-bit RGB naar RGB565 (het formaat van het display).
+
+```lua
+local seaBlue = bkos.color565(0, 105, 148)
+local yellow  = bkos.color565(255, 220, 0)
+```
+
+`bkos.rgb(r, g, b)` is een alias voor `color565` (achterwaartse compatibiliteit).
+
+---
+
+#### `bkos.colors.*`
+Voorgedefinieerde kleuren van het actieve kleurenpalette. Gebruik deze voor een consistente look die meebeweegt met het door de gebruiker gekozen thema.
+
+| Sleutel | Beschrijving |
+|---|---|
+| `bkos.colors.bg` | Achtergrondkleur |
+| `bkos.colors.surface` | Kaartachtergrond (iets lichter dan bg) |
+| `bkos.colors.text` | Hoofdtekstkleur |
+| `bkos.colors.textDim` | Gedimde tekst (labels, hints) |
+| `bkos.colors.cyan` | Accentkleur (blauw-groen) |
+| `bkos.colors.green` | Succes / ON |
+| `bkos.colors.amber` | Waarschuwing |
+| `bkos.colors.red` | Fout / ALARM |
+
+```lua
+local c = lampOn and bkos.colors.green or bkos.colors.textDim
+bkos.drawText(100, 200, lampOn and "ON" or "OFF", 2, c)
 ```
 
 ---
 
 #### `bkos.W` en `bkos.H`
-De **ontwerp-breedte** en **ontwerp-hoogte** van de app (uit het manifest). Gebruik dit voor positionering. De werkelijke schermresolutie is altijd 800×480 maar jouw code hoeft dat niet te weten.
+De ontwerp-breedte en -hoogte uit het manifest. Gebruik altijd deze waarden — nooit hardcoded 800 of 480.
 
 ```lua
--- Altijd precies in het midden:
-bkos.tekst(math.floor(bkos.W / 2) - 30, math.floor(bkos.H / 2), "Midden!", 2, bkos.kleur.tekst)
+bkos.drawText(math.floor(bkos.W / 2) - 30, math.floor(bkos.H / 2), "Center!", 2, bkos.colors.text)
 ```
 
 ---
 
-### 5.2 Kleuren
-
-#### `bkos.kleur.*`
-Voorgedefinieerde kleuren van het actieve kleurenpalette van het apparaat. Gebruik deze voor een consistente look.
-
-| Sleutel | Beschrijving |
-|---|---|
-| `bkos.kleur.bg` | Achtergrondkleur |
-| `bkos.kleur.surface` | Kaartachtergrond (iets lichter dan bg) |
-| `bkos.kleur.tekst` | Hoofdtekstkleur |
-| `bkos.kleur.tekst_dim` | Gedimde tekst (labels, hints) |
-| `bkos.kleur.cyaan` | Accentkleur (blauw-groen) |
-| `bkos.kleur.groen` | Succes / AAN |
-| `bkos.kleur.amber` | Waarschuwing |
-| `bkos.kleur.rood` | Fout / ALARM |
-
-```lua
--- Kleur afhankelijk van staat:
-local kleur = lamp_aan and bkos.kleur.groen or bkos.kleur.tekst_dim
-bkos.tekst(100, 200, lamp_aan and "AAN" or "UIT", 2, kleur)
-```
-
----
-
-### 5.3 IO-kanalen
+### 5.4 IO-kanalen
 
 Toegang tot de fysieke IO-kanalen van de ATtiny3217 IO-module.
 
----
-
-#### `bkos.io.lees(kanaalnr)` → bool
-Leest de invoer van een kanaal op nummer (0-gebaseerd).
+#### `bkos.io.read(channelNr)` → bool
 
 ```lua
-local drukknop_ingedrukt = bkos.io.lees(3)
-if drukknop_ingedrukt then
-    bkos.tekst(100, 100, "Ingedrukt!", 2, bkos.kleur.groen)
+local pressed = bkos.io.read(3)
+if pressed then bkos.drawText(100, 100, "Pressed!", 2, bkos.colors.green) end
+```
+
+#### `bkos.io.write(channelNr, state)`
+`state` = `bkos.HIGH` (1) of `bkos.LOW` (0).
+
+```lua
+bkos.io.write(5, bkos.HIGH)   -- channel 5 on
+bkos.io.write(5, bkos.LOW)    -- channel 5 off
+```
+
+#### `bkos.io.toggle(channelNr)`
+
+```lua
+bkos.io.toggle(5)
+```
+
+#### `bkos.io.readName(name)` → bool of nil
+Geeft `nil` als de naam niet gevonden is.
+
+```lua
+local pump = bkos.io.readName("bilgepomp")
+if pump == nil then
+    bkos.drawText(10, 10, "Channel not found", 1, bkos.colors.amber)
+elseif pump then
+    bkos.drawText(10, 10, "Pump ON", 2, bkos.colors.red)
 end
 ```
 
----
+> **Tip:** Channel names are set via CONFIG → IO CONFIGURATIE.
 
-#### `bkos.io.zet(kanaalnr, staat)`
-Zet een uitvoerkanaal op nummer. Gebruik `bkos.IO_AAN` of `bkos.IO_UIT`.
+#### `bkos.io.writeName(name, state)`
 
 ```lua
-bkos.io.zet(5, bkos.IO_AAN)   -- kanaal 5 aanzetten
-bkos.io.zet(5, bkos.IO_UIT)   -- kanaal 5 uitzetten
+bkos.io.writeName("salon", bkos.HIGH)
+bkos.io.writeName("bow_thruster", bkos.LOW)
 ```
 
----
-
-#### `bkos.io.wissel(kanaalnr)`
-Wisselt een uitvoerkanaal (AAN→UIT of UIT→AAN).
+#### `bkos.io.toggleName(name)`
+Toggle alle kanalen met die naam tegelijk.
 
 ```lua
-bkos.io.wissel(5)  -- toggle kanaal 5
+bkos.io.toggleName("anchor_light")
 ```
 
----
-
-#### `bkos.io.lees_naam(naam)` → bool of nil
-Leest de invoer van een kanaal op naam. Geeft `nil` als de naam niet gevonden wordt.
+#### `bkos.io.name(channelNr)` → string of nil
 
 ```lua
-local pomp_draait = bkos.io.lees_naam("bilgepomp")
-if pomp_draait == nil then
-    bkos.tekst(10, 10, "Kanaal niet gevonden", 1, bkos.kleur.amber)
-elseif pomp_draait then
-    bkos.tekst(10, 10, "Pomp AAN", 2, bkos.kleur.rood)
-end
+local n = bkos.io.name(0)   -- e.g. "salon"
 ```
 
-> **Tip:** Kanaalnamen worden ingesteld via CONFIG → IO CONFIGURATIE. Gebruik de namen die de eigenaar van het systeem heeft ingesteld.
-
----
-
-#### `bkos.io.zet_naam(naam, staat)`
-Zet een uitvoerkanaal op naam.
+#### `bkos.io.count()` → int
 
 ```lua
-bkos.io.zet_naam("salon", bkos.IO_AAN)
-bkos.io.zet_naam("boegschroef", bkos.IO_UIT)
-```
-
----
-
-#### `bkos.io.wissel_naam(naam)`
-Toggle een kanaal op naam. Werkt op alle kanalen met die naam tegelijk (handig voor groepen).
-
-```lua
-bkos.io.wissel_naam("ankerlicht")
-```
-
----
-
-#### `bkos.io.naam(kanaalnr)` → string of nil
-Geeft de naam van een kanaal op nummer.
-
-```lua
-local naam = bkos.io.naam(0)  -- bijv. "salon"
-```
-
----
-
-#### `bkos.io.kanalen()` → int
-Geeft het aantal geconfigureerde kanalen.
-
-```lua
-local n = bkos.io.kanalen()
+local n = bkos.io.count()
 for i = 0, n - 1 do
-    local naam = bkos.io.naam(i) or ("kanaal " .. i)
-    local staat = bkos.io.lees(i)
-    -- ... teken rij
+    local name  = bkos.io.name(i) or ("ch" .. i)
+    local state = bkos.io.read(i)
+    -- draw row ...
 end
 ```
 
 ---
 
-#### Constanten
+#### Arduino-stijl IO aliassen
 
-| Constante | Waarde | Beschrijving |
-|---|---|---|
-| `bkos.IO_AAN` | 1 | Uitvoer aanzetten |
-| `bkos.IO_UIT` | 0 | Uitvoer uitzetten |
-| `bkos.HIGH`   | 1 | Arduino-alias voor IO_AAN |
-| `bkos.LOW`    | 0 | Arduino-alias voor IO_UIT |
+Direct in de `bkos`-tabel, zonder `bkos.io.` prefix:
 
----
-
-#### Arduino-stijl aliassen
-
-Voor ontwikkelaars vertrouwd met Arduino zijn directe equivalenten beschikbaar rechtstreeks in de `bkos`-tabel (zonder de `bkos.io.` prefix).
-
-| BKOS alias | Beschrijving |
+| Functie | Beschrijving |
 |---|---|
-| `bkos.digitalRead(poort)` → bool | Lees IO-kanaal (invoer) |
-| `bkos.digitalWrite(poort, waarde)` | Schrijf IO-kanaal (uitvoer) |
-| `bkos.drawCircle(cx, cy, r, kleur)` | Teken cirkelomtrek |
-| `bkos.fillCircle(cx, cy, r, kleur)` | Teken gevulde schijf |
+| `bkos.digitalRead(port)` → bool | Lees IO-kanaal |
+| `bkos.digitalWrite(port, value)` | Schrijf IO-kanaal |
+| `bkos.HIGH` = 1, `bkos.LOW` = 0 | Standaard Arduino-constanten |
 
-**Poortnummer-notatie** — `poort` accepteert drie vormen:
-- **Integer:** direct kanaalnummer (0-gebaseerd), bijv. `5`
-- **`"A1"`–`"Z8"`:** letter = groep (A=kanalen 0–7, B=8–15, …), cijfer = bit 1–8. Voorbeeld: `"A1"` = kanaal 0, `"B3"` = kanaal 10
-- **Naam:** de naam ingesteld in CONFIG → IO CONFIGURATIE, bijv. `"ankerlicht"`
-
-```lua
--- Alle drie zijn equivalent voor kanaal 0:
-bkos.digitalWrite(0,            bkos.HIGH)
-bkos.digitalWrite("A1",         bkos.HIGH)
-bkos.digitalWrite("ankerlicht", bkos.HIGH)
-
-local staat = bkos.digitalRead("A1")  -- leest kanaal 0, geeft true/false
-
--- Arduino-stijl cirkels (geen gevuld-parameter nodig):
-bkos.drawCircle(400, 240, 50, bkos.kleur.cyaan)  -- omtrek
-bkos.fillCircle(400, 240, 30, bkos.kleur.rood)   -- gevuld
-```
-
-> **Tip voor Arduino-porters:** vervang `digitalRead(pin)` door `bkos.digitalRead(pin)` en `digitalWrite(pin, v)` door `bkos.digitalWrite(pin, v)`. Voeg `bkos.` toe aan `drawCircle`/`fillCircle`. De rest van de logica blijft vrijwel identiek.
-
----
-
-### 5.4 Data-opslag
-
-Gedeelde sleutel-waarde opslag met tijdstempel. Zowel apps als het systeem schrijven hier data naartoe.
-
----
-
-#### `bkos.data.lees(sleutel)` → string of nil
-Leest een waarde als tekst. Geeft `nil` als de sleutel niet bestaat.
+**Port accepteert drie vormen:**
+- **Integer:** kanaalnummer (0-gebaseerd)
+- **`"A1"`–`"Z8"`:** groepnotatie (A=0–7, B=8–15, …; cijfer=bit 1–8)
+- **Naam:** kanaalnaam uit CONFIG
 
 ```lua
-local station = bkos.data.lees("getij.station")
-if station then
-    bkos.tekst(10, 50, "Station: " .. station, 1, bkos.kleur.tekst)
-end
+bkos.digitalWrite(0,         bkos.HIGH)
+bkos.digitalWrite("A1",      bkos.HIGH)
+bkos.digitalWrite("salon",   bkos.HIGH)
+local v = bkos.digitalRead("A1")
 ```
 
 ---
 
-#### `bkos.data.lees_f(sleutel, standaard)` → number
-Leest een waarde als getal (float). Geeft `standaard` terug als de sleutel niet bestaat.
+### 5.5 Data-opslag
+
+Gedeelde sleutel-waarde opslag met tijdstempel. Apps kunnen eigen sleutels aanmaken; systeem-sleutels zijn alleen-lezen.
+
+#### `bkos.data.read(key)` → string of nil
 
 ```lua
-local temp  = bkos.data.lees_f("meteo.temp",     999)  -- 999 = niet beschikbaar
-local wind  = bkos.data.lees_f("meteo.wind_kn",  0)
-local druk  = bkos.data.lees_f("meteo.druk_hpa", 0)
+local station = bkos.data.read("getij.station")
+if station then bkos.drawText(10, 50, "Station: " .. station, 1, bkos.colors.text) end
 ```
 
----
-
-#### `bkos.data.schrijf(sleutel, waarde)`
-Schrijft een tekstwaarde. Overschrijft bestaande waarde. Tijdstempel wordt automatisch bijgewerkt.
+#### `bkos.data.readFloat(key, default)` → number
 
 ```lua
-bkos.data.schrijf("mijn_app.status", "actief")
-bkos.data.schrijf("mijn_app.kleur",  "blauw")
+local temp = bkos.data.readFloat("meteo.temp",    999)
+local wind = bkos.data.readFloat("meteo.wind_kn", 0)
 ```
 
----
-
-#### `bkos.data.schrijf_f(sleutel, getal)`
-Schrijft een getal (float). Opgeslagen als tekst met 2 decimalen.
+#### `bkos.data.write(key, value)`
 
 ```lua
-bkos.data.schrijf_f("mijn_app.drempel", 22.5)
+bkos.data.write("my_app.status", "active")
 ```
 
----
-
-#### `bkos.data.leeftijd(sleutel)` → int
-Geeft het aantal seconden geleden dat de waarde voor het laatst geschreven is.  
-Geeft `-1` als de sleutel niet bestaat.  
-`0` betekent dat de sleutel permanent is (geen tijdstempel).
+#### `bkos.data.writeFloat(key, number)`
 
 ```lua
-local leeftijd = bkos.data.leeftijd("meteo.temp")
-if leeftijd < 0 then
-    bkos.tekst(10, 10, "Geen temperatuurdata", 1, bkos.kleur.amber)
-elseif leeftijd > 3600 then
-    bkos.tekst(10, 10, "Data is meer dan 1 uur oud", 1, bkos.kleur.amber)
+bkos.data.writeFloat("my_app.threshold", 22.5)
+```
+
+#### `bkos.data.age(key)` → int
+Seconden geleden dat de waarde is geschreven. `-1` = niet aanwezig. `0` = permanent.
+
+```lua
+local age = bkos.data.age("meteo.temp")
+if age < 0 then
+    bkos.drawText(10, 10, "No temperature data", 1, bkos.colors.amber)
+elseif age > 3600 then
+    bkos.drawText(10, 10, "Data > 1 hour old", 1, bkos.colors.amber)
 else
-    local temp = bkos.data.lees_f("meteo.temp", 0)
-    bkos.tekst(10, 10, string.format("%.1f C", temp), 2, bkos.kleur.tekst)
+    local temp = bkos.data.readFloat("meteo.temp", 0)
+    bkos.drawText(10, 10, string.format("%.1f C", temp), 2, bkos.colors.text)
 end
 ```
 
 ---
 
-### 5.5 Systeem
+### 5.6 Systeem
 
----
-
-#### `bkos.sys.versie()` → string
-Geeft de firmware-versie van de BKOS-NUI.
+#### `bkos.sys.version()` → string
 
 ```lua
-local v = bkos.sys.versie()  -- bijv. "0.0.260503.3"
-bkos.tekst(10, 10, "BKOS " .. v, 1, bkos.kleur.tekst_dim)
+local v = bkos.sys.version()   -- e.g. "0.0.260505.3"
+bkos.drawText(10, 10, "BKOS " .. v, 1, bkos.colors.textDim)
 ```
-
----
 
 #### `bkos.sys.millis()` → int
-Geeft de uptime in milliseconden (loopt over na ~49 dagen).  
-Gebruik dit voor animaties en tijdmetingen binnen een sessie.
+Uptime in milliseconden. Gebruik voor animaties en timers.
 
 ```lua
--- Knipperend element (elke 500ms van kleur wisselen)
-local kleur = (math.floor(bkos.sys.millis() / 500) % 2 == 0)
-              and bkos.kleur.rood or bkos.kleur.bg
-bkos.cirkel(400, 240, 10, kleur, true)
+local blink = (math.floor(bkos.sys.millis() / 500) % 2 == 0)
+local c     = blink and bkos.colors.red or bkos.colors.bg
+bkos.fillCircle(400, 240, 10, c)
 ```
 
----
-
-#### `bkos.sys.log(tekst)`
-Schrijft een debugregel naar de seriële monitor (alleen zichtbaar als firmware met `#define DEBUG` is gebouwd).
+#### `bkos.sys.log(text)`
+Debug naar seriële monitor (alleen bij `#define DEBUG` firmware).
 
 ```lua
-bkos.sys.log("temp gelezen: " .. temp)
+bkos.sys.log("temp: " .. temp)
 ```
 
 ---
@@ -493,40 +472,38 @@ bkos.sys.log("temp gelezen: " .. temp)
 Jouw app registreert functies die door het systeem aangeroepen worden.
 
 ```lua
--- Verplicht: teken het volledige scherm
-function bkos.teken()
-    -- Wordt aangeroepen:
-    -- · Bij het openen van het scherm
-    -- · Na elke teken() aanroep vanuit bkos.aanraking()
-    -- · Na scherm-herstart (bijv. na inkomende touch op donker scherm)
+-- Required: draw the full screen
+function bkos.draw()
+    -- Called when the screen opens, after bkos.draw() from bkos.touch(),
+    -- and after the screen wakes from sleep.
 end
 
--- Optioneel: verwerk een aanraking
-function bkos.aanraking(x, y)
-    -- x, y in ontwerp-coördinaten (al geschaald naar scherm_b × scherm_h)
-    -- Wordt aangeroepen bij elke geldige touch-event (320ms debounce)
+-- Optional: handle a touch event
+function bkos.touch(x, y)
+    -- x, y in design coordinates (scaled to scherm_b × scherm_h)
+    -- Called for every valid touch (320ms debounce)
 end
 
--- Optioneel: periodieke update zonder aanraking
+-- Optional: periodic update when no touch
 function bkos.update()
-    -- Wordt continu aangeroepen als er geen aanraking is.
-    -- Gebruik bkos.sys.millis() om updates te vertragen.
-    -- Roep bkos.teken() aan als je het scherm wilt bijwerken.
+    -- Called continuously when there is no touch (~50ms interval).
+    -- Use bkos.sys.millis() to rate-limit.
+    -- Call bkos.draw() when you want to refresh.
 end
 ```
 
-> **Belangrijk:** roep `bkos.teken()` alleen aan als het scherm echt veranderd is — elke aanroep wist en hertekent het volledige scherm.
+> **Important:** only call `bkos.draw()` when the display actually needs to change — every call clears and redraws the full screen.
 
-Voorbeeld met update-interval:
+Example with update timer:
 
 ```lua
-local vorige_update = 0
+local lastUpdate = 0
 
 function bkos.update()
-    local nu = bkos.sys.millis()
-    if nu - vorige_update > 5000 then  -- elke 5 seconden
-        vorige_update = nu
-        bkos.teken()  -- herlaad data en herteken
+    local now = bkos.sys.millis()
+    if now - lastUpdate > 5000 then   -- every 5 seconds
+        lastUpdate = now
+        bkos.draw()
     end
 end
 ```
@@ -544,9 +521,7 @@ Je geeft in het manifest op voor welke resolutie je app ontworpen is:
 }
 ```
 
-Als de app ontworpen is voor 400×240 maar het scherm is 800×480, schaalt het systeem alles automatisch ×2. Dit werkt voor:
-- Coordinaten in `bkos.vul`, `bkos.lijn`, `bkos.tekst`, `bkos.cirkel`
-- Aanraakcoördinaten in `bkos.aanraking(x, y)` — altijd in ontwerp-ruimte
+Als de app ontworpen is voor 400×240 maar het scherm is 800×480, schaalt het systeem alles automatisch ×2. Dit werkt voor alle `bkos.*` tekencommando's en voor de touch-coördinaten in `bkos.touch(x, y)`.
 
 **Aanbeveling:** ontwerp voor 800×480 (de standaard BKOS schermgrootte). Schalen is handig als je een app wilt porteren die voor een andere resolutie gemaakt is.
 
@@ -729,7 +704,7 @@ debug.getinfo(...)  -- debug-bibliotheek
 Crashes worden automatisch afgevangen — een foutmelding verschijnt op het scherm, het systeem blijft stabiel.
 
 ### Stijl
-- Gebruik `bkos.kleur.*` kleuren voor een consistente uitstraling die meebeweegt met het gekozen kleurpalet
+- Gebruik `bkos.colors.*` kleuren voor een consistente uitstraling die meebeweegt met het gekozen kleurpalet
 - Houd de navigatiebalk (onderste 42px) leeg — die is voor het systeem
 - Houd de statusbalk (bovenste 42px) leeg als je het scherm niet vervangt (`vervangt == -1`)
 
@@ -737,85 +712,83 @@ Crashes worden automatisch afgevangen — een foutmelding verschijnt op het sche
 
 ## 13. Volledige voorbeeldapp
 
-Hieronder staat een complete app die wertemperatuur toont, en een lamp via naam bedient:
+Hieronder staat een complete app die weertemperatuur toont en een lamp via naam bedient:
 
 ```lua
 -- ─────────────────────────────────────────────────────────────────────────────
--- BKOS App: Brugwacht Dashboard
--- Toont actuele temperatuur en wind, en bedient de brugwacht-lamp
+-- BKOS App: Bridge Watch Dashboard
+-- Shows temperature and wind, controls the bridge watch lamp
 -- ─────────────────────────────────────────────────────────────────────────────
 
-local LAMP_NAAM = "brugwacht"     -- pas aan naar jouw kanaalnaam
+local LAMP_NAME    = "brugwacht"   -- adjust to your channel name
+local lastUpdate   = 0
+local UPDATE_MS    = 10000         -- 10 seconds
 
-local vorige_update  = 0
-local UPDATE_INTERVAL = 10000   -- 10 seconden
+local function redraw()
+    bkos.fillScreen(bkos.colors.bg)
 
-local function scherm_bijwerken()
-    bkos.vul(0, 0, bkos.W, bkos.H, bkos.kleur.bg)
+    -- Title bar
+    bkos.fillRect(0, 0, bkos.W, 46, bkos.color565(18, 28, 40))
+    bkos.drawText(20, 14, "BRIDGE WATCH", 2, bkos.colors.cyan)
 
-    -- Titel
-    bkos.vul(0, 0, bkos.W, 46, bkos.rgb(18, 28, 40))
-    bkos.tekst(20, 14, "BRUGWACHT DASHBOARD", 2, bkos.kleur.cyaan)
-
-    -- Temperatuur
-    local temp = bkos.data.lees_f("meteo.temp", 999)
-    local temp_kleur = bkos.kleur.tekst
-    local temp_str
+    -- Temperature
+    local temp      = bkos.data.readFloat("meteo.temp", 999)
+    local tempColor = bkos.colors.text
+    local tempStr
     if temp == 999 then
-        temp_str  = "---"
-        temp_kleur = bkos.kleur.tekst_dim
+        tempStr   = "---"
+        tempColor = bkos.colors.textDim
     else
-        temp_str = string.format("%.1f C", temp)
-        if temp < 5 then temp_kleur = bkos.kleur.cyaan end
-        if temp > 30 then temp_kleur = bkos.kleur.rood  end
+        tempStr = string.format("%.1f C", temp)
+        if temp < 5  then tempColor = bkos.colors.cyan end
+        if temp > 30 then tempColor = bkos.colors.red  end
     end
-    bkos.tekst(40, 80,  "Temperatuur", 1, bkos.kleur.tekst_dim)
-    bkos.tekst(40, 96,  temp_str,      4, temp_kleur)
+    bkos.drawText(40, 80,  "Temperature", 1, bkos.colors.textDim)
+    bkos.drawText(40, 96,  tempStr,       4, tempColor)
 
     -- Wind
-    local wind = bkos.data.lees_f("meteo.wind_kn", -1)
-    local wind_str = (wind >= 0) and string.format("%.0f kn", wind) or "---"
-    bkos.tekst(40, 170, "Wind",     1, bkos.kleur.tekst_dim)
-    bkos.tekst(40, 186, wind_str,   4, bkos.kleur.tekst)
+    local wind    = bkos.data.readFloat("meteo.wind_kn", -1)
+    local windStr = (wind >= 0) and string.format("%.0f kn", wind) or "---"
+    bkos.drawText(40, 170, "Wind",    1, bkos.colors.textDim)
+    bkos.drawText(40, 186, windStr,   4, bkos.colors.text)
 
-    -- Data-leeftijd
-    local leeftijd = bkos.data.leeftijd("meteo.temp")
-    local leeftijd_str
-    if leeftijd < 0 then
-        leeftijd_str = "Geen weerdata beschikbaar"
-    elseif leeftijd < 60 then
-        leeftijd_str = "Bijgewerkt " .. leeftijd .. "s geleden"
+    -- Data age
+    local age = bkos.data.age("meteo.temp")
+    local ageStr
+    if age < 0 then
+        ageStr = "No weather data"
+    elseif age < 60 then
+        ageStr = "Updated " .. age .. "s ago"
     else
-        leeftijd_str = "Bijgewerkt " .. math.floor(leeftijd / 60) .. " min geleden"
+        ageStr = "Updated " .. math.floor(age / 60) .. " min ago"
     end
-    bkos.tekst(40, 260, leeftijd_str, 1, bkos.kleur.tekst_dim)
+    bkos.drawText(40, 260, ageStr, 1, bkos.colors.textDim)
 
-    -- Lamp-knop
-    local lamp_aan  = bkos.io.lees_naam(LAMP_NAAM)
-    local kl_knop   = (lamp_aan == true) and bkos.kleur.groen or bkos.rgb(50, 60, 80)
-    local kl_tekst  = bkos.kleur.tekst
-    bkos.vul(40, 300, 280, 80, kl_knop)
-    bkos.tekst(70, 318, LAMP_NAAM,                      1, kl_tekst)
-    bkos.tekst(70, 332, (lamp_aan == true) and "AAN" or "UIT",  3, kl_tekst)
+    -- Lamp button
+    local lampOn   = bkos.io.readName(LAMP_NAME)
+    local btnColor = (lampOn == true) and bkos.colors.green or bkos.color565(50, 60, 80)
+    bkos.fillRect(40, 300, 280, 80, btnColor)
+    bkos.drawText(70, 318, LAMP_NAME,                          1, bkos.colors.text)
+    bkos.drawText(70, 332, (lampOn == true) and "ON" or "OFF", 3, bkos.colors.text)
 end
 
-function bkos.teken()
-    scherm_bijwerken()
+function bkos.draw()
+    redraw()
 end
 
-function bkos.aanraking(x, y)
-    -- Lamp-knop aangeraakt?
+function bkos.touch(x, y)
+    -- Lamp button touched?
     if x >= 40 and x <= 320 and y >= 300 and y <= 380 then
-        bkos.io.wissel_naam(LAMP_NAAM)
-        scherm_bijwerken()  -- direct hertekenen
+        bkos.io.toggleName(LAMP_NAME)
+        redraw()
     end
 end
 
 function bkos.update()
-    local nu = bkos.sys.millis()
-    if nu - vorige_update > UPDATE_INTERVAL then
-        vorige_update = nu
-        scherm_bijwerken()
+    local now = bkos.sys.millis()
+    if now - lastUpdate > UPDATE_MS then
+        lastUpdate = now
+        redraw()
     end
 end
 ```
@@ -827,115 +800,139 @@ end
 Dit gedeelte is gestructureerd als machine-leesbare referentie voor AI-codeertools.
 
 ```
-BKOS LUA APP API — versie 1
-Taal: Lua 5.4
-Beschikbare standaard bibliotheken: base, math, string, table, coroutine
+BKOS LUA APP API — versie 2
+Language: Lua 5.4
+Available standard libraries: base, math, string, table, coroutine
 
-=== GLOBALE TABEL: bkos ===
+=== GLOBAL TABLE: bkos ===
 
---- CONSTANTEN ---
-bkos.W          : integer  — ontwerp-breedte (uit manifest.scherm_b)
-bkos.H          : integer  — ontwerp-hoogte  (uit manifest.scherm_h)
-bkos.IO_AAN     : integer = 1
-bkos.IO_UIT     : integer = 0
+--- CONSTANTS ---
+bkos.W          : integer  — design width  (from manifest.scherm_b)
+bkos.H          : integer  — design height (from manifest.scherm_h)
+bkos.HIGH       : integer = 1
+bkos.LOW        : integer = 0
 
---- KLEUREN ---
-bkos.kleur.bg         : uint16  — achtergrondkleur (RGB565)
-bkos.kleur.surface    : uint16  — kaartachtergrond
-bkos.kleur.tekst      : uint16  — hoofdtekst
-bkos.kleur.tekst_dim  : uint16  — gedimde tekst
-bkos.kleur.cyaan      : uint16  — accentkleur
-bkos.kleur.groen      : uint16  — succes/AAN
-bkos.kleur.amber      : uint16  — waarschuwing
-bkos.kleur.rood       : uint16  — fout/alarm
+--- COLORS ---
+bkos.colors.bg       : uint16  — background color (RGB565)
+bkos.colors.surface  : uint16  — card background
+bkos.colors.text     : uint16  — main text color
+bkos.colors.textDim  : uint16  — dimmed text (labels, hints)
+bkos.colors.cyan     : uint16  — accent color
+bkos.colors.green    : uint16  — success / ON
+bkos.colors.amber    : uint16  — warning
+bkos.colors.red      : uint16  — error / alarm
 
---- SCHERM-FUNCTIES ---
-bkos.rgb(r, g, b)
+--- COLOR FUNCTION ---
+bkos.color565(r, g, b) → integer
   r, g, b : integer 0-255
-  return  : integer (RGB565 kleurwaarde)
+  return  : integer (RGB565 color value)
+bkos.rgb(r, g, b)      → integer   (alias for color565)
 
-bkos.vul(x, y, breedte, hoogte, kleur)
-  x, y, breedte, hoogte : integer (ontwerp-coördinaten)
-  kleur                 : integer (RGB565)
+--- SCREEN FILL ---
+bkos.fillScreen(color)
+  color : integer (RGB565) — fills content area only (not header/footer)
 
-bkos.lijn(x1, y1, x2, y2, kleur)
-  x1,y1, x2,y2 : integer
-  kleur         : integer (RGB565)
+bkos.fillRect(x, y, w, h, color)
+bkos.drawRect(x, y, w, h, color)
+bkos.fillRoundRect(x, y, w, h, r, color)   r = corner radius
+bkos.drawRoundRect(x, y, w, h, r, color)
+  x, y, w, h, r : integer (design coordinates, auto-scaled)
+  color         : integer (RGB565)
 
-bkos.tekst(x, y, tekst, grootte, kleur)
-  x, y    : integer
-  tekst   : string
-  grootte : integer 1-8  (breedte per karakter = grootte * 6 px)
-  kleur   : integer (RGB565)
+--- LINES ---
+bkos.drawLine(x0, y0, x1, y1, color)
+bkos.drawFastHLine(x, y, w, color)
+bkos.drawFastVLine(x, y, h, color)
 
-bkos.cirkel(cx, cy, straal, kleur, gevuld)
-  cx, cy  : integer (middelpunt)
-  straal  : integer
-  kleur   : integer (RGB565)
-  gevuld  : boolean
+--- CIRCLES ---
+bkos.drawCircle(cx, cy, r, color)
+bkos.fillCircle(cx, cy, r, color)
 
---- IO-FUNCTIES ---
-bkos.io.lees(kanaalnr)      → boolean     — leest invoer-kanaal
-bkos.io.zet(kanaalnr, staat)              — zet uitvoer (IO_AAN/IO_UIT)
-bkos.io.wissel(kanaalnr)                  — toggle uitvoer
-bkos.io.lees_naam(naam)     → boolean|nil — leest op naam (nil=niet gevonden)
-bkos.io.zet_naam(naam, staat)             — zet uitvoer op naam
-bkos.io.wissel_naam(naam)                 — toggle alle kanalen met naam
-bkos.io.naam(kanaalnr)      → string|nil  — naam van kanaal op nummer
-bkos.io.kanalen()           → integer     — totaal aantal kanalen
+--- TRIANGLES ---
+bkos.drawTriangle(x0, y0, x1, y1, x2, y2, color)
+bkos.fillTriangle(x0, y0, x1, y1, x2, y2, color)
 
---- DATA-OPSLAG ---
-bkos.data.lees(sleutel)          → string|nil    — leest tekst, nil als afwezig
-bkos.data.lees_f(sleutel, std)   → number        — leest als float
-bkos.data.schrijf(sleutel, waarde)               — schrijft tekst (string)
-bkos.data.schrijf_f(sleutel, waarde)             — schrijft getal (float)
-bkos.data.leeftijd(sleutel)      → integer       — seconden oud; -1 afwezig; 0 permanent
+--- PIXELS ---
+bkos.drawPixel(x, y, color)
 
-Systeem-data sleutels (lezen):
-  meteo.temp          float   temperatuur °C
-  meteo.temp_gevoeld  float   gevoelstemperatuur °C
-  meteo.wind_kn       float   windsnelheid knopen
-  meteo.code          int     Open-Meteo weercode
-  meteo.is_dag        int     1=dag, 0=nacht
-  getij.station       string  naam getijstation
-  getij.hw_hoogte     float   volgende HW hoogte m
-  getij.hw_tijd       int     volgende HW unix-tijdstip
-  getij.lw_hoogte     float   volgende LW hoogte m
-  getij.lw_tijd       int     volgende LW unix-tijdstip
+--- TEXT ---
+bkos.drawText(x, y, text, size, color)    convenience: set size+color+cursor+print in one call
+  size : integer 1-8  (char width = size * 6 px)
+
+bkos.setTextSize(size)
+bkos.setTextColor(color)
+bkos.setCursor(x, y)
+bkos.print(text)
+bkos.println(text)
+
+--- IO FUNCTIONS ---
+bkos.io.read(channelNr)          → boolean     — read input channel
+bkos.io.write(channelNr, state)               — set output (HIGH/LOW)
+bkos.io.toggle(channelNr)                     — toggle output
+bkos.io.readName(name)           → boolean|nil — read by name (nil=not found)
+bkos.io.writeName(name, state)                — set output by name
+bkos.io.toggleName(name)                      — toggle all channels with name
+bkos.io.name(channelNr)          → string|nil  — name of channel by number
+bkos.io.count()                  → integer     — total number of channels
+
+-- Arduino-style aliases (in bkos table directly):
+bkos.digitalRead(port)           → boolean
+bkos.digitalWrite(port, value)
+  port: integer | "A1"-"Z8" | channel name string
+
+--- DATA STORE ---
+bkos.data.read(key)              → string|nil  — read text value
+bkos.data.readFloat(key, def)    → number      — read as float
+bkos.data.write(key, value)                    — write text (string)
+bkos.data.writeFloat(key, value)               — write float
+bkos.data.age(key)               → integer     — seconds old; -1=absent; 0=permanent
+
+System data keys (read-only for apps):
+  meteo.temp          float   temperature °C
+  meteo.temp_gevoeld  float   feels-like °C
+  meteo.wind_kn       float   wind speed knots
+  meteo.code          int     Open-Meteo weather code
+  meteo.is_dag        int     1=day, 0=night
+  getij.station       string  tidal station name
+  getij.hw_hoogte     float   next HW height m
+  getij.hw_tijd       int     next HW unix timestamp
+  getij.lw_hoogte     float   next LW height m
+  getij.lw_tijd       int     next LW unix timestamp
   sys.tijd            string  "HH:MM"
-  sys.datum           string  datumstring
+  sys.datum           string  date string
 
---- SYSTEEM-FUNCTIES ---
-bkos.sys.versie()    → string    — firmware versie, bijv. "0.0.260503.3"
-bkos.sys.millis()    → integer   — uptime milliseconden
-bkos.sys.log(tekst)             — debug naar Serial (alleen bij DEBUG build)
+--- SYSTEM FUNCTIONS ---
+bkos.sys.version()   → string    — firmware version, e.g. "0.0.260505.3"
+bkos.sys.millis()    → integer   — uptime milliseconds
+bkos.sys.log(text)              — debug to Serial (DEBUG build only)
 
---- CALLBACKS (registreer als functie) ---
-bkos.teken            = function()        — herteken volledig scherm
-bkos.aanraking        = function(x, y)   — touch-event (in ontwerp-coördinaten)
-bkos.update           = function()        — periodiek (geen aanraking)
+--- CALLBACKS (register as functions) ---
+bkos.draw   = function()        — redraw full screen
+bkos.touch  = function(x, y)   — touch event (in design coordinates)
+bkos.update = function()        — periodic (no touch)
 
-=== MANIFEST FORMAAT (manifest.json) ===
+=== MANIFEST FORMAT (manifest.json) ===
 {
-  "id"          : string  — uniek, [a-z0-9_], max 18 tekens
-  "naam"        : string  — weergavenaam, max 31 tekens
+  "id"          : string  — unique, [a-z0-9_], max 18 chars
+  "naam"        : string  — display name, max 31 chars
   "versie"      : string  — "MAJOR.MINOR.PATCH"
-  "auteur"      : string  — max 23 tekens
-  "beschrijving": string  — max 79 tekens
-  "scherm_b"    : int     — ontwerp-breedte  (standaard 800)
-  "scherm_h"    : int     — ontwerp-hoogte   (standaard 480)
-  "vervangt"    : int     — SCREEN_ID of -1 (geen override)
+  "auteur"      : string  — author name
+  "beschrijving": string  — max 79 chars
+  "scherm_b"    : int     — design width  (default 800)
+  "scherm_h"    : int     — design height (default 480)
+  "vervangt"    : int     — SCREEN_ID or -1 (no override)
                             0=PANEEL, 1=IO, 2=METEO, 3=CONFIG, 5=INFO
-  "api_versie"  : int     — huidig: 1
-  "actief"      : bool    — standaard ingeschakeld
+  "api_versie"  : int     — current: 1
+  "actief"      : bool    — enabled by default
 }
 
-=== BEPERKINGEN ===
-- Geen bestandssysteem-toegang (gebruik bkos.data.*)
-- Geen netwerk-toegang
-- Geen timers of interrupts
-- Maximale stack-diepte: 500
-- Touch-debounce: 320ms
-- Navigatiebalk (onderste 42px) is systeemeigen — teken daar niet over heen
-- Statusbalk (bovenste 42px) is systeemeigen tenzij je vervangt != -1 hebt
+=== CONSTRAINTS ===
+- No filesystem access (use bkos.data.*)
+- No network access
+- No timers or interrupts
+- Max stack depth: 500
+- Touch debounce: 320ms
+- Nav bar (bottom 42px) is system-owned — do not draw there
+- Status bar (top 42px) is system-owned unless vervangt != -1
+- Header/footer are automatically excluded from bkos.fillScreen()
 ```

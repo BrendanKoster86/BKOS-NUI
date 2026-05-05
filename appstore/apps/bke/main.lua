@@ -1,174 +1,164 @@
 -- ─────────────────────────────────────────────────────────────────────────────
--- BKOS App: Boter Kaas & Eieren
--- Twee spelers, beurtelings aanraken op het touchscherm.
--- Demonstreert: bkos.teken, bkos.aanraking, bkos.cirkel, bkos.lijn, bkos.vul
+-- BKOS App: Tic-Tac-Toe
+-- Two players, taking turns on the touchscreen.
+-- Demonstrates: bkos.draw, bkos.touch, bkos.drawCircle, bkos.drawLine, bkos.fillRect
 -- ─────────────────────────────────────────────────────────────────────────────
 
--- Constanten
-local LEEG     = 0
-local SPELER_X = 1
-local SPELER_O = 2
+local EMPTY    = 0
+local PLAYER_X = 1
+local PLAYER_O = 2
 
--- Spelstatus
-local bord            = {}
-local huidige_speler  = SPELER_X
-local winnaar         = LEEG
-local spel_klaar      = false
-local gelijkspel      = false
+local board          = {}
+local currentPlayer  = PLAYER_X
+local winner         = EMPTY
+local gameOver       = false
+local draw           = false
 
--- Layout (ontworpen voor 800×480; header/footer worden door BKOS-NUI beheerd)
-local CEL     = 120        -- pixels per cel
-local GRID_X  = (bkos.W - 3 * CEL) / 2   -- horizontaal gecentreerd = 220
-local GRID_Y  = 48         -- ruimte voor status-/beurt-tekst bovenaan
-local RAND    = 16         -- marge binnen elke cel voor symbool
+-- Layout (designed for 800×480; header/footer managed by BKOS-NUI)
+local CEL    = 120
+local GRID_X = (bkos.W - 3 * CEL) / 2   -- horizontally centered = 220
+local GRID_Y = 48
+local MARGIN = 16
 
--- Kleuren
-local C_RASTER  = bkos.rgb(60,  85, 110)
-local C_X       = bkos.kleur.rood
-local C_O       = bkos.kleur.cyaan
-local C_WIN     = bkos.kleur.groen
-local C_KNOP    = bkos.rgb(40,  60,  80)
-local C_KNOP_T  = bkos.kleur.tekst
+-- Colors
+local C_GRID  = bkos.color565(60,  85, 110)
+local C_X     = bkos.colors.red
+local C_O     = bkos.colors.cyan
+local C_WIN   = bkos.colors.green
+local C_BTN   = bkos.color565(40,  60,  80)
+local C_BTN_T = bkos.colors.text
 
--- Hulpfunctie: cel-index (1-gebaseerd) voor rij 0-2, kolom 0-2
-local function idx(r, k)  return r * 3 + k + 1  end
+local function idx(r, c)  return r * 3 + c + 1  end
 
--- ─── Symbolen tekenen ────────────────────────────────────────────────────────
-local function teken_x(cx, cy)
-    local h = CEL / 2 - RAND
-    -- Twee diagonalen, elk 3px breed
+-- ─── Draw symbols ─────────────────────────────────────────────────────────────
+local function drawX(cx, cy)
+    local h = CEL / 2 - MARGIN
     for d = -1, 1 do
-        bkos.lijn(cx - h + d, cy - h, cx + h + d, cy + h, C_X)
-        bkos.lijn(cx + h + d, cy - h, cx - h + d, cy + h, C_X)
+        bkos.drawLine(cx - h + d, cy - h, cx + h + d, cy + h, C_X)
+        bkos.drawLine(cx + h + d, cy - h, cx - h + d, cy + h, C_X)
     end
 end
 
-local function teken_o(cx, cy)
-    local r = CEL / 2 - RAND
-    -- Dubbele cirkel voor dikte
-    bkos.cirkel(cx, cy, r,     C_O, false)
-    bkos.cirkel(cx, cy, r - 1, C_O, false)
-    bkos.cirkel(cx, cy, r - 2, C_O, false)
+local function drawO(cx, cy)
+    local r = CEL / 2 - MARGIN
+    bkos.drawCircle(cx, cy, r,     C_O)
+    bkos.drawCircle(cx, cy, r - 1, C_O)
+    bkos.drawCircle(cx, cy, r - 2, C_O)
 end
 
--- ─── Wincontrole ─────────────────────────────────────────────────────────────
-local WIN_LIJNEN = {
-    {1,2,3}, {4,5,6}, {7,8,9},   -- rijen
-    {1,4,7}, {2,5,8}, {3,6,9},   -- kolommen
-    {1,5,9}, {3,5,7}             -- diagonalen
+-- ─── Win check ────────────────────────────────────────────────────────────────
+local WIN_LINES = {
+    {1,2,3}, {4,5,6}, {7,8,9},
+    {1,4,7}, {2,5,8}, {3,6,9},
+    {1,5,9}, {3,5,7}
 }
 
-local function controleer_win()
-    for _, lijn in ipairs(WIN_LIJNEN) do
-        local a, b, c = bord[lijn[1]], bord[lijn[2]], bord[lijn[3]]
-        if a ~= LEEG and a == b and b == c then return a end
+local function checkWin()
+    for _, line in ipairs(WIN_LINES) do
+        local a, b, c = board[line[1]], board[line[2]], board[line[3]]
+        if a ~= EMPTY and a == b and b == c then return a end
     end
-    return LEEG
+    return EMPTY
 end
 
-local function is_vol()
+local function isFull()
     for i = 1, 9 do
-        if bord[i] == LEEG then return false end
+        if board[i] == EMPTY then return false end
     end
     return true
 end
 
--- ─── Bord initialiseren ───────────────────────────────────────────────────────
-local function nieuw_spel()
-    bord = {}
-    for i = 1, 9 do bord[i] = LEEG end
-    huidige_speler = SPELER_X
-    winnaar        = LEEG
-    spel_klaar     = false
-    gelijkspel     = false
+-- ─── New game ─────────────────────────────────────────────────────────────────
+local function newGame()
+    board = {}
+    for i = 1, 9 do board[i] = EMPTY end
+    currentPlayer = PLAYER_X
+    winner        = EMPTY
+    gameOver      = false
+    draw          = false
 end
 
-nieuw_spel()
+newGame()
 
--- ─── Scherm tekenen ──────────────────────────────────────────────────────────
-function bkos.teken()
-    -- Achtergrond
-    bkos.vul(0, 0, bkos.W, bkos.H, bkos.kleur.bg)
+-- ─── Draw screen ──────────────────────────────────────────────────────────────
+function bkos.draw()
+    bkos.fillScreen(bkos.colors.bg)
 
-    -- Status / beurt aanduiding bovenaan
-    local status, s_kleur
-    if spel_klaar then
-        if winnaar ~= LEEG then
-            status  = (winnaar == SPELER_X) and "Speler X wint!" or "Speler O wint!"
-            s_kleur = C_WIN
+    -- Status bar at top
+    local status, sColor
+    if gameOver then
+        if winner ~= EMPTY then
+            status = (winner == PLAYER_X) and "Player X wins!" or "Player O wins!"
+            sColor = C_WIN
         else
-            status  = "Gelijkspel — OPNIEUW?"
-            s_kleur = bkos.kleur.amber
+            status = "Draw — PLAY AGAIN?"
+            sColor = bkos.colors.amber
         end
-    elseif huidige_speler == SPELER_X then
-        status  = "Speler X is aan zet"
-        s_kleur = C_X
+    elseif currentPlayer == PLAYER_X then
+        status = "Player X to move"
+        sColor = C_X
     else
-        status  = "Speler O is aan zet"
-        s_kleur = C_O
+        status = "Player O to move"
+        sColor = C_O
     end
-    -- Achtergrond statusbalk
-    bkos.vul(0, 0, bkos.W, GRID_Y - 4, bkos.rgb(18, 26, 36))
-    -- Centreer de tekst (size 2 = 12px per karakter)
+    bkos.fillRect(0, 0, bkos.W, GRID_Y - 4, bkos.color565(18, 26, 36))
     local tx = math.floor((bkos.W - #status * 12) / 2)
-    bkos.tekst(tx, 18, status, 2, s_kleur)
+    bkos.drawText(tx, 18, status, 2, sColor)
 
-    -- Rasterlijnen (4px breed)
+    -- Grid lines (4px wide)
     for i = 1, 2 do
-        bkos.vul(GRID_X + i * CEL - 2, GRID_Y,     4, 3 * CEL, C_RASTER)  -- verticaal
-        bkos.vul(GRID_X,               GRID_Y + i * CEL - 2, 3 * CEL, 4, C_RASTER)  -- horizontaal
+        bkos.fillRect(GRID_X + i * CEL - 2, GRID_Y,     4, 3 * CEL, C_GRID)
+        bkos.fillRect(GRID_X,               GRID_Y + i * CEL - 2, 3 * CEL, 4, C_GRID)
     end
 
-    -- Cel-inhoud
+    -- Cell contents
     for r = 0, 2 do
-        for k = 0, 2 do
-            local v  = bord[idx(r, k)]
-            local cx = GRID_X + k * CEL + math.floor(CEL / 2)
+        for c = 0, 2 do
+            local v  = board[idx(r, c)]
+            local cx = GRID_X + c * CEL + math.floor(CEL / 2)
             local cy = GRID_Y + r * CEL + math.floor(CEL / 2)
-            if v == SPELER_X then teken_x(cx, cy)
-            elseif v == SPELER_O then teken_o(cx, cy)
+            if v == PLAYER_X then drawX(cx, cy)
+            elseif v == PLAYER_O then drawO(cx, cy)
             end
         end
     end
 
-    -- OPNIEUW knop onderaan het raster
+    -- PLAY AGAIN button below grid
     local kx = math.floor(bkos.W / 2) - 90
     local ky = GRID_Y + 3 * CEL + 18
-    bkos.vul(kx, ky, 180, 48, C_KNOP)
-    bkos.tekst(kx + 16, ky + 16, "OPNIEUW", 2, C_KNOP_T)
+    bkos.fillRect(kx, ky, 180, 48, C_BTN)
+    bkos.drawText(kx + 16, ky + 16, "PLAY AGAIN", 2, C_BTN_T)
 end
 
--- ─── Aanraking verwerken ─────────────────────────────────────────────────────
-function bkos.aanraking(x, y)
-    -- OPNIEUW knop
+-- ─── Touch handling ───────────────────────────────────────────────────────────
+function bkos.touch(x, y)
     local kx = math.floor(bkos.W / 2) - 90
     local ky = GRID_Y + 3 * CEL + 18
     if x >= kx and x <= kx + 180 and y >= ky and y <= ky + 48 then
-        nieuw_spel()
-        bkos.teken()
+        newGame()
+        bkos.draw()
         return
     end
 
-    if spel_klaar then return end
+    if gameOver then return end
 
-    -- Cel aangeraakt?
     if x >= GRID_X and x < GRID_X + 3 * CEL and
        y >= GRID_Y and y < GRID_Y + 3 * CEL then
-        local k = math.floor((x - GRID_X) / CEL)
+        local c = math.floor((x - GRID_X) / CEL)
         local r = math.floor((y - GRID_Y) / CEL)
-        local i = idx(r, k)
-        if bord[i] == LEEG then
-            bord[i] = huidige_speler
-            winnaar  = controleer_win()
-            if winnaar ~= LEEG then
-                spel_klaar = true
-            elseif is_vol() then
-                gelijkspel = true
-                spel_klaar = true
+        local i = idx(r, c)
+        if board[i] == EMPTY then
+            board[i] = currentPlayer
+            winner   = checkWin()
+            if winner ~= EMPTY then
+                gameOver = true
+            elseif isFull() then
+                draw     = true
+                gameOver = true
             else
-                huidige_speler = (huidige_speler == SPELER_X) and SPELER_O or SPELER_X
+                currentPlayer = (currentPlayer == PLAYER_X) and PLAYER_O or PLAYER_X
             end
-            bkos.teken()
+            bkos.draw()
         end
     end
 end

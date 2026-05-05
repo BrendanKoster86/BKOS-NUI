@@ -21,7 +21,7 @@ static int lua_app_huidig = -1;
 
 static lua_State* L = nullptr;
 
-// PSRAM-bewuste allocator: gebruik eerst SPI RAM, val terug op intern RAM
+// PSRAM-bewuste allocator
 static void* lua_bkos_alloc(void* ud, void* ptr, size_t osize, size_t nsize) {
     (void)ud; (void)osize;
     if (nsize == 0) { heap_caps_free(ptr); return nullptr; }
@@ -30,32 +30,155 @@ static void* lua_bkos_alloc(void* ud, void* ptr, size_t osize, size_t nsize) {
     return heap_caps_realloc(ptr, nsize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 }
 
-// ─── bkos.scherm ─────────────────────────────────────────────────────────────
-static int l_vul(lua_State* ls) {
-    int x = (int)(luaL_checkinteger(ls, 1) * lua_sx);
-    int y = (int)(luaL_checkinteger(ls, 2) * lua_sy) + lua_y_offset;
-    int b = (int)(luaL_checkinteger(ls, 3) * lua_sx);
+// ─── Coördinaat helpers ───────────────────────────────────────────────────────
+static inline int sx(int v) { return (int)(v * lua_sx); }
+static inline int sy(int v) { return (int)(v * lua_sy) + lua_y_offset; }
+static inline int sr(int v) { return (int)(v * (lua_sx + lua_sy) * 0.5f); }
+
+// ─── Kleur ───────────────────────────────────────────────────────────────────
+static int l_color565(lua_State* ls) {
+    int r = (int)luaL_checkinteger(ls, 1) & 0xFF;
+    int g = (int)luaL_checkinteger(ls, 2) & 0xFF;
+    int b = (int)luaL_checkinteger(ls, 3) & 0xFF;
+    lua_pushinteger(ls, ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
+    return 1;
+}
+
+// ─── Scherm: basistekening ────────────────────────────────────────────────────
+static int l_fillScreen(lua_State* ls) {
+    uint16_t kl = (uint16_t)luaL_checkinteger(ls, 1);
+    int y = lua_y_offset;
+    int h = lua_sandbox_modus ? CONTENT_H : TFT_H;
+    tft.fillRect(0, y, TFT_W, h, kl);
+    return 0;
+}
+
+static int l_fillRect(lua_State* ls) {
+    int x = sx((int)luaL_checkinteger(ls, 1));
+    int y = sy((int)luaL_checkinteger(ls, 2));
+    int w = sx((int)luaL_checkinteger(ls, 3));
     int h = (int)(luaL_checkinteger(ls, 4) * lua_sy);
     uint16_t kl = (uint16_t)luaL_checkinteger(ls, 5);
-    tft.fillRect(x, y, b, h, kl);
+    tft.fillRect(x, y, w, h, kl);
     return 0;
 }
 
-static int l_lijn(lua_State* ls) {
-    int x1 = (int)(luaL_checkinteger(ls, 1) * lua_sx);
-    int y1 = (int)(luaL_checkinteger(ls, 2) * lua_sy) + lua_y_offset;
-    int x2 = (int)(luaL_checkinteger(ls, 3) * lua_sx);
-    int y2 = (int)(luaL_checkinteger(ls, 4) * lua_sy) + lua_y_offset;
+static int l_drawRect(lua_State* ls) {
+    int x = sx((int)luaL_checkinteger(ls, 1));
+    int y = sy((int)luaL_checkinteger(ls, 2));
+    int w = sx((int)luaL_checkinteger(ls, 3));
+    int h = (int)(luaL_checkinteger(ls, 4) * lua_sy);
     uint16_t kl = (uint16_t)luaL_checkinteger(ls, 5);
-    tft.drawLine(x1, y1, x2, y2, kl);
+    tft.drawRect(x, y, w, h, kl);
     return 0;
 }
 
-static int l_tekst(lua_State* ls) {
-    int x    = (int)(luaL_checkinteger(ls, 1) * lua_sx);
-    int y    = (int)(luaL_checkinteger(ls, 2) * lua_sy) + lua_y_offset;
+static int l_fillRoundRect(lua_State* ls) {
+    int x = sx((int)luaL_checkinteger(ls, 1));
+    int y = sy((int)luaL_checkinteger(ls, 2));
+    int w = sx((int)luaL_checkinteger(ls, 3));
+    int h = (int)(luaL_checkinteger(ls, 4) * lua_sy);
+    int r = sr((int)luaL_checkinteger(ls, 5));
+    uint16_t kl = (uint16_t)luaL_checkinteger(ls, 6);
+    tft.fillRoundRect(x, y, w, h, r, kl);
+    return 0;
+}
+
+static int l_drawRoundRect(lua_State* ls) {
+    int x = sx((int)luaL_checkinteger(ls, 1));
+    int y = sy((int)luaL_checkinteger(ls, 2));
+    int w = sx((int)luaL_checkinteger(ls, 3));
+    int h = (int)(luaL_checkinteger(ls, 4) * lua_sy);
+    int r = sr((int)luaL_checkinteger(ls, 5));
+    uint16_t kl = (uint16_t)luaL_checkinteger(ls, 6);
+    tft.drawRoundRect(x, y, w, h, r, kl);
+    return 0;
+}
+
+static int l_drawLine(lua_State* ls) {
+    int x0 = sx((int)luaL_checkinteger(ls, 1));
+    int y0 = sy((int)luaL_checkinteger(ls, 2));
+    int x1 = sx((int)luaL_checkinteger(ls, 3));
+    int y1 = sy((int)luaL_checkinteger(ls, 4));
+    uint16_t kl = (uint16_t)luaL_checkinteger(ls, 5);
+    tft.drawLine(x0, y0, x1, y1, kl);
+    return 0;
+}
+
+static int l_drawFastVLine(lua_State* ls) {
+    int x = sx((int)luaL_checkinteger(ls, 1));
+    int y = sy((int)luaL_checkinteger(ls, 2));
+    int h = (int)(luaL_checkinteger(ls, 3) * lua_sy);
+    uint16_t kl = (uint16_t)luaL_checkinteger(ls, 4);
+    tft.drawFastVLine(x, y, h, kl);
+    return 0;
+}
+
+static int l_drawFastHLine(lua_State* ls) {
+    int x = sx((int)luaL_checkinteger(ls, 1));
+    int y = sy((int)luaL_checkinteger(ls, 2));
+    int w = sx((int)luaL_checkinteger(ls, 3));
+    uint16_t kl = (uint16_t)luaL_checkinteger(ls, 4);
+    tft.drawFastHLine(x, y, w, kl);
+    return 0;
+}
+
+static int l_drawCircle(lua_State* ls) {
+    int cx = sx((int)luaL_checkinteger(ls, 1));
+    int cy = sy((int)luaL_checkinteger(ls, 2));
+    int r  = sr((int)luaL_checkinteger(ls, 3));
+    uint16_t kl = (uint16_t)luaL_checkinteger(ls, 4);
+    tft.drawCircle(cx, cy, r, kl);
+    return 0;
+}
+
+static int l_fillCircle(lua_State* ls) {
+    int cx = sx((int)luaL_checkinteger(ls, 1));
+    int cy = sy((int)luaL_checkinteger(ls, 2));
+    int r  = sr((int)luaL_checkinteger(ls, 3));
+    uint16_t kl = (uint16_t)luaL_checkinteger(ls, 4);
+    tft.fillCircle(cx, cy, r, kl);
+    return 0;
+}
+
+static int l_drawTriangle(lua_State* ls) {
+    int x0 = sx((int)luaL_checkinteger(ls, 1));
+    int y0 = sy((int)luaL_checkinteger(ls, 2));
+    int x1 = sx((int)luaL_checkinteger(ls, 3));
+    int y1 = sy((int)luaL_checkinteger(ls, 4));
+    int x2 = sx((int)luaL_checkinteger(ls, 5));
+    int y2 = sy((int)luaL_checkinteger(ls, 6));
+    uint16_t kl = (uint16_t)luaL_checkinteger(ls, 7);
+    tft.drawTriangle(x0, y0, x1, y1, x2, y2, kl);
+    return 0;
+}
+
+static int l_fillTriangle(lua_State* ls) {
+    int x0 = sx((int)luaL_checkinteger(ls, 1));
+    int y0 = sy((int)luaL_checkinteger(ls, 2));
+    int x1 = sx((int)luaL_checkinteger(ls, 3));
+    int y1 = sy((int)luaL_checkinteger(ls, 4));
+    int x2 = sx((int)luaL_checkinteger(ls, 5));
+    int y2 = sy((int)luaL_checkinteger(ls, 6));
+    uint16_t kl = (uint16_t)luaL_checkinteger(ls, 7);
+    tft.fillTriangle(x0, y0, x1, y1, x2, y2, kl);
+    return 0;
+}
+
+static int l_drawPixel(lua_State* ls) {
+    int x = sx((int)luaL_checkinteger(ls, 1));
+    int y = sy((int)luaL_checkinteger(ls, 2));
+    uint16_t kl = (uint16_t)luaL_checkinteger(ls, 3);
+    tft.drawPixel(x, y, kl);
+    return 0;
+}
+
+// ─── Tekst ────────────────────────────────────────────────────────────────────
+static int l_drawText(lua_State* ls) {
+    int x = sx((int)luaL_checkinteger(ls, 1));
+    int y = sy((int)luaL_checkinteger(ls, 2));
     const char* t = luaL_checkstring(ls, 3);
-    int sz   = (int)luaL_checkinteger(ls, 4);
+    int sz = (int)luaL_checkinteger(ls, 4);
     uint16_t kl = (uint16_t)luaL_checkinteger(ls, 5);
     tft.setTextSize(sz);
     tft.setTextColor(kl);
@@ -64,37 +187,45 @@ static int l_tekst(lua_State* ls) {
     return 0;
 }
 
-static int l_cirkel(lua_State* ls) {
-    int cx = (int)(luaL_checkinteger(ls, 1) * lua_sx);
-    int cy = (int)(luaL_checkinteger(ls, 2) * lua_sy) + lua_y_offset;
-    int r  = (int)(luaL_checkinteger(ls, 3) * ((lua_sx + lua_sy) / 2.0f));
-    uint16_t kl = (uint16_t)luaL_checkinteger(ls, 4);
-    bool gevuld = lua_toboolean(ls, 5);
-    if (gevuld) tft.fillCircle(cx, cy, r, kl);
-    else        tft.drawCircle(cx, cy, r, kl);
+static int l_setTextSize(lua_State* ls) {
+    tft.setTextSize((int)luaL_checkinteger(ls, 1));
     return 0;
 }
 
-static int l_rgb(lua_State* ls) {
-    int r = (int)luaL_checkinteger(ls, 1) & 0xFF;
-    int g = (int)luaL_checkinteger(ls, 2) & 0xFF;
-    int b = (int)luaL_checkinteger(ls, 3) & 0xFF;
-    lua_pushinteger(ls, ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
-    return 1;
+static int l_setTextColor(lua_State* ls) {
+    tft.setTextColor((uint16_t)luaL_checkinteger(ls, 1));
+    return 0;
+}
+
+static int l_setCursor(lua_State* ls) {
+    int x = sx((int)luaL_checkinteger(ls, 1));
+    int y = sy((int)luaL_checkinteger(ls, 2));
+    tft.setCursor(x, y);
+    return 0;
+}
+
+static int l_print(lua_State* ls) {
+    const char* t = luaL_checkstring(ls, 1);
+    tft.print(t);
+    return 0;
+}
+
+static int l_println(lua_State* ls) {
+    const char* t = luaL_optstring(ls, 1, "");
+    tft.println(t);
+    return 0;
 }
 
 // ─── Poortnummer resolver ─────────────────────────────────────────────────────
-// Accepteert: int, "A1"-"Z8" (poortgroep-notatie), of kanaalnaam
+// Accepteert: int, "A1"-"Z8", of kanaalnaam
 static int _poort_resolve(lua_State* ls, int arg) {
     if (lua_isinteger(ls, arg)) return (int)lua_tointeger(ls, arg);
-    if (lua_isnumber(ls, arg))  return (int)(int)lua_tonumber(ls, arg);
+    if (lua_isnumber(ls, arg))  return (int)lua_tonumber(ls, arg);
     if (lua_isstring(ls, arg)) {
         const char* s = lua_tostring(ls, arg);
         int len = (int)strlen(s);
-        // "A1".."Z8": één hoofdletter + cijfer 1-8 → groep*8 + (cijfer-1)
         if (len == 2 && s[0] >= 'A' && s[0] <= 'Z' && s[1] >= '1' && s[1] <= '8')
             return (s[0] - 'A') * 8 + (s[1] - '1');
-        // Kanaalnaam opzoeken
         int n = io_zichtbaar();
         for (int i = 0; i < n; i++)
             if (strncmp(io_namen[i], s, IO_NAAM_LEN - 1) == 0) return i;
@@ -102,7 +233,7 @@ static int _poort_resolve(lua_State* ls, int arg) {
     return -1;
 }
 
-// ─── Arduino-stijl functies (digitalRead / digitalWrite / drawCircle / fillCircle)
+// ─── bkos.digitalRead / digitalWrite (Arduino-stijl aliassen) ────────────────
 static int l_digitalRead(lua_State* ls) {
     int p = _poort_resolve(ls, 1);
     if (p < 0 || p >= io_kanalen_cnt) { lua_pushnil(ls); return 1; }
@@ -120,33 +251,15 @@ static int l_digitalWrite(lua_State* ls) {
     return 0;
 }
 
-static int l_drawCircle(lua_State* ls) {
-    int cx = (int)(luaL_checkinteger(ls, 1) * lua_sx);
-    int cy = (int)(luaL_checkinteger(ls, 2) * lua_sy) + lua_y_offset;
-    int r  = (int)(luaL_checkinteger(ls, 3) * ((lua_sx + lua_sy) * 0.5f));
-    uint16_t kl = (uint16_t)luaL_checkinteger(ls, 4);
-    tft.drawCircle(cx, cy, r, kl);
-    return 0;
-}
-
-static int l_fillCircle(lua_State* ls) {
-    int cx = (int)(luaL_checkinteger(ls, 1) * lua_sx);
-    int cy = (int)(luaL_checkinteger(ls, 2) * lua_sy) + lua_y_offset;
-    int r  = (int)(luaL_checkinteger(ls, 3) * ((lua_sx + lua_sy) * 0.5f));
-    uint16_t kl = (uint16_t)luaL_checkinteger(ls, 4);
-    tft.fillCircle(cx, cy, r, kl);
-    return 0;
-}
-
 // ─── bkos.io ─────────────────────────────────────────────────────────────────
-static int l_io_lees(lua_State* ls) {
+static int l_io_read(lua_State* ls) {
     int nr = (int)luaL_checkinteger(ls, 1);
     if (nr < 0 || nr >= io_kanalen_cnt) { lua_pushboolean(ls, 0); return 1; }
     lua_pushboolean(ls, io_input[nr] ? 1 : 0);
     return 1;
 }
 
-static int l_io_zet(lua_State* ls) {
+static int l_io_write(lua_State* ls) {
     int nr    = (int)luaL_checkinteger(ls, 1);
     int staat = (int)luaL_checkinteger(ls, 2);
     if (nr >= 0 && nr < io_kanalen_cnt) {
@@ -156,7 +269,7 @@ static int l_io_zet(lua_State* ls) {
     return 0;
 }
 
-static int l_io_wissel(lua_State* ls) {
+static int l_io_toggle(lua_State* ls) {
     int nr = (int)luaL_checkinteger(ls, 1);
     if (nr >= 0 && nr < io_kanalen_cnt) {
         io_output[nr]    = (io_output[nr] == IO_AAN) ? IO_UIT : IO_AAN;
@@ -165,7 +278,7 @@ static int l_io_wissel(lua_State* ls) {
     return 0;
 }
 
-static int l_io_lees_naam(lua_State* ls) {
+static int l_io_readName(lua_State* ls) {
     const char* naam = luaL_checkstring(ls, 1);
     int n = io_zichtbaar();
     for (int i = 0; i < n; i++) {
@@ -178,7 +291,7 @@ static int l_io_lees_naam(lua_State* ls) {
     return 1;
 }
 
-static int l_io_zet_naam(lua_State* ls) {
+static int l_io_writeName(lua_State* ls) {
     const char* naam  = luaL_checkstring(ls, 1);
     int         staat = (int)luaL_checkinteger(ls, 2);
     int n = io_zichtbaar();
@@ -191,13 +304,13 @@ static int l_io_zet_naam(lua_State* ls) {
     return 0;
 }
 
-static int l_io_wissel_naam(lua_State* ls) {
+static int l_io_toggleName(lua_State* ls) {
     const char* naam = luaL_checkstring(ls, 1);
     io_apparaat_toggle(naam);
     return 0;
 }
 
-static int l_io_naam(lua_State* ls) {
+static int l_io_name(lua_State* ls) {
     int nr = (int)luaL_checkinteger(ls, 1);
     if (nr >= 0 && nr < io_kanalen_cnt)
         lua_pushstring(ls, io_namen[nr]);
@@ -206,13 +319,13 @@ static int l_io_naam(lua_State* ls) {
     return 1;
 }
 
-static int l_io_cnt(lua_State* ls) {
+static int l_io_count(lua_State* ls) {
     lua_pushinteger(ls, io_zichtbaar());
     return 1;
 }
 
 // ─── bkos.data ───────────────────────────────────────────────────────────────
-static int l_data_lees(lua_State* ls) {
+static int l_data_read(lua_State* ls) {
     const char* k = luaL_checkstring(ls, 1);
     char buf[DATA_WAARDE_LEN];
     if (data_lees(k, buf, sizeof(buf)))
@@ -222,35 +335,35 @@ static int l_data_lees(lua_State* ls) {
     return 1;
 }
 
-static int l_data_lees_f(lua_State* ls) {
+static int l_data_readFloat(lua_State* ls) {
     const char* k = luaL_checkstring(ls, 1);
-    float std = (float)luaL_optnumber(ls, 2, 0.0);
-    lua_pushnumber(ls, (lua_Number)data_lees_f(k, std));
+    float def = (float)luaL_optnumber(ls, 2, 0.0);
+    lua_pushnumber(ls, (lua_Number)data_lees_f(k, def));
     return 1;
 }
 
-static int l_data_schrijf(lua_State* ls) {
+static int l_data_write(lua_State* ls) {
     const char* k = luaL_checkstring(ls, 1);
     const char* v = luaL_checkstring(ls, 2);
     data_schrijf(k, v);
     return 0;
 }
 
-static int l_data_schrijf_f(lua_State* ls) {
+static int l_data_writeFloat(lua_State* ls) {
     const char* k = luaL_checkstring(ls, 1);
     float v = (float)luaL_checknumber(ls, 2);
     data_schrijf_f(k, v);
     return 0;
 }
 
-static int l_data_leeftijd(lua_State* ls) {
+static int l_data_age(lua_State* ls) {
     const char* k = luaL_checkstring(ls, 1);
     lua_pushinteger(ls, (lua_Integer)data_leeftijd(k));
     return 1;
 }
 
 // ─── bkos.sys ────────────────────────────────────────────────────────────────
-static int l_versie(lua_State* ls) {
+static int l_version(lua_State* ls) {
     lua_pushstring(ls, BKOS_NUI_VERSIE);
     return 1;
 }
@@ -272,67 +385,91 @@ static int l_log(lua_State* ls) {
 static void lua_registreer_api(lua_State* ls) {
     lua_newtable(ls);  // bkos
 
-    // Schermdimensies
+    // Schermdimensies (ontwerp-ruimte)
     lua_pushinteger(ls, (lua_Integer)TFT_W);  lua_setfield(ls, -2, "W");
     lua_pushinteger(ls, (lua_Integer)TFT_H);  lua_setfield(ls, -2, "H");
 
-    // IO constanten
-    lua_pushinteger(ls, IO_UIT); lua_setfield(ls, -2, "IO_UIT");
-    lua_pushinteger(ls, IO_AAN); lua_setfield(ls, -2, "IO_AAN");
+    // Arduino-stijl HIGH/LOW constanten
+    lua_pushinteger(ls, 1); lua_setfield(ls, -2, "HIGH");
+    lua_pushinteger(ls, 0); lua_setfield(ls, -2, "LOW");
 
-    // Arduino-stijl aliassen en constanten
-    lua_pushinteger(ls, 1);                      lua_setfield(ls, -2, "HIGH");
-    lua_pushinteger(ls, 0);                      lua_setfield(ls, -2, "LOW");
-    lua_pushcfunction(ls, l_digitalRead);        lua_setfield(ls, -2, "digitalRead");
-    lua_pushcfunction(ls, l_digitalWrite);       lua_setfield(ls, -2, "digitalWrite");
-    lua_pushcfunction(ls, l_drawCircle);         lua_setfield(ls, -2, "drawCircle");
-    lua_pushcfunction(ls, l_fillCircle);         lua_setfield(ls, -2, "fillCircle");
+    // Arduino-stijl pin functies
+    lua_pushcfunction(ls, l_digitalRead);  lua_setfield(ls, -2, "digitalRead");
+    lua_pushcfunction(ls, l_digitalWrite); lua_setfield(ls, -2, "digitalWrite");
 
-    // Schermdrawing functies
-    lua_pushcfunction(ls, l_vul);     lua_setfield(ls, -2, "vul");
-    lua_pushcfunction(ls, l_lijn);    lua_setfield(ls, -2, "lijn");
-    lua_pushcfunction(ls, l_tekst);   lua_setfield(ls, -2, "tekst");
-    lua_pushcfunction(ls, l_cirkel);  lua_setfield(ls, -2, "cirkel");
-    lua_pushcfunction(ls, l_rgb);     lua_setfield(ls, -2, "rgb");
+    // Kleur
+    lua_pushcfunction(ls, l_color565); lua_setfield(ls, -2, "color565");
+    lua_pushcfunction(ls, l_color565); lua_setfield(ls, -2, "rgb");  // achterwaartse alias
 
-    // kleur-tabel (huidige palette waarden)
+    // Scherm: vullen
+    lua_pushcfunction(ls, l_fillScreen);    lua_setfield(ls, -2, "fillScreen");
+    lua_pushcfunction(ls, l_fillRect);      lua_setfield(ls, -2, "fillRect");
+    lua_pushcfunction(ls, l_drawRect);      lua_setfield(ls, -2, "drawRect");
+    lua_pushcfunction(ls, l_fillRoundRect); lua_setfield(ls, -2, "fillRoundRect");
+    lua_pushcfunction(ls, l_drawRoundRect); lua_setfield(ls, -2, "drawRoundRect");
+
+    // Scherm: lijnen
+    lua_pushcfunction(ls, l_drawLine);      lua_setfield(ls, -2, "drawLine");
+    lua_pushcfunction(ls, l_drawFastVLine); lua_setfield(ls, -2, "drawFastVLine");
+    lua_pushcfunction(ls, l_drawFastHLine); lua_setfield(ls, -2, "drawFastHLine");
+
+    // Scherm: cirkels
+    lua_pushcfunction(ls, l_drawCircle); lua_setfield(ls, -2, "drawCircle");
+    lua_pushcfunction(ls, l_fillCircle); lua_setfield(ls, -2, "fillCircle");
+
+    // Scherm: driehoeken
+    lua_pushcfunction(ls, l_drawTriangle); lua_setfield(ls, -2, "drawTriangle");
+    lua_pushcfunction(ls, l_fillTriangle); lua_setfield(ls, -2, "fillTriangle");
+
+    // Scherm: pixels
+    lua_pushcfunction(ls, l_drawPixel); lua_setfield(ls, -2, "drawPixel");
+
+    // Tekst: gemaksfunction + losse Arduino-stijl functies
+    lua_pushcfunction(ls, l_drawText);     lua_setfield(ls, -2, "drawText");
+    lua_pushcfunction(ls, l_setTextSize);  lua_setfield(ls, -2, "setTextSize");
+    lua_pushcfunction(ls, l_setTextColor); lua_setfield(ls, -2, "setTextColor");
+    lua_pushcfunction(ls, l_setCursor);    lua_setfield(ls, -2, "setCursor");
+    lua_pushcfunction(ls, l_print);        lua_setfield(ls, -2, "print");
+    lua_pushcfunction(ls, l_println);      lua_setfield(ls, -2, "println");
+
+    // colors tabel (huidige palette waarden)
     lua_newtable(ls);
-    lua_pushinteger(ls, (lua_Integer)C_BG);       lua_setfield(ls, -2, "bg");
-    lua_pushinteger(ls, (lua_Integer)C_SURFACE);  lua_setfield(ls, -2, "surface");
-    lua_pushinteger(ls, (lua_Integer)C_TEXT);     lua_setfield(ls, -2, "tekst");
-    lua_pushinteger(ls, (lua_Integer)C_TEXT_DIM); lua_setfield(ls, -2, "tekst_dim");
-    lua_pushinteger(ls, (lua_Integer)C_CYAN);     lua_setfield(ls, -2, "cyaan");
-    lua_pushinteger(ls, (lua_Integer)C_GREEN);    lua_setfield(ls, -2, "groen");
-    lua_pushinteger(ls, (lua_Integer)C_AMBER);    lua_setfield(ls, -2, "amber");
-    lua_pushinteger(ls, (lua_Integer)C_RED_BRIGHT); lua_setfield(ls, -2, "rood");
-    lua_setfield(ls, -2, "kleur");
+    lua_pushinteger(ls, (lua_Integer)C_BG);         lua_setfield(ls, -2, "bg");
+    lua_pushinteger(ls, (lua_Integer)C_SURFACE);    lua_setfield(ls, -2, "surface");
+    lua_pushinteger(ls, (lua_Integer)C_TEXT);       lua_setfield(ls, -2, "text");
+    lua_pushinteger(ls, (lua_Integer)C_TEXT_DIM);   lua_setfield(ls, -2, "textDim");
+    lua_pushinteger(ls, (lua_Integer)C_CYAN);       lua_setfield(ls, -2, "cyan");
+    lua_pushinteger(ls, (lua_Integer)C_GREEN);      lua_setfield(ls, -2, "green");
+    lua_pushinteger(ls, (lua_Integer)C_AMBER);      lua_setfield(ls, -2, "amber");
+    lua_pushinteger(ls, (lua_Integer)C_RED_BRIGHT); lua_setfield(ls, -2, "red");
+    lua_setfield(ls, -2, "colors");
 
-    // io-tabel
+    // io tabel
     lua_newtable(ls);
-    lua_pushcfunction(ls, l_io_lees);       lua_setfield(ls, -2, "lees");
-    lua_pushcfunction(ls, l_io_zet);        lua_setfield(ls, -2, "zet");
-    lua_pushcfunction(ls, l_io_wissel);     lua_setfield(ls, -2, "wissel");
-    lua_pushcfunction(ls, l_io_lees_naam);  lua_setfield(ls, -2, "lees_naam");
-    lua_pushcfunction(ls, l_io_zet_naam);   lua_setfield(ls, -2, "zet_naam");
-    lua_pushcfunction(ls, l_io_wissel_naam);lua_setfield(ls, -2, "wissel_naam");
-    lua_pushcfunction(ls, l_io_naam);       lua_setfield(ls, -2, "naam");
-    lua_pushcfunction(ls, l_io_cnt);        lua_setfield(ls, -2, "kanalen");
+    lua_pushcfunction(ls, l_io_read);       lua_setfield(ls, -2, "read");
+    lua_pushcfunction(ls, l_io_write);      lua_setfield(ls, -2, "write");
+    lua_pushcfunction(ls, l_io_toggle);     lua_setfield(ls, -2, "toggle");
+    lua_pushcfunction(ls, l_io_readName);   lua_setfield(ls, -2, "readName");
+    lua_pushcfunction(ls, l_io_writeName);  lua_setfield(ls, -2, "writeName");
+    lua_pushcfunction(ls, l_io_toggleName); lua_setfield(ls, -2, "toggleName");
+    lua_pushcfunction(ls, l_io_name);       lua_setfield(ls, -2, "name");
+    lua_pushcfunction(ls, l_io_count);      lua_setfield(ls, -2, "count");
     lua_setfield(ls, -2, "io");
 
-    // data-tabel
+    // data tabel
     lua_newtable(ls);
-    lua_pushcfunction(ls, l_data_lees);     lua_setfield(ls, -2, "lees");
-    lua_pushcfunction(ls, l_data_lees_f);   lua_setfield(ls, -2, "lees_f");
-    lua_pushcfunction(ls, l_data_schrijf);  lua_setfield(ls, -2, "schrijf");
-    lua_pushcfunction(ls, l_data_schrijf_f);lua_setfield(ls, -2, "schrijf_f");
-    lua_pushcfunction(ls, l_data_leeftijd); lua_setfield(ls, -2, "leeftijd");
+    lua_pushcfunction(ls, l_data_read);       lua_setfield(ls, -2, "read");
+    lua_pushcfunction(ls, l_data_readFloat);  lua_setfield(ls, -2, "readFloat");
+    lua_pushcfunction(ls, l_data_write);      lua_setfield(ls, -2, "write");
+    lua_pushcfunction(ls, l_data_writeFloat); lua_setfield(ls, -2, "writeFloat");
+    lua_pushcfunction(ls, l_data_age);        lua_setfield(ls, -2, "age");
     lua_setfield(ls, -2, "data");
 
-    // sys-tabel
+    // sys tabel
     lua_newtable(ls);
-    lua_pushcfunction(ls, l_versie); lua_setfield(ls, -2, "versie");
-    lua_pushcfunction(ls, l_millis); lua_setfield(ls, -2, "millis");
-    lua_pushcfunction(ls, l_log);    lua_setfield(ls, -2, "log");
+    lua_pushcfunction(ls, l_version); lua_setfield(ls, -2, "version");
+    lua_pushcfunction(ls, l_millis);  lua_setfield(ls, -2, "millis");
+    lua_pushcfunction(ls, l_log);     lua_setfield(ls, -2, "log");
     lua_setfield(ls, -2, "sys");
 
     lua_setglobal(ls, "bkos");
@@ -354,7 +491,7 @@ static void _callback(const char* naam, int argc, ...) {
 
     if (lua_pcall(L, argc, 0, 0) != LUA_OK) {
         const char* err = lua_tostring(L, -1);
-        strncpy(lua_fout_tekst, err ? err : "onbekende fout", LUA_FOUT_LEN - 1);
+        strncpy(lua_fout_tekst, err ? err : "unknown error", LUA_FOUT_LEN - 1);
         lua_fout_actief = true;
         lua_pop(L, 1);
     }
@@ -364,7 +501,6 @@ static void _callback(const char* naam, int argc, ...) {
 void lua_setup() {
     if (L) { lua_close(L); L = nullptr; }
 
-    // Alleen initialiseren als er actieve apps zijn
     bool heeft_apps = false;
     for (int i = 0; i < apps_cnt; i++)
         if (apps[i].actief) { heeft_apps = true; break; }
@@ -372,7 +508,7 @@ void lua_setup() {
 
     L = lua_newstate(lua_bkos_alloc, nullptr);
     if (!L) return;
-    luaL_openlibs(L);  // linit_bkos.c registreert alleen base/math/string/table/coroutine
+    luaL_openlibs(L);
     lua_registreer_api(L);
 }
 
@@ -389,11 +525,10 @@ bool lua_app_laden(int app_idx, bool sandbox) {
              ? (float)CONTENT_H / max(1, app.scherm_h)
              : (float)TFT_H     / max(1, app.scherm_h);
 
-    // Laad het main.lua bestand vanuit SPIFFS
-    String pad = app_pad(app.id);   // geeft /app_<id>_main.lua
+    String pad = app_pad(app.id);
     File f = SPIFFS.open(pad, "r");
     if (!f) {
-        snprintf(lua_fout_tekst, LUA_FOUT_LEN, "Bestand niet gevonden:\n%s", pad.c_str());
+        snprintf(lua_fout_tekst, LUA_FOUT_LEN, "File not found:\n%s", pad.c_str());
         lua_fout_actief = true;
         return false;
     }
@@ -403,7 +538,7 @@ bool lua_app_laden(int app_idx, bool sandbox) {
 
     if (luaL_dostring(L, src.c_str()) != LUA_OK) {
         const char* err = lua_tostring(L, -1);
-        strncpy(lua_fout_tekst, err ? err : "syntax fout", LUA_FOUT_LEN - 1);
+        strncpy(lua_fout_tekst, err ? err : "syntax error", LUA_FOUT_LEN - 1);
         lua_fout_actief = true;
         lua_pop(L, 1);
         return false;
@@ -419,21 +554,20 @@ void lua_app_teken(int app_idx) {
         tft.setTextSize(1);
         tft.setTextColor(C_RED_BRIGHT);
         tft.setCursor(10, ey + 10);
-        tft.print("Lua fout: ");
+        tft.print("Lua error: ");
         tft.println(lua_fout_tekst);
         return;
     }
     if (!L) return;
-    _callback("teken", 0);
+    _callback("draw", 0);
 }
 
 void lua_app_run(int app_idx, int x, int y, bool aanraking) {
     if (lua_fout_actief || !L) return;
     if (aanraking) {
-        // Schaal terug naar app-ontwerpruimte (y_offset aftrekken vóór schalen)
         int app_x = (lua_sx > 0.01f) ? (int)(x / lua_sx) : x;
         int app_y = (lua_sy > 0.01f) ? (int)((y - lua_y_offset) / lua_sy) : y;
-        _callback("aanraking", 2, app_x, app_y);
+        _callback("touch", 2, app_x, app_y);
     } else {
         _callback("update", 0);
     }
@@ -445,7 +579,7 @@ void lua_app_sluiten() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-#else   // LUA_BESCHIKBAAR == 0: stubs zodat de rest van de code compileert
+#else   // LUA_BESCHIKBAAR == 0
 
 void lua_setup()                                          { }
 bool lua_app_laden(int)                                   { return false; }
@@ -454,9 +588,9 @@ void lua_app_teken(int)                                   {
     tft.setTextSize(2);
     tft.setTextColor(C_AMBER);
     tft.setCursor(20, TFT_H / 2 - 20);
-    tft.println("Lua runtime niet");
+    tft.println("Lua runtime not");
     tft.setCursor(20, TFT_H / 2 + 4);
-    tft.println("geïnstalleerd");
+    tft.println("installed");
 }
 void lua_app_run(int, int, int, bool)                     { }
 void lua_app_sluiten()                                    { }
