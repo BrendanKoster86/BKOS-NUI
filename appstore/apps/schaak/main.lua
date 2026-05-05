@@ -590,26 +590,158 @@ local function tekenVakje(r, k)
   bkos.fillRect(x, y, SQ, SQ, kleur)
 end
 
--- Eenvoudige stuk-tekening met letters (geen bitmap)
-local STUK_SYMBOOL = {
-  [PION]     = "p",
-  [TOREN]    = "T",
-  [PAARD]    = "P",
-  [LOPER]    = "L",
-  [KONINGIN] = "Q",
-  [KONING]   = "K",
+-- =============================================================
+--  2D STUK-ILLUSTRATIES
+--  ox,oy = linkerbovenhoek van het vakje (56×56)
+--  vul   = vulkleur (wit of zwart stuk)
+--  rand  = randkleur (contrasterend)
+-- =============================================================
+
+local function tekenPion(ox, oy, vul, rand)
+  -- Voet: breed rechthoek onderaan
+  bkos.fillRoundRect(ox+14, oy+43, 28, 8,  3, vul)
+  bkos.drawRoundRect(ox+14, oy+43, 28, 8,  3, rand)
+  -- Steel: smal
+  bkos.fillRect(ox+23, oy+34, 10, 11, vul)
+  bkos.drawRect(ox+23, oy+34, 10, 11, rand)
+  -- Hoofd: cirkel
+  bkos.fillCircle(ox+28, oy+26, 11, vul)
+  bkos.drawCircle(ox+28, oy+26, 11, rand)
+  -- Binnenring highlight
+  bkos.drawCircle(ox+28, oy+26,  7, rand)
+end
+
+local function tekenToren(ox, oy, vul, rand)
+  -- Voet
+  bkos.fillRoundRect(ox+10, oy+44, 36, 8,  2, vul)
+  bkos.drawRoundRect(ox+10, oy+44, 36, 8,  2, rand)
+  -- Schacht
+  bkos.fillRect(ox+15, oy+22, 26, 24, vul)
+  bkos.drawRect(ox+15, oy+22, 26, 24, rand)
+  -- Kantelen (3 blokjes bovenop)
+  bkos.fillRect(ox+13, oy+14, 8, 10, vul)
+  bkos.drawRect(ox+13, oy+14, 8, 10, rand)
+  bkos.fillRect(ox+24, oy+14, 8, 10, vul)
+  bkos.drawRect(ox+24, oy+14, 8, 10, rand)
+  bkos.fillRect(ox+35, oy+14, 8, 10, vul)
+  bkos.drawRect(ox+35, oy+14, 8, 10, rand)
+  -- Spleten tussen kantelen
+  bkos.fillRect(ox+21, oy+14, 3, 10, rand)
+  bkos.fillRect(ox+33, oy+14, 2, 10, rand)
+end
+
+local function tekenPaard(ox, oy, vul, rand)
+  -- Voet
+  bkos.fillRoundRect(ox+11, oy+44, 32, 8,  2, vul)
+  bkos.drawRoundRect(ox+11, oy+44, 32, 8,  2, rand)
+  -- Lichaam (schuin naar voor)
+  bkos.fillTriangle(ox+18, oy+44, ox+38, oy+44, ox+32, oy+22, vul)
+  bkos.fillTriangle(ox+18, oy+44, ox+25, oy+22, ox+32, oy+22, vul)
+  bkos.drawTriangle(ox+18, oy+44, ox+38, oy+44, ox+32, oy+22, rand)
+  -- Nek
+  bkos.fillRect(ox+20, oy+18, 14, 26, vul)
+  bkos.drawRect(ox+20, oy+18, 14, 26, rand)
+  -- Hoofd (naar rechts gericht)
+  bkos.fillRoundRect(ox+22, oy+12, 22, 14, 4, vul)
+  bkos.drawRoundRect(ox+22, oy+12, 22, 14, 4, rand)
+  -- Snuit
+  bkos.fillRoundRect(ox+36, oy+18, 10, 9,  3, vul)
+  bkos.drawRoundRect(ox+36, oy+18, 10, 9,  3, rand)
+  -- Oog
+  bkos.fillCircle(ox+38, oy+15, 2, rand)
+  -- Oor
+  bkos.fillTriangle(ox+24, oy+12, ox+28, oy+12, ox+26, oy+7, vul)
+  bkos.drawTriangle(ox+24, oy+12, ox+28, oy+12, ox+26, oy+7, rand)
+end
+
+local function tekenLoper(ox, oy, vul, rand)
+  -- Voet
+  bkos.fillRoundRect(ox+12, oy+44, 32, 8,  3, vul)
+  bkos.drawRoundRect(ox+12, oy+44, 32, 8,  3, rand)
+  -- Basis
+  bkos.fillRoundRect(ox+16, oy+37, 24, 9,  2, vul)
+  bkos.drawRoundRect(ox+16, oy+37, 24, 9,  2, rand)
+  -- Romp (breed naar smal)
+  bkos.fillTriangle(ox+16, oy+37, ox+40, oy+37, ox+28, oy+18, vul)
+  bkos.drawTriangle(ox+16, oy+37, ox+40, oy+37, ox+28, oy+18, rand)
+  -- Hoofd: kleine bol
+  bkos.fillCircle(ox+28, oy+16, 8, vul)
+  bkos.drawCircle(ox+28, oy+16, 8, rand)
+  -- Kruis bovenop
+  bkos.fillCircle(ox+28, oy+9,  3, vul)
+  bkos.drawCircle(ox+28, oy+9,  3, rand)
+  bkos.drawFastVLine(ox+28, oy+6,  6, rand)
+  bkos.drawFastHLine(ox+25, oy+9,  6, rand)
+end
+
+local function tekenKoningin(ox, oy, vul, rand)
+  -- Voet
+  bkos.fillRoundRect(ox+9,  oy+44, 38, 8,  3, vul)
+  bkos.drawRoundRect(ox+9,  oy+44, 38, 8,  3, rand)
+  -- Rok (trapezium)
+  bkos.fillTriangle(ox+12, oy+42, ox+44, oy+42, ox+28, oy+24, vul)
+  bkos.fillTriangle(ox+14, oy+42, ox+42, oy+42, ox+28, oy+30, vul)
+  bkos.drawTriangle(ox+12, oy+42, ox+44, oy+42, ox+28, oy+24, rand)
+  -- Lichaam midden
+  bkos.fillRoundRect(ox+20, oy+23, 16, 20, 2, vul)
+  bkos.drawRoundRect(ox+20, oy+23, 16, 20, 2, rand)
+  -- Hoofd
+  bkos.fillCircle(ox+28, oy+19, 8, vul)
+  bkos.drawCircle(ox+28, oy+19, 8, rand)
+  -- Kroon: 3 punten
+  bkos.fillTriangle(ox+19, oy+14, ox+23, oy+14, ox+21, oy+8,  vul)
+  bkos.drawTriangle(ox+19, oy+14, ox+23, oy+14, ox+21, oy+8,  rand)
+  bkos.fillTriangle(ox+26, oy+13, ox+30, oy+13, ox+28, oy+6,  vul)
+  bkos.drawTriangle(ox+26, oy+13, ox+30, oy+13, ox+28, oy+6,  rand)
+  bkos.fillTriangle(ox+33, oy+14, ox+37, oy+14, ox+35, oy+8,  vul)
+  bkos.drawTriangle(ox+33, oy+14, ox+37, oy+14, ox+35, oy+8,  rand)
+  -- Kroontjes bolletjes
+  bkos.fillCircle(ox+21, oy+8,  2, vul)
+  bkos.drawCircle(ox+21, oy+8,  2, rand)
+  bkos.fillCircle(ox+28, oy+6,  2, vul)
+  bkos.drawCircle(ox+28, oy+6,  2, rand)
+  bkos.fillCircle(ox+35, oy+8,  2, vul)
+  bkos.drawCircle(ox+35, oy+8,  2, rand)
+end
+
+local function tekenKoning(ox, oy, vul, rand)
+  -- Voet
+  bkos.fillRoundRect(ox+9,  oy+44, 38, 8,  3, vul)
+  bkos.drawRoundRect(ox+9,  oy+44, 38, 8,  3, rand)
+  -- Rok
+  bkos.fillTriangle(ox+12, oy+42, ox+44, oy+42, ox+28, oy+26, vul)
+  bkos.drawTriangle(ox+12, oy+42, ox+44, oy+42, ox+28, oy+26, rand)
+  -- Lichaam
+  bkos.fillRoundRect(ox+20, oy+25, 16, 18, 2, vul)
+  bkos.drawRoundRect(ox+20, oy+25, 16, 18, 2, rand)
+  -- Hoofd
+  bkos.fillCircle(ox+28, oy+20, 8, vul)
+  bkos.drawCircle(ox+28, oy+20, 8, rand)
+  -- Kruis (groot kruis bovenop)
+  bkos.fillRect(ox+26, oy+6,  4, 14, vul)
+  bkos.drawRect(ox+26, oy+6,  4, 14, rand)
+  bkos.fillRect(ox+21, oy+9,  14, 4,  vul)
+  bkos.drawRect(ox+21, oy+9,  14, 4,  rand)
+end
+
+local TEKEN_FN = {
+  [PION]     = tekenPion,
+  [TOREN]    = tekenToren,
+  [PAARD]    = tekenPaard,
+  [LOPER]    = tekenLoper,
+  [KONINGIN] = tekenKoningin,
+  [KONING]   = tekenKoning,
 }
 
 local function tekenStuk(r, k, stuk)
   if stuk == 0 then return end
-  local x = BX + (k-1)*SQ + 6
-  local y = BY + (8-r)*SQ + 8
-  local kleur  = stuk > 0 and C.wit or C.zwart
-  local sym = STUK_SYMBOOL[absStuk(stuk)] or "?"
-  -- Rand/schaduw voor leesbaarheid
-  local randKleur = stuk > 0 and C.zwart or C.wit
-  bkos.drawText(x+1, y+1, sym, 5, randKleur)
-  bkos.drawText(x,   y,   sym, 5, kleur)
+  local ox = BX + (k-1)*SQ
+  local oy = BY + (8-r)*SQ
+  local isWit = stuk > 0
+  local vul  = isWit and C.wit  or C.zwart
+  local rand = isWit and C.zwart or C.wit
+  local fn = TEKEN_FN[absStuk(stuk)]
+  if fn then fn(ox, oy, vul, rand) end
 end
 
 local function tekenCoordinaten()
@@ -677,17 +809,72 @@ local function tekenPanel()
     bkos.drawText(px+4, 80, berichtTekst, 2, bc)
   end
 
-  -- Legenda stukken
-  bkos.drawFastHLine(px, 115, 285, C.border)
-  bkos.drawText(px, 120, "Stukken:", 1, C.tekstDim)
-  local legenda = {
-    {"K","Koning"}, {"Q","Koningin"}, {"T","Toren"},
-    {"L","Loper"},  {"P","Paard"},    {"p","Pion"},
-  }
-  for i, leg in ipairs(legenda) do
-    local ly = 132 + (i-1)*18
-    bkos.drawText(px,    ly, leg[1], 2, C.highlight)
-    bkos.drawText(px+22, ly, "= "..leg[2], 1, C.tekst)
+  -- Legenda stukken (mini-icoontjes geschaald)
+  bkos.drawFastHLine(px, 112, 285, C.border)
+  bkos.drawText(px, 116, "Legenda:", 1, C.tekstDim)
+
+  local SC = 22  -- mini vakgrootte (56 -> 22, factor ~0.39)
+  local function mini(fn, mx, my, vul, rand)
+    local s = SC / 56
+    local function fr(x,y,w,h,c)         bkos.fillRect(math.floor(mx+x*s),math.floor(my+y*s),math.max(1,math.floor(w*s)),math.max(1,math.floor(h*s)),c) end
+    local function dr(x,y,w,h,c)         bkos.drawRect(math.floor(mx+x*s),math.floor(my+y*s),math.max(1,math.floor(w*s)),math.max(1,math.floor(h*s)),c) end
+    local function fc(x,y,r2,c)          bkos.fillCircle(math.floor(mx+x*s),math.floor(my+y*s),math.max(1,math.floor(r2*s)),c) end
+    local function dc(x,y,r2,c)          bkos.drawCircle(math.floor(mx+x*s),math.floor(my+y*s),math.max(1,math.floor(r2*s)),c) end
+    local function ft(x0,y0,x1,y1,x2,y2,c) bkos.fillTriangle(math.floor(mx+x0*s),math.floor(my+y0*s),math.floor(mx+x1*s),math.floor(my+y1*s),math.floor(mx+x2*s),math.floor(my+y2*s),c) end
+    local function frr(x,y,w,h,r2,c)    bkos.fillRoundRect(math.floor(mx+x*s),math.floor(my+y*s),math.max(2,math.floor(w*s)),math.max(2,math.floor(h*s)),math.max(1,math.floor(r2*s)),c) end
+    local function drr(x,y,w,h,r2,c)    bkos.drawRoundRect(math.floor(mx+x*s),math.floor(my+y*s),math.max(2,math.floor(w*s)),math.max(2,math.floor(h*s)),math.max(1,math.floor(r2*s)),c) end
+    if fn == PION then
+      frr(14,43,28,8,3,vul); drr(14,43,28,8,3,rand)
+      fr(23,34,10,11,vul);   dr(23,34,10,11,rand)
+      fc(28,26,11,vul);      dc(28,26,11,rand)
+    elseif fn == TOREN then
+      frr(10,44,36,8,2,vul); drr(10,44,36,8,2,rand)
+      fr(15,22,26,24,vul);   dr(15,22,26,24,rand)
+      fr(13,14,8,10,vul);    dr(13,14,8,10,rand)
+      fr(24,14,8,10,vul);    dr(24,14,8,10,rand)
+      fr(35,14,8,10,vul);    dr(35,14,8,10,rand)
+    elseif fn == PAARD then
+      frr(11,44,32,8,2,vul); drr(11,44,32,8,2,rand)
+      ft(18,44,38,44,32,22,vul)
+      fr(20,18,14,26,vul);   dr(20,18,14,26,rand)
+      frr(22,12,22,14,4,vul); drr(22,12,22,14,4,rand)
+      fc(38,15,2,rand)
+      ft(24,12,28,12,26,7,vul)
+    elseif fn == LOPER then
+      frr(12,44,32,8,3,vul); drr(12,44,32,8,3,rand)
+      frr(16,37,24,9,2,vul); drr(16,37,24,9,2,rand)
+      ft(16,37,40,37,28,18,vul)
+      fc(28,16,8,vul);       dc(28,16,8,rand)
+      fc(28,9,3,vul);        dc(28,9,3,rand)
+    elseif fn == KONINGIN then
+      frr(9,44,38,8,3,vul);  drr(9,44,38,8,3,rand)
+      ft(12,42,44,42,28,24,vul)
+      frr(20,23,16,20,2,vul); drr(20,23,16,20,2,rand)
+      fc(28,19,8,vul);        dc(28,19,8,rand)
+      ft(19,14,23,14,21,8,vul); ft(26,13,30,13,28,6,vul); ft(33,14,37,14,35,8,vul)
+      fc(21,8,2,vul); dc(21,8,2,rand)
+      fc(28,6,2,vul); dc(28,6,2,rand)
+      fc(35,8,2,vul); dc(35,8,2,rand)
+    elseif fn == KONING then
+      frr(9,44,38,8,3,vul);  drr(9,44,38,8,3,rand)
+      ft(12,42,44,42,28,26,vul)
+      frr(20,25,16,18,2,vul); drr(20,25,16,18,2,rand)
+      fc(28,20,8,vul);        dc(28,20,8,rand)
+      fr(26,6,4,14,vul);     dr(26,6,4,14,rand)
+      fr(21,9,14,4,vul);     dr(21,9,14,4,rand)
+    end
+  end
+
+  local stukTypes = {KONING, KONINGIN, TOREN, LOPER, PAARD, PION}
+  local stukNamen = {"Koning","Koningin","Toren","Loper","Paard","Pion"}
+  for i=1,6 do
+    local col = (i-1) % 2
+    local row = math.floor((i-1)/2)
+    local ix  = px + col * 142
+    local iy  = 126 + row * 28
+    bkos.fillRect(ix, iy, SC, SC, C.bg)
+    mini(stukTypes[i], ix, iy, C.wit, C.tekst)
+    bkos.drawText(ix + SC + 3, iy + 7, stukNamen[i], 1, C.tekst)
   end
 
   -- Geslagen stukken (toekomstige uitbreiding — voor nu lijn)
