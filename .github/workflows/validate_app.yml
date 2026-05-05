@@ -1,0 +1,184 @@
+name: Valideer App PR
+
+on:
+  pull_request:
+    paths:
+      - 'appstore/apps/**'
+      - 'appstore/index.json'
+
+jobs:
+  valideer:
+    name: Automatische app-check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Installeer tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y lua5.4 jq
+
+      - name: Valideer gewijzigde apps
+        run: |
+          set +e
+          FOUTEN=0
+
+          # Vind alle gewijzigde app-mappen in deze PR
+          GEWIJZIGD=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" \
+            | grep '^appstore/apps/' \
+            | sed 's|^appstore/apps/\([^/]*\)/.*|\1|' \
+            | sort -u)
+
+          if [ -z "$GEWIJZIGD" ]; then
+            echo "Geen app-bestanden gewijzigd — alleen index.json check."
+          fi
+
+          for DIR in $GEWIJZIGD; do
+            APP_DIR="appstore/apps/$DIR"
+            echo ""
+            echo "══════════════════════════════════════"
+            echo " Controleer app: $DIR"
+            echo "══════════════════════════════════════"
+
+            # ── 1. Manifest aanwezig ───────────────────────────────────────
+            if [ ! -f "$APP_DIR/manifest.json" ]; then
+              echo "FOUT: manifest.json ontbreekt in $APP_DIR"
+              FOUTEN=$((FOUTEN+1))
+              continue
+            fi
+
+            # ── 2. Geldige JSON ────────────────────────────────────────────
+            if ! jq empty "$APP_DIR/manifest.json" 2>/dev/null; then
+              echo "FOUT: manifest.json is geen geldige JSON"
+              FOUTEN=$((FOUTEN+1))
+              continue
+            fi
+            echo "OK:   manifest.json is geldige JSON"
+
+            # ── 3. Verplichte velden ───────────────────────────────────────
+            for VELD in id naam versie auteur; do
+              VAL=$(jq -r ".$VELD // empty" "$APP_DIR/manifest.json")
+              if [ -z "$VAL" ]; then
+                echo "FOUT: manifest.json mist verplicht veld '$VELD'"
+                FOUTEN=$((FOUTEN+1))
+              fi
+            done
+
+            APP_ID=$(jq -r '.id // ""' "$APP_DIR/manifest.json")
+
+            # ── 4. App-ID formaat: [a-z0-9_], 3–18 tekens ─────────────────
+            #    Limiet 18 chars: SPIFFS bestandsnaam "app_<id>_main.lua"
+            #    = 13 + len(id) ≤ 31 → len(id) ≤ 18
+            if ! echo "$APP_ID" | grep -qE '^[a-z0-9_]{3,18}$'; then
+              echo "FOUT: id '$APP_ID' ongeldig — alleen kleine letters, cijfers, underscore; min 3 en max 18 tekens"
+              FOUTEN=$((FOUTEN+1))
+            else
+              echo "OK:   id '$APP_ID' correct"
+            fi
+
+            # ── 5. ID moet overeenkomen met mapnaam ────────────────────────
+            if [ "$APP_ID" != "$DIR" ]; then
+              echo "FOUT: id '$APP_ID' in manifest.json komt niet overeen met mapnaam '$DIR'"
+              FOUTEN=$((FOUTEN+1))
+            fi
+
+            # ── 6. Veldlengtes ─────────────────────────────────────────────
+            NAAM=$(jq -r '.naam // ""' "$APP_DIR/manifest.json")
+            if [ ${#NAAM} -gt 31 ]; then
+              echo "FOUT: naam '${NAAM}' te lang (${#NAAM} tekens, max 31)"
+              FOUTEN=$((FOUTEN+1))
+            fi
+
+            AUTEUR=$(jq -r '.auteur // ""' "$APP_DIR/manifest.json")
+            if [ ${#AUTEUR} -gt 40 ]; then
+              echo "FOUT: auteur '${AUTEUR}' te lang (${#AUTEUR} tekens, max 40)"
+              FOUTEN=$((FOUTEN+1))
+            fi
+
+            BESCHR=$(jq -r '.beschrijving // ""' "$APP_DIR/manifest.json")
+            if [ ${#BESCHR} -gt 79 ]; then
+              echo "FOUT: beschrijving te lang (${#BESCHR} tekens, max 79)"
+              FOUTEN=$((FOUTEN+1))
+            fi
+
+            # ── 7. SPIFFS padlengtes (dubbele check) ──────────────────────
+            PAD_M="app_${APP_ID}_m.json"
+            PAD_LUA="app_${APP_ID}_main.lua"
+            if [ ${#PAD_M} -gt 31 ]; then
+              echo "FOUT: SPIFFS pad '${PAD_M}' te lang (${#PAD_M}/31 tekens)"
+              FOUTEN=$((FOUTEN+1))
+            fi
+            if [ ${#PAD_LUA} -gt 31 ]; then
+              echo "FOUT: SPIFFS pad '${PAD_LUA}' te lang (${#PAD_LUA}/31 tekens)"
+              FOUTEN=$((FOUTEN+1))
+            fi
+
+            # ── 8. scherm-override waarschuwing ───────────────────────────
+            VERVANGT=$(jq -r '.vervangt // -1' "$APP_DIR/manifest.json")
+            if [ "$VERVANGT" != "-1" ]; then
+              echo "WAARSCHUWING: app vervangt systeem-scherm $VERVANGT — extra reviewaandacht vereist"
+            fi
+
+            # ── 9. main.lua aanwezig ──────────────────────────────────────
+            if [ ! -f "$APP_DIR/main.lua" ]; then
+              echo "FOUT: main.lua ontbreekt in $APP_DIR"
+              FOUTEN=$((FOUTEN+1))
+              continue
+            fi
+
+            # ── 10. Lua syntaxcheck ───────────────────────────────────────
+            if LUA_ERR=$(luac5.4 -p "$APP_DIR/main.lua" 2>&1); then
+              echo "OK:   Lua syntax correct"
+            else
+              echo "FOUT: Lua-syntaxfout in main.lua:"
+              echo "$LUA_ERR"
+              FOUTEN=$((FOUTEN+1))
+            fi
+
+            # ── 11. Verboden patronen ─────────────────────────────────────
+            #    De Lua-sandbox blokkeert deze al bij uitvoering, maar we
+            #    willen dit ook bij review signaleren.
+            declare -A PATRONEN=(
+              ["io\\."]="bestandssysteem-toegang (io.*)"
+              ["os\\."]="OS-systeemaanroepen (os.*)"
+              ["dofile"]="bestandsuitvoering (dofile)"
+              ["loadfile"]="bestandsladen (loadfile)"
+              ["require"]="module-import (require)"
+              ["package\\."]="pakketmanipulatie (package.*)"
+              ["debug\\."]="debugbibliotheek (debug.*)"
+            )
+            for PAT in "${!PATRONEN[@]}"; do
+              if grep -qE "$PAT" "$APP_DIR/main.lua"; then
+                echo "FOUT: main.lua bevat verboden patroon '${PATRONEN[$PAT]}'"
+                echo "      Gebruik de bkos.* API — directe toegang is niet toegestaan."
+                FOUTEN=$((FOUTEN+1))
+              fi
+            done
+
+            # ── 12. App aanwezig in index.json ────────────────────────────
+            if [ -f "appstore/index.json" ]; then
+              INDEX_HIT=$(jq -r --arg id "$APP_ID" '.[] | select(.id == $id) | .id' appstore/index.json 2>/dev/null)
+              if [ -z "$INDEX_HIT" ]; then
+                echo "FOUT: app '$APP_ID' ontbreekt in appstore/index.json"
+                FOUTEN=$((FOUTEN+1))
+              else
+                echo "OK:   app gevonden in appstore/index.json"
+              fi
+            fi
+
+            echo ""
+          done
+
+          # ── Samenvatting ──────────────────────────────────────────────────
+          echo "══════════════════════════════════════"
+          if [ $FOUTEN -eq 0 ]; then
+            echo "✓ Alle automatische checks geslaagd."
+            echo "  De PR kan nu worden beoordeeld door de beheerder."
+          else
+            echo "✗ $FOUTEN fout(en) gevonden — herstel deze voor verdere beoordeling."
+            exit 1
+          fi

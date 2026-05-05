@@ -1,5 +1,5 @@
 # BKOS App Handleiding
-**Versie:** 1.1 — BKOS-NUI v0.0.260503.4+
+**Versie:** 1.2 — BKOS-NUI v0.0.260505.3+
 
 Deze handleiding beschrijft hoe je een BKOS app schrijft, test en publiceert.  
 BKOS apps zijn Lua 5.4 scripts die draaien op het ESP32-S3 boordcomputer scherm.
@@ -79,8 +79,8 @@ Gebruik een unieke, beschrijvende naam: `mijn_weer`, `anker_timer`, `motor_dashb
 
 Op het apparaat zelf worden apps opgeslagen als platte SPIFFS-bestanden:
 ```
-/app_<id>_manifest.json
-/app_<id>_main.lua
+/app_<id>_m.json         ← manifest (verkorte naam wegens SPIFFS 31-teken limiet)
+/app_<id>_main.lua       ← Lua-script
 /bkos_apps.json          ← lijst van geïnstalleerde apps
 ```
 
@@ -107,7 +107,7 @@ Op het apparaat zelf worden apps opgeslagen als platte SPIFFS-bestanden:
 
 | Veld | Type | Verplicht | Beschrijving |
 |---|---|---|---|
-| `id` | string | ✅ | Unieke app-ID (`[a-z0-9_]`, max 23 tekens) |
+| `id` | string | ✅ | Unieke app-ID (`[a-z0-9_]`, max 18 tekens) |
 | `naam` | string | ✅ | Zichtbare naam in de app-store (max 31 tekens) |
 | `versie` | string | ✅ | Semantische versie `MAJOR.MINOR.PATCH` |
 | `auteur` | string | ✅ | Naam van de maker (max 23 tekens) |
@@ -609,12 +609,13 @@ bkos.data.schrijf("mijn_app.laatste_alarm", "14:32")
 
 ## 10. Publiceren naar de app store
 
-De BKOS app store is onderdeel van de GitHub repository `brennyc86/BKOS-NUI`.
+De BKOS app store is onderdeel van de GitHub repository `brennyc86/BKOS-NUI`.  
+Apps worden ingediend via een **Pull Request** en doorlopen een automatische check gevolgd door een handmatige beoordeling. Zie ook [`appstore/AANBIEDEN.md`](../appstore/AANBIEDEN.md) voor de volledige indiengids.
 
 ### Stappen
 
-1. **Fork** de repository op GitHub
-2. Maak je app-map aan:
+1. **Fork** de repository op GitHub (`brennyc86/BKOS-NUI`)
+2. Maak je app-map aan in jouw fork:
    ```
    appstore/apps/<jouw-app-id>/
        manifest.json
@@ -634,12 +635,40 @@ De BKOS app store is onderdeel van de GitHub repository `brennyc86/BKOS-NUI`.
        "scherm_h": 480,
        "vervangt": -1,
        "api_versie": 1,
+       "grootte_kb": 5,
        "actief": true
      }
    ]
    ```
-4. Maak een **Pull Request** naar de `main` branch
-5. Na merge is de app direct beschikbaar in de APPS → WINKEL van alle apparaten
+4. Maak een **Pull Request** naar de `main` branch met als titel: `App: <Naam> v<versie>`
+5. De **automatische checks** starten direct (zie hieronder)
+6. Na goedkeuring door de beheerder wordt de PR gemerged en is de app beschikbaar in APPS → WINKEL
+
+### Automatische checks (GitHub Actions)
+
+Bij elke PR op `appstore/` wordt automatisch gecontroleerd:
+
+| Check | Wat er gecontroleerd wordt |
+|---|---|
+| JSON geldigheid | `manifest.json` is geldige JSON |
+| Verplichte velden | `id`, `naam`, `versie`, `auteur` aanwezig |
+| App-ID formaat | `[a-z0-9_]`, 3–18 tekens |
+| ID ↔ mapnaam | `id` in manifest gelijk aan mapnaam |
+| Veldlengtes | `naam` ≤ 31, `beschrijving` ≤ 79 tekens |
+| SPIFFS padlengtes | Bestandsnamen passen binnen 31-teken SPIFFS-limiet |
+| Lua syntaxcheck | `main.lua` compileert foutloos |
+| Verboden patronen | Geen `io.*`, `os.*`, `dofile`, `require`, etc. |
+| index.json | App aanwezig in de winkelindex |
+
+Als een check mislukt zie je de foutmelding direct in de PR. Herstel het probleem, push opnieuw — de checks starten automatisch opnieuw.
+
+### Handmatige beoordeling
+
+Na succesvolle automatische checks beoordeelt de beheerder op:
+- **Functionaliteit** — doet de app wat het manifest belooft?
+- **Stabiliteit** — geen oneindige loops, geheugenlekken of crashes?
+- **Zinvolheid** — is de app nuttig voor gebruikers van een scheepscomputer?
+- **Scherm-overschrijving** — als `vervangt != -1`: goed onderbouwd?
 
 ---
 
@@ -649,7 +678,7 @@ Handmatig uploaden via een SPIFFS-flashtool (bijv. Arduino IDE SPIFFS Data Uploa
 
 1. Maak een `data/` map in je Arduino-project
 2. Zet daarin:
-   - `app_<id>_manifest.json` (inhoud van manifest.json)
+   - `app_<id>_m.json` (inhoud van manifest.json — let op de verkorte naam)
    - `app_<id>_main.lua` (inhoud van main.lua)
    - `bkos_apps.json`: `{"ids":["<id>"]}`
 3. Upload via **Sketch → Upload SPIFFS/LittleFS Data**
@@ -670,16 +699,39 @@ Of via de seriële terminal (bijv. met `esptool.py`) een volledig SPIFFS-image f
 - `bkos.update()` wordt elke loop-iteratie aangeroepen (~50ms) — gebruik zelf een timer
 - `bkos.teken()` is duur (wist het hele scherm) — roep het alleen aan als de weergave verandert
 
-### Veiligheid
-- Apps kunnen **geen bestanden lezen of schrijven** — alleen via `bkos.data.*`
-- Apps kunnen **geen netwerk** gebruiken — data komt via de systeemeigen weermodule
-- Apps kunnen **geen andere apps** starten of stoppen
-- Crashes worden afgevangen — foutmelding verschijnt op het scherm, systeem blijft stabiel
+### Veiligheid en sandbox
+
+Apps draaien in een strikte sandbox. De beperkingen zijn technisch afgedwongen — omzeilen is niet mogelijk.
+
+| Beperking | Technisch geborgd | Toelichting |
+|---|---|---|
+| Geen BKOS-systeembestanden aanpassen | Ja — geen bestandstoegang | `io`/`os` bibliotheken niet geladen |
+| Geen andere apps aanpassen | Ja — geen bestandstoegang | Sandbox isoleert elke app volledig |
+| Geen data verwijderen | Ja — geen delete-API | `bkos.data.*` biedt alleen lezen/schrijven |
+| Geen internetverbinding | Ja — geen netwerk-API | Weerdata loopt via de systeemeigen module |
+| Geen externe modules laden | Ja — `require`/`package` geblokkeerd | Alleen ingebouwde Lua-bibliotheken beschikbaar |
+
+**Uitzondering voor weer- en getijapps:** apps die voorspellingen berekenen of ophalen mogen de standaard systeem-sleutels (`meteo.*`, `getij.*`) overschrijven met nieuwe data. Ze mogen geen andere sleutels verwijderen of aanpassen.
+
+**Verboden in code (ook bij automatische PR-check):**
+
+```lua
+-- Dit wordt geweigerd:
+io.open(...)        -- bestandstoegang
+os.execute(...)     -- systeemaanroep
+dofile(...)         -- bestandsuitvoering
+loadfile(...)       -- bestandsladen
+require(...)        -- module-import
+package.loaded      -- pakketmanipulatie
+debug.getinfo(...)  -- debug-bibliotheek
+```
+
+Crashes worden automatisch afgevangen — een foutmelding verschijnt op het scherm, het systeem blijft stabiel.
 
 ### Stijl
-- Gebruik `bkos.kleur.*` kleuren voor een consistente uitstraling
+- Gebruik `bkos.kleur.*` kleuren voor een consistente uitstraling die meebeweegt met het gekozen kleurpalet
 - Houd de navigatiebalk (onderste 42px) leeg — die is voor het systeem
-- Houd de statusbalk (bovenste 42px) leeg als je het scherm niet vervangt
+- Houd de statusbalk (bovenste 42px) leeg als je het scherm niet vervangt (`vervangt == -1`)
 
 ---
 
@@ -865,7 +917,7 @@ bkos.update           = function()        — periodiek (geen aanraking)
 
 === MANIFEST FORMAAT (manifest.json) ===
 {
-  "id"          : string  — uniek, [a-z0-9_], max 23 tekens
+  "id"          : string  — uniek, [a-z0-9_], max 18 tekens
   "naam"        : string  — weergavenaam, max 31 tekens
   "versie"      : string  — "MAJOR.MINOR.PATCH"
   "auteur"      : string  — max 23 tekens
