@@ -35,7 +35,7 @@
     "scherm_h"    : 480,
     "vervangt"    : -1,
     "api_versie"  : 1,
-    "grootte_kb": 40,
+    "grootte_kb"  : 40,
     "actief"      : true
   },
   {
@@ -48,7 +48,7 @@
     "scherm_h"    : 480,
     "vervangt"    : -1,
     "api_versie"  : 1,
-    "grootte_kb": 27,
+    "grootte_kb"  : 27,
     "actief"      : true
   }
 ]
