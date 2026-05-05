@@ -444,19 +444,32 @@ static void cfg_instellingen_teken() {
     tft.setTextSize(2); tft.setTextColor(C_CYAN);
     tft.setCursor(18, wow_y + 2 + (34 - 16) / 2); tft.print("WIFI NETWERKEN  >");
 
-    // Foutrapportage toggle (midden)
+    // Foutrapportage toggle (midden-links)
     {
         bool frap = fout_rapportage;
         bool tok  = fout_log_token_aanwezig();
         uint16_t fbg  = frap ? RGB565(0, 22, 8)   : C_SURFACE2;
         uint16_t facc = frap ? (tok ? C_GREEN : C_AMBER) : C_TEXT_DIM;
-        tft.fillRoundRect(236, wow_y + 2, 264, 34, 6, fbg);
-        tft.drawRoundRect(236, wow_y + 2, 264, 34, 6, facc);
+        tft.fillRoundRect(236, wow_y + 2, 130, 34, 6, fbg);
+        tft.drawRoundRect(236, wow_y + 2, 130, 34, 6, facc);
         tft.setTextSize(1); tft.setTextColor(facc);
-        const char* flbl = frap ? (tok ? "FOUTRAP  AAN" : "FOUTRAP  AAN !") : "FOUTRAP  UIT";
+        const char* flbl = frap ? (tok ? "FOUTRAP  AAN" : "FOUTRAP  !") : "FOUTRAP  UIT";
         int ftw = strlen(flbl) * 6;
-        tft.setCursor(236 + (264 - ftw) / 2, wow_y + 2 + (34 - 8) / 2);
+        tft.setCursor(236 + (130 - ftw) / 2, wow_y + 2 + (34 - 8) / 2);
         tft.print(flbl);
+    }
+
+    // Onthoud lichtmodus toggle (midden-rechts)
+    {
+        uint16_t obg  = onthoud_licht_modus ? RGB565(0, 16, 28) : C_SURFACE2;
+        uint16_t oacc = onthoud_licht_modus ? C_CYAN : C_TEXT_DIM;
+        tft.fillRoundRect(370, wow_y + 2, 134, 34, 6, obg);
+        tft.drawRoundRect(370, wow_y + 2, 134, 34, 6, oacc);
+        tft.setTextSize(1); tft.setTextColor(oacc);
+        const char* olbl = onthoud_licht_modus ? "LICHTMODUS AAN" : "LICHTMODUS UIT";
+        int otw = strlen(olbl) * 6;
+        tft.setCursor(370 + (134 - otw) / 2, wow_y + 2 + (34 - 8) / 2);
+        tft.print(olbl);
     }
 
     // Vergrendelen (rechts)
@@ -564,12 +577,16 @@ static void cfg_instellingen_run(int x, int y) {
     int uy    = iy + 46;
     int py    = uy + 46;
 
-    // WiFi | Foutrapportage | Ontgrendelen rij (altijd vrij)
+    // WiFi | Foutrapportage | Lichtmodus onthouden | Ontgrendelen rij (altijd vrij)
     if (y >= wow_y && y < wow_y + 38) {
         if (x < 236) {
             actief_scherm = SCREEN_WIFI; scherm_bouwen = true;
-        } else if (x < 508) {
+        } else if (x < 370) {
             fout_rapportage = !fout_rapportage;
+            state_save();
+            cfg_instellingen_teken();
+        } else if (x < 508) {
+            onthoud_licht_modus = !onthoud_licht_modus;
             state_save();
             cfg_instellingen_teken();
         } else {

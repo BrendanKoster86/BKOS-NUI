@@ -252,6 +252,11 @@ Touch debouncing via `touch_verwerkt` flag; eerste touch na display wake wordt g
 | 105 | Sessie 16 | Sluitknop: rood X-blokje rechts in status bar bij standalone apps (sb_app_teken); touch op TFT_W-SB_H..TFT_W, y<SB_H → terug naar APPS | ✅ Afgerond |
 | 106 | Sessie 16 | Periodieke app-update (bkos.update) ook in standalone modus (lua_forceer_app meenemen in geen-aanraking-lus) | ✅ Afgerond |
 | 107 | Sessie 16 | Test apps aangepast: BKE GRID_Y 68→48, voorbeeld_klok nav-hint verwijderd; auto-scaling via sandbox lua_sy past alles passend | ✅ Afgerond |
+| 108 | Sessie 17 | PANEEL verlichting herschreven: LICHT_UIT=alles uit, LICHT_AAN per modus, LICHT_AUTO tijdgestuurd met twee aparte offsets (nav + interieur rood) | ✅ Afgerond |
+| 109 | Sessie 17 | Lang indrukken AUTO knop → overlay menu voor nav/int offset instelling (minuten t.o.v. zonsondergang, stap 5 min, bereik -120..+120) | ✅ Afgerond |
+| 110 | Sessie 17 | io_verlichting_update() bij opstarten (na io_boot) → verlichting direct correct na herstart | ✅ Afgerond |
+| 111 | Sessie 17 | LICHT_AUTO achtergrond update elke 60s in hw_loop, ook als andere schermen/apps actief zijn | ✅ Afgerond |
+| 112 | Sessie 17 | "Onthoud lichtmodus" toggle in CONFIG scherm (midden-rechts in wow_y rij); AAN = sla modus/instelling op, UIT = start altijd HAVEN + AUTO | ✅ Afgerond |
 
 ---
 

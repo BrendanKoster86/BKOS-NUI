@@ -14,8 +14,11 @@ bool  dev_lokaal[5]    = {false, false, false, false, false};
 byte  kleurenschema    = 0;
 byte  boot_type        = 0;
 char  zeilnummer[ZEILNR_LEN] = "";
-bool  fout_rapportage  = false;
-int   lua_forceer_app  = -1;
+bool  fout_rapportage       = false;
+int   lua_forceer_app       = -1;
+int   licht_nav_offset_min  = 0;
+int   licht_int_offset_min  = 15;
+bool  onthoud_licht_modus   = false;
 
 #define CONFIG_BESTAND "/bkos_config.csv"
 
@@ -29,18 +32,24 @@ void state_save() {
     f.printf("schema=%d\n",  (int)kleurenschema);
     f.printf("btype=%d\n",   (int)boot_type);
     f.printf("zeilnr=%s\n",  zeilnummer);
-    f.printf("foutrap=%d\n", (int)fout_rapportage);
+    f.printf("foutrap=%d\n",  (int)fout_rapportage);
+    f.printf("navoff=%d\n",   licht_nav_offset_min);
+    f.printf("intoff=%d\n",   licht_int_offset_min);
+    f.printf("onthlicht=%d\n",(int)onthoud_licht_modus);
     f.close();
 }
 
 void state_load() {
-    vaar_modus       = MODE_HAVEN;
-    licht_instelling = LICHT_UIT;
-    tft_helderheid   = 75;
-    scherm_timer     = 30;
-    kleurenschema    = 0;
-    boot_type        = 0;
-    zeilnummer[0]    = '\0';
+    vaar_modus            = MODE_HAVEN;
+    licht_instelling      = LICHT_AUTO;
+    tft_helderheid        = 75;
+    scherm_timer          = 30;
+    kleurenschema         = 0;
+    boot_type             = 0;
+    zeilnummer[0]         = '\0';
+    licht_nav_offset_min  = 0;
+    licht_int_offset_min  = 15;
+    onthoud_licht_modus   = false;
     for (int i = 0; i < 5; i++) dev_lokaal[i] = false;
 
     if (!SPIFFS.exists(CONFIG_BESTAND)) return;
@@ -66,7 +75,16 @@ void state_load() {
             strncpy(zeilnummer, val.c_str(), ZEILNR_LEN - 1);
             zeilnummer[ZEILNR_LEN - 1] = '\0';
         }
-        if (key == "foutrap") fout_rapportage = (val.toInt() != 0);
+        if (key == "foutrap")   fout_rapportage      = (val.toInt() != 0);
+        if (key == "navoff")    licht_nav_offset_min  = val.toInt();
+        if (key == "intoff")    licht_int_offset_min  = val.toInt();
+        if (key == "onthlicht") onthoud_licht_modus   = (val.toInt() != 0);
     }
     f.close();
+
+    // Als vaarmodus niet onthouden wordt: HAVEN + AUTO als standaard
+    if (!onthoud_licht_modus) {
+        vaar_modus       = MODE_HAVEN;
+        licht_instelling = LICHT_AUTO;
+    }
 }

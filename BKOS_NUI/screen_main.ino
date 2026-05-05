@@ -454,6 +454,132 @@ static void interieur_status_teken() {
     tft.print(txt);
 }
 
+// ─── AUTO verlichting overlay menu ──────────────────────────────────
+static bool licht_auto_menu_open = false;
+
+#define OVL_X   (CTRL_PANEL_X + 4)
+#define OVL_Y   (LKNOP_Y - 6)
+#define OVL_W   (CTRL_PANEL_W - 8)
+#define OVL_H   200
+
+static void _ovl_waarde_buf(char* buf, int val) {
+    if (val == 0)      snprintf(buf, 12, "bij ZO");
+    else if (val > 0)  snprintf(buf, 12, "+%d min", val);
+    else               snprintf(buf, 12, "%d min", val);
+}
+
+static void _ovl_offset_rij(int ry, const char* label, int waarde) {
+    tft.setTextSize(1); tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(OVL_X + 10, ry);
+    tft.print(label);
+
+    // [−] links
+    tft.fillRoundRect(OVL_X + 8, ry + 14, 40, 30, 5, C_SURFACE3);
+    tft.setTextSize(2); tft.setTextColor(C_TEXT);
+    tft.setCursor(OVL_X + 18, ry + 20); tft.print("-");
+
+    // [+] rechts
+    tft.fillRoundRect(OVL_X + OVL_W - 48, ry + 14, 40, 30, 5, C_SURFACE3);
+    tft.setCursor(OVL_X + OVL_W - 40, ry + 20); tft.print("+");
+
+    // Waarde gecentreerd
+    char vbuf[12]; _ovl_waarde_buf(vbuf, waarde);
+    int vtw = strlen(vbuf) * 12;
+    tft.setTextSize(2); tft.setTextColor(C_CYAN);
+    tft.setCursor(OVL_X + (OVL_W - vtw) / 2, ry + 20);
+    tft.print(vbuf);
+}
+
+static void licht_auto_menu_teken() {
+    // Achtergrond
+    tft.fillRoundRect(OVL_X, OVL_Y, OVL_W, OVL_H, 8, C_SURFACE2);
+    tft.drawRoundRect(OVL_X, OVL_Y, OVL_W, OVL_H, 8, C_CYAN);
+
+    // Titelbalk
+    tft.fillRoundRect(OVL_X, OVL_Y, OVL_W, 30, 8, C_SURFACE3);
+    tft.fillRect(OVL_X, OVL_Y + 20, OVL_W, 10, C_SURFACE3);  // vierkante onderhoek
+    tft.drawRoundRect(OVL_X, OVL_Y, OVL_W, 30, 8, C_CYAN);
+    tft.fillRect(OVL_X + 1, OVL_Y + 29, OVL_W - 2, 1, C_SURFACE2); // onderkant scheiden
+    tft.setTextSize(1); tft.setTextColor(C_CYAN);
+    tft.setCursor(OVL_X + 10, OVL_Y + 11); tft.print("AUTOMATISCHE VERLICHTING");
+
+    // X sluitknop rechts in titel
+    tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(OVL_X + OVL_W - 20, OVL_Y + 11); tft.print("X");
+
+    // Rij 1: vaarverlichting offset
+    _ovl_offset_rij(OVL_Y + 38, "Vaarverlichting (t.o.v. zonsondergang):", licht_nav_offset_min);
+
+    // Rij 2: interieur rood offset
+    _ovl_offset_rij(OVL_Y + 108, "Interieur rood (t.o.v. zonsondergang):", licht_int_offset_min);
+
+    // SLUITEN knop
+    int bx = OVL_X + OVL_W / 2 - 55;
+    int by = OVL_Y + OVL_H - 42;
+    tft.fillRoundRect(bx, by, 110, 32, 6, C_SURFACE3);
+    tft.drawRoundRect(bx, by, 110, 32, 6, C_CYAN);
+    tft.setTextSize(1); tft.setTextColor(C_CYAN);
+    tft.setCursor(bx + (110 - 7 * 6) / 2, by + 12); tft.print("SLUITEN");
+}
+
+static void licht_auto_menu_run(int x, int y) {
+    // X sluitknop
+    if (x >= OVL_X + OVL_W - 28 && x < OVL_X + OVL_W - 2 &&
+        y >= OVL_Y + 4 && y < OVL_Y + 26) {
+        licht_auto_menu_open = false;
+        screen_main_update_controls();
+        return;
+    }
+    // SLUITEN knop
+    int bx = OVL_X + OVL_W / 2 - 55;
+    int by = OVL_Y + OVL_H - 42;
+    if (x >= bx && x < bx + 110 && y >= by && y < by + 32) {
+        licht_auto_menu_open = false;
+        screen_main_update_controls();
+        return;
+    }
+
+    bool gewijzigd = false;
+
+    // Rij 1: vaarverlichting
+    int r1y = OVL_Y + 38;
+    if (y >= r1y + 14 && y < r1y + 44) {
+        if (x >= OVL_X + 8 && x < OVL_X + 48) {
+            licht_nav_offset_min = max(-120, licht_nav_offset_min - 5);
+            gewijzigd = true;
+        }
+        if (x >= OVL_X + OVL_W - 48 && x < OVL_X + OVL_W - 8) {
+            licht_nav_offset_min = min(120, licht_nav_offset_min + 5);
+            gewijzigd = true;
+        }
+    }
+    // Rij 2: interieur rood
+    int r2y = OVL_Y + 108;
+    if (y >= r2y + 14 && y < r2y + 44) {
+        if (x >= OVL_X + 8 && x < OVL_X + 48) {
+            licht_int_offset_min = max(-120, licht_int_offset_min - 5);
+            gewijzigd = true;
+        }
+        if (x >= OVL_X + OVL_W - 48 && x < OVL_X + OVL_W - 8) {
+            licht_int_offset_min = min(120, licht_int_offset_min + 5);
+            gewijzigd = true;
+        }
+    }
+
+    if (gewijzigd) {
+        state_save();
+        licht_auto_menu_teken();
+    }
+}
+
+void screen_main_lang_indruk(int x, int y) {
+    if (x >= LKNOP_X3 && x < LKNOP_X3 + LKNOP_W &&
+        y >= LKNOP_Y  && y < LKNOP_Y  + LKNOP_H) {
+        licht_auto_menu_open = true;
+        licht_auto_menu_teken();
+    }
+}
+
 // ─── Status bar ─────────────────────────────────────────────────────
 static void status_bar_teken() {
     sb_teken_basis();
@@ -614,6 +740,7 @@ static void meteo_strip_teken() {
 }
 
 void screen_main_teken() {
+    licht_auto_menu_open = false;  // sluit overlay bij volledig hertekenen
     tft.fillScreen(C_BG);
     status_bar_teken();
     scheidingslijn_teken();
@@ -653,6 +780,14 @@ void screen_main_run(int x, int y, bool aanraking) {
             meteo_strip_ms = millis();
             meteo_strip_teken();
         }
+        // Overlay bovenop hertekenen als open
+        if (licht_auto_menu_open) licht_auto_menu_teken();
+        return;
+    }
+
+    // Overlay heeft voorrang op alle andere aanrakingen
+    if (licht_auto_menu_open) {
+        licht_auto_menu_run(x, y);
         return;
     }
 

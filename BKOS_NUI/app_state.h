@@ -73,6 +73,11 @@ extern char zeilnummer[];
 // Privacy
 extern bool fout_rapportage;  // automatisch foutrapportage naar GitHub (standaard UIT)
 
+// Verlichting offset instellingen (minuten t.o.v. zonsondergang, negatief = voor ZO)
+extern int  licht_nav_offset_min;   // nav verlichting offset
+extern int  licht_int_offset_min;   // interieur rood offset
+extern bool onthoud_licht_modus;    // bewaar licht_instelling + vaar_modus na herstart
+
 // Lua app geforceerd open (ongeacht vervangt-veld); -1 = geen
 extern int lua_forceer_app;
 

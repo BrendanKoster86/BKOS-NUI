@@ -17,6 +17,12 @@ static bool          vorige_touch        = false;
 static bool          touch_verwerkt      = false;
 static unsigned long laatste_touch_ms    = 0;
 #define TOUCH_DEBOUNCE_MS  320   // minimale tijd tussen twee aparte aanrakingen
+#define LANG_DRUK_MS       700   // minimale tijd voor lang indrukken
+
+static unsigned long touch_start_ms      = 0;
+static int           touch_start_x       = -1;
+static int           touch_start_y       = -1;
+static bool          lang_druk_verwerkt  = false;
 
 void hw_setup() {
     tft_setup();
@@ -44,8 +50,9 @@ void hw_setup() {
     meteo_setup();      // laadt NVS-instellingen (snel, geen netwerk)
     ota_setup();        // init OTA (snel)
     fout_log_setup();   // laad foutrapportage token uit Preferences
-    io_boot();          // BKOSS check + UART IO discovery
-    app_setup();        // app-manifesten laden + Lua runtime initialiseren
+    io_boot();              // BKOSS check + UART IO discovery
+    io_verlichting_update(); // verlichting instellen op basis van opgestart modus
+    app_setup();            // app-manifesten laden + Lua runtime initialiseren
 
     // Splash: BKOSS status tonen
     tft.setTextSize(1);
@@ -132,9 +139,23 @@ void hw_loop() {
         }
     }
 
-    // Nieuwe aanraking: reset verwerkt-vlag
+    // Nieuwe aanraking: reset verwerkt-vlag + begin lang-druk tracking
     if (aanraking && !vorige_touch) {
-        touch_verwerkt = false;
+        touch_verwerkt      = false;
+        touch_start_ms      = millis();
+        touch_start_x       = ts_x;
+        touch_start_y       = ts_y;
+        lang_druk_verwerkt  = false;
+    }
+    if (!aanraking) lang_druk_verwerkt = false;
+
+    // Lang indrukken detectie (alleen SCREEN_MAIN, vóór debounce verwerking)
+    if (aanraking && !lang_druk_verwerkt &&
+        millis() - touch_start_ms >= LANG_DRUK_MS &&
+        actief_scherm == SCREEN_MAIN) {
+        lang_druk_verwerkt = true;
+        touch_verwerkt     = true;  // consumeer de aanraking
+        screen_main_lang_indruk(touch_start_x, touch_start_y);
     }
 
     // Wake-touch consumeren (eerste touch na donker scherm)
@@ -212,6 +233,16 @@ void hw_loop() {
     if (millis() - data_opgeslagen_ms >= 60000) {
         data_opgeslagen_ms = millis();
         data_opslaan();
+    }
+
+    // Periodieke verlichting update voor LICHT_AUTO (ook tijdens andere schermen/apps)
+    static unsigned long licht_auto_ms = 0;
+    if (millis() - licht_auto_ms >= 60000) {
+        licht_auto_ms = millis();
+        if (licht_instelling == LICHT_AUTO) {
+            io_verlichting_update();
+            if (actief_scherm == SCREEN_MAIN) scherm_bouwen = true;
+        }
     }
 
     // WiFi OTA modus aan/uit o.b.v. actief scherm (SCREEN_OTA = 6, niet meer in nav bar)

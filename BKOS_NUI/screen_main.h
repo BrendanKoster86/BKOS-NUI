@@ -62,5 +62,6 @@ void screen_main_teken();
 void screen_main_run(int x, int y, bool aanraking);
 void screen_main_update_boot();
 void screen_main_update_controls();
+void screen_main_lang_indruk(int x, int y);
 void boot_teken();
 void boot_lichten_teken();
