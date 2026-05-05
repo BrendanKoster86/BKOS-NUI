@@ -37,5 +37,18 @@
     "api_versie"  : 1,
     "grootte_kb": 40,
     "actief"      : true
+  },
+  {
+    "id"          : "dam",
+    "naam"        : "Damspel",
+    "versie"      : "1.0.0",
+    "auteur"      : "Claude",
+    "beschrijving": "Dam: speel tegen een andere speler of de computer (3 niveaus).",
+    "scherm_b"    : 800,
+    "scherm_h"    : 480,
+    "vervangt"    : -1,
+    "api_versie"  : 1,
+    "grootte_kb": 27,
+    "actief"      : true
   }
 ]
