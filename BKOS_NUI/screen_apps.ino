@@ -86,6 +86,9 @@ static void _apps_rij_links(int y, int app_idx, int visueel_idx) {
     tft.print(" v");
     tft.print(m.versie);
 
+    // OPEN knop
+    ui_knop(APPS_PNL_W - 170, y + 15, 52, 26, "OPEN", C_SURFACE2, m.actief ? C_CYAN : C_TEXT_DIM);
+
     // Schakelaar
     bool aan = m.actief;
     tft.fillRoundRect(APPS_PNL_W - 110, y + 16, 52, 26, 13, aan ? C_GREEN : C_SURFACE3);
@@ -587,6 +590,17 @@ void screen_apps_run(int x, int y, bool aanraking) {
                 lua_app_sluiten();
                 lua_setup();
                 scherm_bouwen = true;
+                return;
+            }
+            // OPEN knop — start app als standalone scherm
+            if (x >= APPS_PNL_W - 170 && x <= APPS_PNL_W - 118 &&
+                y >= rij_y + 15 && y <= rij_y + 41) {
+                if (apps[idx].actief) {
+                    lua_forceer_app = idx;
+                    actief_scherm   = SCREEN_LUA_APP;
+                    scherm_bouwen   = true;
+                }
+                return;
             }
         }
         return;

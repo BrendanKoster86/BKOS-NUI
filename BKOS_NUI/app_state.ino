@@ -15,6 +15,7 @@ byte  kleurenschema    = 0;
 byte  boot_type        = 0;
 char  zeilnummer[ZEILNR_LEN] = "";
 bool  fout_rapportage  = false;
+int   lua_forceer_app  = -1;
 
 #define CONFIG_BESTAND "/bkos_config.csv"
 

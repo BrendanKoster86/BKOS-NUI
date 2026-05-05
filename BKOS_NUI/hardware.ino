@@ -88,9 +88,11 @@ void hw_loop() {
     if (scherm_bouwen) {
         scherm_bouwen = false;
         touch_verwerkt = false;
-        int app_idx = app_voor_scherm(actief_scherm);
+        // lua_forceer_app heeft voorrang boven scherm-toewijzing
+        int app_idx = (lua_forceer_app >= 0 && lua_forceer_app < apps_cnt)
+                      ? lua_forceer_app
+                      : app_voor_scherm(actief_scherm);
         if (app_idx >= 0) {
-            // Lua-app vervangt dit scherm: laad alleen bij schermwissel
             static int lua_geladen_voor = -1;
             static int lua_geladen_app  = -1;
             if (actief_scherm != lua_geladen_voor || app_idx != lua_geladen_app) {
@@ -101,15 +103,20 @@ void hw_loop() {
             lua_app_teken(app_idx);
         } else {
             switch (actief_scherm) {
-                case SCREEN_MAIN:   screen_main_teken();   break;
-                case SCREEN_IO:     screen_io_teken();     break;
-                case SCREEN_METEO:  screen_meteo_teken();  break;
-                case SCREEN_CONFIG: screen_config_teken(); break;
-                case SCREEN_OTA:    screen_ota_teken();    break;
-                case SCREEN_INFO:   screen_info_teken();   break;
-                case SCREEN_WIFI:   screen_wifi_teken();   break;
-                case SCREEN_IO_CFG: screen_io_cfg_teken(); break;
-                case SCREEN_APPS:   screen_apps_teken();   break;
+                case SCREEN_MAIN:    screen_main_teken();   break;
+                case SCREEN_IO:      screen_io_teken();     break;
+                case SCREEN_METEO:   screen_meteo_teken();  break;
+                case SCREEN_CONFIG:  screen_config_teken(); break;
+                case SCREEN_OTA:     screen_ota_teken();    break;
+                case SCREEN_INFO:    screen_info_teken();   break;
+                case SCREEN_WIFI:    screen_wifi_teken();   break;
+                case SCREEN_IO_CFG:  screen_io_cfg_teken(); break;
+                case SCREEN_APPS:    screen_apps_teken();   break;
+                case SCREEN_LUA_APP: // forceer verlopen — terug naar apps
+                    lua_forceer_app = -1;
+                    actief_scherm   = SCREEN_APPS;
+                    screen_apps_teken();
+                    break;
             }
         }
     }
@@ -123,20 +130,22 @@ void hw_loop() {
     if (scherm_net_gewekt && aanraking) {
         scherm_net_gewekt = false;
         touch_verwerkt = true;
-        laatste_touch_ms = millis();  // debounce zodat vastgehouden vinger ook genegeerd wordt
+        laatste_touch_ms = millis();
     } else if (aanraking && !touch_verwerkt) {
-        // Debounce: minimale tijd tussen twee aparte aanrakingen
         if (millis() - laatste_touch_ms >= TOUCH_DEBOUNCE_MS) {
             touch_verwerkt = true;
             laatste_touch_ms = millis();
             {
-                int app_idx = app_voor_scherm(actief_scherm);
+                int app_idx = (lua_forceer_app >= 0 && lua_forceer_app < apps_cnt)
+                              ? lua_forceer_app
+                              : app_voor_scherm(actief_scherm);
                 if (app_idx >= 0) {
-                    // Nav bar altijd bereikbaar (bovenste schermhelft = app, onder = nav)
                     int nav = nav_bar_klik(ts_x, ts_y);
-                    if (nav >= 0 && nav != actief_scherm) {
+                    if (nav >= 0 && (nav != actief_scherm || lua_forceer_app >= 0)) {
                         lua_app_sluiten();
-                        actief_scherm = nav; scherm_bouwen = true;
+                        lua_forceer_app = -1;
+                        actief_scherm   = (nav == SCREEN_LUA_APP) ? SCREEN_APPS : nav;
+                        scherm_bouwen   = true;
                     } else {
                         lua_app_run(app_idx, ts_x, ts_y, true);
                     }
@@ -155,7 +164,7 @@ void hw_loop() {
                 }
             }
         } else {
-            touch_verwerkt = true;  // te snel na vorige touch — negeren
+            touch_verwerkt = true;
         }
     }
 

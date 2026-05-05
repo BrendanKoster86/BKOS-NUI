@@ -12,6 +12,7 @@
 #define SCREEN_OTA     6  // niet in nav bar, via CONFIG → UPDATEN
 #define SCREEN_IO_CFG  7  // niet in nav bar, toegankelijk via config scherm
 #define SCREEN_APPS    8  // app beheer + winkel
+#define SCREEN_LUA_APP 9  // standalone Lua app (lua_forceer_app bepaalt welke)
 
 // Vaarmodi
 #define MODE_HAVEN   0
@@ -71,6 +72,9 @@ extern char zeilnummer[];
 
 // Privacy
 extern bool fout_rapportage;  // automatisch foutrapportage naar GitHub (standaard UIT)
+
+// Lua app geforceerd open (ongeacht vervangt-veld); -1 = geen
+extern int lua_forceer_app;
 
 void state_save();
 void state_load();
