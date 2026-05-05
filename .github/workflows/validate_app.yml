@@ -144,7 +144,7 @@ jobs:
             #    willen dit ook bij review signaleren.
             declare -A PATRONEN=(
               ["io\\."]="bestandssysteem-toegang (io.*)"
-              ["os\\."]="OS-systeemaanroepen (os.*)"
+              # ["os\\."]="OS-systeemaanroepen (os.*)"  # os. komt ook voor in bkos. dus deze uitsluiten gaat niet helaas.
               ["dofile"]="bestandsuitvoering (dofile)"
               ["loadfile"]="bestandsladen (loadfile)"
               ["require"]="module-import (require)"
