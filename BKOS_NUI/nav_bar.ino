@@ -77,6 +77,25 @@ void sb_scherm_teken(const char* titel, uint16_t kleur) {
     tft.print(titel);
 }
 
+// ─── Status bar voor standalone Lua-app met rode X sluitknop ─────────────
+// Sluitknop zone: x >= TFT_W - SB_H, y < SB_H
+void sb_app_teken(const char* app_naam) {
+    sb_teken_basis();
+
+    tft.setTextSize(2);
+    tft.setTextColor(C_CYAN);
+    tft.setCursor(86, (SB_H - 16) / 2);
+    tft.print(app_naam);
+
+    int bx = TFT_W - SB_H;
+    tft.fillRect(bx, 0, SB_H, SB_H, C_RED_BRIGHT);
+    tft.drawFastVLine(bx, 0, SB_H, C_SURFACE3);
+    tft.setTextSize(2);
+    tft.setTextColor(C_TEXT);
+    tft.setCursor(bx + (SB_H - 12) / 2, (SB_H - 16) / 2);
+    tft.print("X");
+}
+
 // ─── Navigatiebalk onderaan ───────────────────────────────────────────────
 void nav_bar_teken() {
     int y = NAV_Y;

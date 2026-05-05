@@ -25,11 +25,13 @@ extern char  lua_fout_tekst[];
 #define LUA_FOUT_LEN 128
 
 void lua_setup();
-bool lua_app_laden(int app_idx);
+bool lua_app_laden(int app_idx, bool sandbox = false);
 void lua_app_teken(int app_idx);
 void lua_app_run(int app_idx, int x, int y, bool aanraking);
 void lua_app_sluiten();
 
 // Schaalvariabelen (app design → schermcoördinaten)
-extern float lua_sx;  // schaal X
-extern float lua_sy;  // schaal Y
+extern float lua_sx;          // schaal X
+extern float lua_sy;          // schaal Y
+extern bool  lua_sandbox_modus; // true = standalone app in sandbox (SB_H..NAV_Y)
+extern int   lua_y_offset;      // SB_H bij sandbox, anders 0

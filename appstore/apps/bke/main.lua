@@ -16,10 +16,10 @@ local winnaar         = LEEG
 local spel_klaar      = false
 local gelijkspel      = false
 
--- Layout (ontworpen voor 800×480)
+-- Layout (ontworpen voor 800×480; header/footer worden door BKOS-NUI beheerd)
 local CEL     = 120        -- pixels per cel
 local GRID_X  = (bkos.W - 3 * CEL) / 2   -- horizontaal gecentreerd = 220
-local GRID_Y  = 68         -- ruimte voor statusbalk bovenaan
+local GRID_Y  = 48         -- ruimte voor status-/beurt-tekst bovenaan
 local RAND    = 16         -- marge binnen elke cel voor symbool
 
 -- Kleuren

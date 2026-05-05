@@ -24,7 +24,8 @@ bool        winkel_geladen = false;
 
 // ─── Bestandspaden ───────────────────────────────────────────────────────────
 static String _manifest_pad(const char* id) {
-    return String("/app_") + id + "_manifest.json";
+    // "_m.json" i.p.v. "_manifest.json" — SPIFFS max 31 tekens (excl. /)
+    return String("/app_") + id + "_m.json";
 }
 
 static String _lua_pad(const char* id) {
@@ -96,7 +97,12 @@ void app_manifesten_laden() {
     for (const char* id : ids) {
         if (!id || apps_cnt >= APP_MAX) break;
         String pad = _manifest_pad(id);
-        if (!SPIFFS.exists(pad)) continue;
+        if (!SPIFFS.exists(pad)) {
+            // Migratie: probeer oude naam "_manifest.json"
+            String oud = String("/app_") + id + "_manifest.json";
+            if (SPIFFS.exists(oud)) pad = oud;
+            else continue;
+        }
         File mf = SPIFFS.open(pad, "r");
         if (!mf) continue;
         JsonDocument doc;
@@ -194,9 +200,14 @@ static int _ins_winkel_idx = -1;
 
 static void _installeer_taak(void* param) {
     int idx = _ins_winkel_idx;
+    // Vergrendel WiFi meteen — race met netwerk_taak voorkomen
+    wifi_ota_modus = true;
+
     if (idx < 0 || idx >= winkel_cnt) {
-        strncpy(app_ins_bericht, "Ongeldig app-index", sizeof(app_ins_bericht) - 1);
+        snprintf(app_ins_bericht, sizeof(app_ins_bericht),
+                 "Ongeldig index %d (winkel: %d)", idx, winkel_cnt);
         app_ins_status = APP_INS_MISLUKT;
+        wifi_ota_modus = false;
         vTaskDelete(NULL); return;
     }
     // Maak een lokale kopie zodat de winkel-array veilig is
@@ -214,12 +225,10 @@ static void _installeer_taak(void* param) {
     if (WiFi.status() != WL_CONNECTED) {
         strncpy(app_ins_bericht, "Geen WiFi verbinding", sizeof(app_ins_bericht) - 1);
         app_ins_status = APP_INS_MISLUKT;
+        wifi_ota_modus = false;
         vTaskDelete(NULL); return;
     }
     wifi_verbonden = true;
-
-    // Voorkom dat netwerk_taak WiFi verbreekt terwijl wij downloaden
-    wifi_ota_modus = true;
 
     // Stap 2: Download main.lua
     app_ins_status = APP_INS_DOWNLOADEN;

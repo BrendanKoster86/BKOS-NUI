@@ -19,3 +19,4 @@ void nav_bar_teken();
 int  nav_bar_klik(int x, int y);
 void sb_teken_basis();                                     // achtergrond + WiFi + BT + Alert + klok
 void sb_scherm_teken(const char* titel, uint16_t kleur);  // sb_teken_basis + schermnaam
+void sb_app_teken(const char* app_naam);                  // status bar voor standalone app + rood X sluitknop

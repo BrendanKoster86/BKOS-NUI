@@ -93,14 +93,25 @@ void hw_loop() {
                       ? lua_forceer_app
                       : app_voor_scherm(actief_scherm);
         if (app_idx >= 0) {
-            static int lua_geladen_voor = -1;
-            static int lua_geladen_app  = -1;
-            if (actief_scherm != lua_geladen_voor || app_idx != lua_geladen_app) {
-                lua_app_laden(app_idx);
-                lua_geladen_voor = actief_scherm;
-                lua_geladen_app  = app_idx;
+            bool is_standalone = (lua_forceer_app >= 0 && app_idx == lua_forceer_app);
+            static int  lua_geladen_voor    = -1;
+            static int  lua_geladen_app     = -1;
+            static bool lua_geladen_sandbox = false;
+            if (actief_scherm != lua_geladen_voor || app_idx != lua_geladen_app
+                    || lua_geladen_sandbox != is_standalone) {
+                lua_app_laden(app_idx, is_standalone);
+                lua_geladen_voor    = actief_scherm;
+                lua_geladen_app     = app_idx;
+                lua_geladen_sandbox = is_standalone;
             }
-            lua_app_teken(app_idx);
+            if (is_standalone) {
+                // BKOS-NUI beheert de header (met sluitknop) en footer
+                sb_app_teken(apps[app_idx].naam);
+                lua_app_teken(app_idx);   // tekent alleen in sandbox (y=SB_H..NAV_Y)
+                nav_bar_teken();
+            } else {
+                lua_app_teken(app_idx);   // full-screen schermvervanging
+            }
         } else {
             switch (actief_scherm) {
                 case SCREEN_MAIN:    screen_main_teken();   break;
@@ -140,14 +151,23 @@ void hw_loop() {
                               ? lua_forceer_app
                               : app_voor_scherm(actief_scherm);
                 if (app_idx >= 0) {
-                    int nav = nav_bar_klik(ts_x, ts_y);
-                    if (nav >= 0 && (nav != actief_scherm || lua_forceer_app >= 0)) {
+                    bool is_standalone = (lua_forceer_app >= 0 && app_idx == lua_forceer_app);
+                    // Rode X sluitknop (rechts in status bar) — alleen standalone
+                    if (is_standalone && ts_y < SB_H && ts_x >= TFT_W - SB_H) {
                         lua_app_sluiten();
                         lua_forceer_app = -1;
-                        actief_scherm   = (nav == SCREEN_LUA_APP) ? SCREEN_APPS : nav;
+                        actief_scherm   = SCREEN_APPS;
                         scherm_bouwen   = true;
                     } else {
-                        lua_app_run(app_idx, ts_x, ts_y, true);
+                        int nav = nav_bar_klik(ts_x, ts_y);
+                        if (nav >= 0 && (nav != actief_scherm || lua_forceer_app >= 0)) {
+                            lua_app_sluiten();
+                            lua_forceer_app = -1;
+                            actief_scherm   = (nav == SCREEN_LUA_APP) ? SCREEN_APPS : nav;
+                            scherm_bouwen   = true;
+                        } else {
+                            lua_app_run(app_idx, ts_x, ts_y, true);
+                        }
                     }
                 } else {
                     switch (actief_scherm) {
@@ -171,7 +191,10 @@ void hw_loop() {
     // Geen aanraking: periodieke updates
     if (!aanraking) {
         touch_verwerkt = false;
-        int app_upd = app_voor_scherm(actief_scherm);
+        // lua_forceer_app ook meenemen voor standalone app-updates (klok, etc.)
+        int app_upd = (lua_forceer_app >= 0 && lua_forceer_app < apps_cnt)
+                      ? lua_forceer_app
+                      : app_voor_scherm(actief_scherm);
         if (app_upd >= 0) {
             lua_app_run(app_upd, 0, 0, false);
         } else {

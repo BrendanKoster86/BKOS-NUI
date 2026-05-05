@@ -6,10 +6,12 @@
 #include "ota.h"
 #include <SPIFFS.h>
 
-bool  lua_fout_actief = false;
+bool  lua_fout_actief   = false;
 char  lua_fout_tekst[LUA_FOUT_LEN] = "";
-float lua_sx = 1.0f;
-float lua_sy = 1.0f;
+float lua_sx            = 1.0f;
+float lua_sy            = 1.0f;
+bool  lua_sandbox_modus = false;
+int   lua_y_offset      = 0;
 
 static int lua_app_huidig = -1;
 
@@ -30,7 +32,7 @@ static void* lua_bkos_alloc(void* ud, void* ptr, size_t osize, size_t nsize) {
 // ─── bkos.scherm ─────────────────────────────────────────────────────────────
 static int l_vul(lua_State* ls) {
     int x = (int)(luaL_checkinteger(ls, 1) * lua_sx);
-    int y = (int)(luaL_checkinteger(ls, 2) * lua_sy);
+    int y = (int)(luaL_checkinteger(ls, 2) * lua_sy) + lua_y_offset;
     int b = (int)(luaL_checkinteger(ls, 3) * lua_sx);
     int h = (int)(luaL_checkinteger(ls, 4) * lua_sy);
     uint16_t kl = (uint16_t)luaL_checkinteger(ls, 5);
@@ -40,9 +42,9 @@ static int l_vul(lua_State* ls) {
 
 static int l_lijn(lua_State* ls) {
     int x1 = (int)(luaL_checkinteger(ls, 1) * lua_sx);
-    int y1 = (int)(luaL_checkinteger(ls, 2) * lua_sy);
+    int y1 = (int)(luaL_checkinteger(ls, 2) * lua_sy) + lua_y_offset;
     int x2 = (int)(luaL_checkinteger(ls, 3) * lua_sx);
-    int y2 = (int)(luaL_checkinteger(ls, 4) * lua_sy);
+    int y2 = (int)(luaL_checkinteger(ls, 4) * lua_sy) + lua_y_offset;
     uint16_t kl = (uint16_t)luaL_checkinteger(ls, 5);
     tft.drawLine(x1, y1, x2, y2, kl);
     return 0;
@@ -50,7 +52,7 @@ static int l_lijn(lua_State* ls) {
 
 static int l_tekst(lua_State* ls) {
     int x    = (int)(luaL_checkinteger(ls, 1) * lua_sx);
-    int y    = (int)(luaL_checkinteger(ls, 2) * lua_sy);
+    int y    = (int)(luaL_checkinteger(ls, 2) * lua_sy) + lua_y_offset;
     const char* t = luaL_checkstring(ls, 3);
     int sz   = (int)luaL_checkinteger(ls, 4);
     uint16_t kl = (uint16_t)luaL_checkinteger(ls, 5);
@@ -63,7 +65,7 @@ static int l_tekst(lua_State* ls) {
 
 static int l_cirkel(lua_State* ls) {
     int cx = (int)(luaL_checkinteger(ls, 1) * lua_sx);
-    int cy = (int)(luaL_checkinteger(ls, 2) * lua_sy);
+    int cy = (int)(luaL_checkinteger(ls, 2) * lua_sy) + lua_y_offset;
     int r  = (int)(luaL_checkinteger(ls, 3) * ((lua_sx + lua_sy) / 2.0f));
     uint16_t kl = (uint16_t)luaL_checkinteger(ls, 4);
     bool gevuld = lua_toboolean(ls, 5);
@@ -119,7 +121,7 @@ static int l_digitalWrite(lua_State* ls) {
 
 static int l_drawCircle(lua_State* ls) {
     int cx = (int)(luaL_checkinteger(ls, 1) * lua_sx);
-    int cy = (int)(luaL_checkinteger(ls, 2) * lua_sy);
+    int cy = (int)(luaL_checkinteger(ls, 2) * lua_sy) + lua_y_offset;
     int r  = (int)(luaL_checkinteger(ls, 3) * ((lua_sx + lua_sy) * 0.5f));
     uint16_t kl = (uint16_t)luaL_checkinteger(ls, 4);
     tft.drawCircle(cx, cy, r, kl);
@@ -128,7 +130,7 @@ static int l_drawCircle(lua_State* ls) {
 
 static int l_fillCircle(lua_State* ls) {
     int cx = (int)(luaL_checkinteger(ls, 1) * lua_sx);
-    int cy = (int)(luaL_checkinteger(ls, 2) * lua_sy);
+    int cy = (int)(luaL_checkinteger(ls, 2) * lua_sy) + lua_y_offset;
     int r  = (int)(luaL_checkinteger(ls, 3) * ((lua_sx + lua_sy) * 0.5f));
     uint16_t kl = (uint16_t)luaL_checkinteger(ls, 4);
     tft.fillCircle(cx, cy, r, kl);
@@ -373,14 +375,18 @@ void lua_setup() {
     lua_registreer_api(L);
 }
 
-bool lua_app_laden(int app_idx) {
+bool lua_app_laden(int app_idx, bool sandbox) {
     if (!L || app_idx < 0 || app_idx >= apps_cnt) return false;
-    lua_fout_actief = false;
-    lua_app_huidig  = app_idx;
+    lua_fout_actief   = false;
+    lua_app_huidig    = app_idx;
+    lua_sandbox_modus = sandbox;
+    lua_y_offset      = sandbox ? SB_H : 0;
 
     AppManifest& app = apps[app_idx];
-    lua_sx = (float)TFT_W / max(1, app.scherm_b);
-    lua_sy = (float)TFT_H / max(1, app.scherm_h);
+    lua_sx = (float)TFT_W  / max(1, app.scherm_b);
+    lua_sy = sandbox
+             ? (float)CONTENT_H / max(1, app.scherm_h)
+             : (float)TFT_H     / max(1, app.scherm_h);
 
     // Laad het main.lua bestand vanuit SPIFFS
     String pad = app_pad(app.id);   // geeft /app_<id>_main.lua
@@ -406,13 +412,13 @@ bool lua_app_laden(int app_idx) {
 
 void lua_app_teken(int app_idx) {
     if (lua_fout_actief) {
-        tft.fillScreen(C_BG);
+        int ey = lua_y_offset;
+        int eh = lua_sandbox_modus ? CONTENT_H : TFT_H;
+        tft.fillRect(0, ey, TFT_W, eh, C_BG);
         tft.setTextSize(1);
         tft.setTextColor(C_RED_BRIGHT);
-        tft.setCursor(10, 50);
-        tft.println("Lua fout:");
-        tft.setTextColor(C_TEXT);
-        tft.setCursor(10, 70);
+        tft.setCursor(10, ey + 10);
+        tft.print("Lua fout: ");
         tft.println(lua_fout_tekst);
         return;
     }
@@ -423,9 +429,9 @@ void lua_app_teken(int app_idx) {
 void lua_app_run(int app_idx, int x, int y, bool aanraking) {
     if (lua_fout_actief || !L) return;
     if (aanraking) {
-        // Schaal schermcoördinaten terug naar app-ontwerpruimte
+        // Schaal terug naar app-ontwerpruimte (y_offset aftrekken vóór schalen)
         int app_x = (lua_sx > 0.01f) ? (int)(x / lua_sx) : x;
-        int app_y = (lua_sy > 0.01f) ? (int)(y / lua_sy) : y;
+        int app_y = (lua_sy > 0.01f) ? (int)((y - lua_y_offset) / lua_sy) : y;
         _callback("aanraking", 2, app_x, app_y);
     } else {
         _callback("update", 0);

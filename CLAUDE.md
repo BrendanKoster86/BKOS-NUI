@@ -247,6 +247,11 @@ Touch debouncing via `touch_verwerkt` flag; eerste touch na display wake wordt g
 | 100 | Sessie 14 | BKOS_APP_HANDLEIDING.md bijgewerkt: Arduino aliassen, poortnummer-notatie, drawCircle/fillCircle | ✅ Afgerond |
 | 101 | Sessie 15 | fout_log.h + fout_log.cpp: foutrapportage naar GitHub Issues (BKOS-NUI-logs); privacy-toggle + TOKEN INSTELLEN in CONFIG | ✅ Afgerond |
 | 102 | Sessie 15 | App installatie WiFi-fix: WiFi.status() ipv bool, wifi_ota_modus lock tijdens download, vTaskDelay in wacht-loops | ✅ Afgerond |
+| 103 | Sessie 16 | SPIFFS bestandsnaam-fix: "/app_voorbeeld_klok_manifest.json" = 32 tekens → overschrijdt SPIFFS limiet (31); verkort naar "_m.json"; migratie voor bestaande apps | ✅ Afgerond |
+| 104 | Sessie 16 | App sandbox: standalone Lua-apps draaien in content-gebied (y=SB_H..NAV_Y); BKOS-NUI beheert header+footer; lua_y_offset+sandbox-schaling in alle tekenfuncties | ✅ Afgerond |
+| 105 | Sessie 16 | Sluitknop: rood X-blokje rechts in status bar bij standalone apps (sb_app_teken); touch op TFT_W-SB_H..TFT_W, y<SB_H → terug naar APPS | ✅ Afgerond |
+| 106 | Sessie 16 | Periodieke app-update (bkos.update) ook in standalone modus (lua_forceer_app meenemen in geen-aanraking-lus) | ✅ Afgerond |
+| 107 | Sessie 16 | Test apps aangepast: BKE GRID_Y 68→48, voorbeeld_klok nav-hint verwijderd; auto-scaling via sandbox lua_sy past alles passend | ✅ Afgerond |
 
 ---
 

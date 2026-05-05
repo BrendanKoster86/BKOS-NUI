@@ -43,9 +43,6 @@ function bkos.teken()
     bkos.vul(bkos.W/2 - 80, 340, 160, 60, knop_kleur)
     bkos.tekst(bkos.W/2 - 36, 362, lamp_staat and "AAN" or "UIT", 2, C_TEXT)
     bkos.tekst(bkos.W/2 - 22, 384, LAMP_NAAM, 1, C_DIM)
-
-    -- Navigatie-hint
-    bkos.tekst(10, bkos.H - 50, "Gebruik de nav-balk om terug te gaan", 1, C_DIM)
 end
 
 -- Aanraking verwerken
