@@ -6,6 +6,7 @@ on:
     paths:
       - 'BKOS_NUI/**.ino'
       - 'BKOS_NUI/**.h'
+      - 'BKOS_NUI/**.cpp'
       - '.github/workflows/build.yml'
 
 permissions:
