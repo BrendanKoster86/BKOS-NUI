@@ -257,6 +257,8 @@ Touch debouncing via `touch_verwerkt` flag; eerste touch na display wake wordt g
 | 110 | Sessie 17 | io_verlichting_update() bij opstarten (na io_boot) → verlichting direct correct na herstart | ✅ Afgerond |
 | 111 | Sessie 17 | LICHT_AUTO achtergrond update elke 60s in hw_loop, ook als andere schermen/apps actief zijn | ✅ Afgerond |
 | 112 | Sessie 17 | "Onthoud lichtmodus" toggle in CONFIG scherm (midden-rechts in wow_y rij); AAN = sla modus/instelling op, UIT = start altijd HAVEN + AUTO | ✅ Afgerond |
+| 113 | Sessie 18 | Coördinatenstelsel overhaul: 1:1 pixels standaard, bkos.H = CONTENT_H = 396; app.schaal "evenredig"/"onevenredig" voor schaalbare apps | ✅ Afgerond |
+| 114 | Sessie 18 | Pico port fasen 1-3: platform.h (ESP32/Pico defines), platform_fs.h (SPIFFS/LittleFS alias), hw_scherm (GFX pointer), hw_touch (GT911/XPT2046), wifi/ota/lua/app_manager/fout_log conditioneel; CI Pico build job | ✅ Afgerond |
 
 ---
 
