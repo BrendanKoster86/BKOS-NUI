@@ -1,0 +1,12 @@
+{
+  "id"          : "tekenapp",
+  "naam"        : "Teken App",
+  "versie"      : "1.0.0",
+  "auteur"      : "Claude",
+  "beschrijving": "Touch kalibratie: zwart scherm, vinger = witte stip.",
+  "scherm_b"    : 800,
+  "scherm_h"    : 480,
+  "vervangt"    : -1,
+  "api_versie"  : 1,
+  "actief"      : true
+}
