@@ -204,9 +204,11 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────────
   # Job 2: Auto-merge — alleen als scope en checks kloppen
   # Vereisten: alleen appstore-bestanden + geen scherm-override + validatie OK
+  # index.json wordt NIET hier bijgewerkt — dat doet sync_index.yml automatisch
+  # na de merge-commit op main. Zo voorkomt dit geen nieuwe CI-run op de PR.
   # ─────────────────────────────────────────────────────────────────────────────
   auto_samenvoegen:
-    name: Index bijwerken en PR samenvoegen
+    name: PR automatisch samenvoegen
     runs-on: ubuntu-latest
     needs: valideer
     if: |
@@ -215,76 +217,10 @@ jobs:
       needs.valideer.outputs.scherm_override == 'false'
 
     steps:
-      - name: Checkout PR branch
+      - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
-
-      - name: Installeer jq
-        run: sudo apt-get install -y jq
-
-      - name: index.json bijwerken
-        id: idx
-        run: |
-          GEWIJZIGD="${{ needs.valideer.outputs.app_ids }}"
-          VERANDERD=false
-
-          for ID in $GEWIJZIGD; do
-            MAN="appstore/apps/$ID/manifest.json"
-            [ ! -f "$MAN" ] && echo "Geen manifest voor $ID, sla over" && continue
-
-            # Grootte berekenen op basis van alle bestanden in de app-map
-            BYTES=0
-            for F in appstore/apps/$ID/*; do
-              [ -f "$F" ] && BYTES=$((BYTES + $(wc -c < "$F")))
-            done
-            KB=$(( (BYTES + 1023) / 1024 ))
-            [ $KB -lt 1 ] && KB=1
-
-            # Nieuw index-item samenstellen uit manifest + berekende grootte
-            ITEM=$(jq -n \
-              --argjson src "$(cat "$MAN")" \
-              --argjson kb "$KB" \
-              '$src | {
-                id,naam,versie,auteur,
-                beschrijving: (.beschrijving // ""),
-                scherm_b:     (.scherm_b  // 800),
-                scherm_h:     (.scherm_h  // 480),
-                vervangt:     (.vervangt  // -1),
-                api_versie:   (.api_versie // 1),
-                grootte_kb:   $kb,
-                actief:       true
-              }')
-
-            IN=$(jq -r --arg id "$ID" \
-              '.[] | select(.id == $id) | .id' appstore/index.json 2>/dev/null || true)
-
-            if [ -z "$IN" ]; then
-              echo "Toevoegen aan index: $ID"
-              jq --argjson item "$ITEM" '. += [$item]' appstore/index.json > /tmp/idx.json
-            else
-              echo "Bijwerken in index: $ID"
-              jq --arg id "$ID" --argjson item "$ITEM" \
-                'map(if .id == $id then $item else . end)' \
-                appstore/index.json > /tmp/idx.json
-            fi
-            mv /tmp/idx.json appstore/index.json
-            VERANDERD=true
-          done
-
-          echo "veranderd=$VERANDERD" >> "$GITHUB_OUTPUT"
-
-      - name: Commit bijgewerkte index.json
-        if: steps.idx.outputs.veranderd == 'true'
-        run: |
-          git config user.name  "BKOS App Bot"
-          git config user.email "actions@github.com"
-          git add appstore/index.json
-          git diff --cached --quiet || \
-            git commit -m "bot: index.json bijgewerkt voor [${{ needs.valideer.outputs.app_ids }}]"
-          git push
 
       - name: PR samenvoegen
         env:
@@ -293,4 +229,4 @@ jobs:
           gh pr merge ${{ github.event.pull_request.number }} \
             --merge \
             --subject "Auto-merge: ${{ github.event.pull_request.title }}" \
-            --body "Automatisch samengevoegd — alle app-checks geslaagd en index.json bijgewerkt."
+            --body "Automatisch samengevoegd — alle app-checks geslaagd. index.json wordt via sync_index bijgewerkt."

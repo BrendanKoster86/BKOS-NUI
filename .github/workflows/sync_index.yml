@@ -9,7 +9,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'appstore/apps/**/manifest.json'
+      - 'appstore/apps/**'
 
 permissions:
   contents: write
