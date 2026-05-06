@@ -193,10 +193,12 @@ static void _apps_rij_rechts(int y, int winkel_idx, int visueel_idx) {
     tft.print(" v");
     tft.print(m.versie);
 
-    bool al_actief = (app_vindt(m.id) >= 0);
-    ui_knop(TFT_W - 112, y + 15, 100, 26,
-            al_actief ? "GEINSTALL." : "INSTALLEER",
-            C_SURFACE2, al_actief ? C_SURFACE3 : C_CYAN);
+    int  inst_idx     = app_vindt(m.id);
+    bool geinstall    = (inst_idx >= 0);
+    bool update_av    = geinstall && strcmp(apps[inst_idx].versie, m.versie) != 0;
+    const char* lbl   = geinstall ? (update_av ? "UPDATE" : "GEINSTALL.") : "INSTALLEER";
+    uint16_t    kleur = geinstall ? (update_av ? C_AMBER  : C_SURFACE3)   : C_CYAN;
+    ui_knop(TFT_W - 112, y + 15, 100, 26, lbl, C_SURFACE2, kleur);
 }
 
 static void _apps_winkel_teken() {
@@ -276,19 +278,26 @@ static void _apps_popup_teken() {
     tft.fillRoundRect(POP_X, POP_Y, POP_W, POP_H, 10, C_SURFACE);
     tft.drawRoundRect(POP_X, POP_Y, POP_W, POP_H, 10, C_CYAN);
 
-    // Titel
+    // Titel (bijwerken of nieuw installeren)
+    int  pop_inst_idx  = app_vindt(m.id);
+    bool pop_is_update = (pop_inst_idx >= 0);
     tft.setTextSize(2);
     tft.setTextColor(C_CYAN);
     tft.setCursor(POP_X + 18, POP_Y + 16);
-    tft.print("APP INSTALLEREN");
+    tft.print(pop_is_update ? "APP BIJWERKEN" : "APP INSTALLEREN");
 
-    // App naam + versie + grootte
+    // App naam + versie (+ huidige versie bij update)
     tft.setTextSize(1);
     tft.setTextColor(C_TEXT);
     tft.setCursor(POP_X + 18, POP_Y + 48);
     tft.print(m.naam);
     tft.setTextColor(C_TEXT_DIM);
     tft.print("  v"); tft.print(m.versie);
+    if (pop_is_update) {
+        tft.print("  (huidig: v");
+        tft.print(apps[pop_inst_idx].versie);
+        tft.print(")");
+    }
     tft.print("  \xB7  ");  // middenpunt
     if (m.grootte_kb > 0) {
         tft.print(m.grootte_kb); tft.print(" KB");
@@ -321,7 +330,7 @@ static void _apps_popup_teken() {
     tft.print(spiffs_buf);
 
     ui_knop(POP_X + POP_W - 158, POP_Y + 92, 142, 36,
-            "INSTALLEER",
+            pop_is_update ? "BIJWERKEN" : "INSTALLEER",
             heeft_ruimte ? C_CYAN : C_SURFACE2,
             heeft_ruimte ? C_TEXT_DARK : C_SURFACE3);
 
@@ -636,9 +645,11 @@ void screen_apps_run(int x, int y, bool aanraking) {
     int idx = apps_winkel_scroll + rij;
     if (idx < 0 || idx >= winkel_cnt) return;
 
-    // INSTALLEER knop → open keuze popup
+    // INSTALLEER / UPDATE knop → open keuze popup
     if (x >= TFT_W - 112) {
-        if (app_vindt(winkel[idx].id) >= 0) return;
+        int inst = app_vindt(winkel[idx].id);
+        // Geblokkeerd als geïnstalleerd met exact dezelfde versie
+        if (inst >= 0 && strcmp(apps[inst].versie, winkel[idx].versie) == 0) return;
         apps_popup_idx    = idx;
         apps_popup_actief = true;
         scherm_bouwen     = true;
