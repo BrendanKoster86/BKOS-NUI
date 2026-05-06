@@ -1,0 +1,105 @@
+name: Sync app index na manifest wijziging
+
+# Triggert op elke push naar main waarbij een manifest.json verandert.
+# Vergelijkt de inhoud van elke manifest met wat al in index.json staat
+# en commit een update alleen als er daadwerkelijk iets verschilt.
+# Bot-commits worden overgeslagen om oneindige lussen te voorkomen.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'appstore/apps/**/manifest.json'
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    name: index.json synchroniseren
+    runs-on: ubuntu-latest
+    if: "!startsWith(github.event.head_commit.message, 'bot:')"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Installeer jq
+        run: sudo apt-get install -y jq
+
+      - name: Alle manifesten vergelijken met index.json
+        id: sync
+        run: |
+          VERANDERD=false
+
+          for MAN in appstore/apps/*/manifest.json; do
+            [ ! -f "$MAN" ] && continue
+
+            ID=$(jq -r '.id // ""' "$MAN")
+            [ -z "$ID" ] && echo "Geen id in $MAN, overgeslagen" && continue
+
+            # Bestandsgrootte berekenen (alle bestanden in de app-map)
+            APP_DIR="$(dirname "$MAN")"
+            BYTES=0
+            for F in "$APP_DIR"/*; do
+              [ -f "$F" ] && BYTES=$((BYTES + $(wc -c < "$F")))
+            done
+            KB=$(( (BYTES + 1023) / 1024 ))
+            [ $KB -lt 1 ] && KB=1
+
+            # Nieuw index-item bouwen vanuit manifest
+            NIEUW=$(jq -cn \
+              --argjson src "$(cat "$MAN")" \
+              --argjson kb "$KB" \
+              '$src | {
+                id, naam, versie, auteur,
+                beschrijving: (.beschrijving // ""),
+                scherm_b:     (.scherm_b  // 800),
+                scherm_h:     (.scherm_h  // 480),
+                vervangt:     (.vervangt  // -1),
+                api_versie:   (.api_versie // 1),
+                grootte_kb:   $kb,
+                actief:       true
+              }')
+
+            # Huidige entry uit index.json (compact, zelfde veldvolgorde)
+            HUIDIG=$(jq -cn \
+              --arg id "$ID" \
+              '[ input[] | select(.id == $id) ] | first // empty' \
+              appstore/index.json 2>/dev/null || true)
+
+            if [ "$HUIDIG" = "$NIEUW" ]; then
+              echo "Ongewijzigd: $ID"
+              continue
+            fi
+
+            # Toevoegen of bijwerken
+            IN=$(jq -r --arg id "$ID" \
+              '.[] | select(.id == $id) | .id' appstore/index.json 2>/dev/null || true)
+
+            if [ -z "$IN" ]; then
+              echo "Toevoegen aan index: $ID"
+              jq --argjson item "$NIEUW" '. += [$item]' appstore/index.json > /tmp/idx.json
+            else
+              echo "Bijwerken in index:  $ID ($(jq -r '.versie' <<< "$HUIDIG") → $(jq -r '.versie' <<< "$NIEUW"))"
+              jq --arg id "$ID" --argjson item "$NIEUW" \
+                'map(if .id == $id then $item else . end)' \
+                appstore/index.json > /tmp/idx.json
+            fi
+            mv /tmp/idx.json appstore/index.json
+            VERANDERD=true
+          done
+
+          echo "veranderd=$VERANDERD" >> "$GITHUB_OUTPUT"
+
+      - name: Commit bijgewerkte index.json
+        if: steps.sync.outputs.veranderd == 'true'
+        run: |
+          git config user.name  "BKOS App Bot"
+          git config user.email "actions@github.com"
+          git add appstore/index.json
+          git diff --cached --quiet || \
+            git commit -m "bot: index.json gesynchroniseerd met manifest wijzigingen"
+          git push

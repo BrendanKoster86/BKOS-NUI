@@ -3,7 +3,7 @@ name: Valideer App PR
 on:
   pull_request:
     paths:
-      - 'appstore/apps/**'
+      - 'appstore/apps/**'          # *.lua én *.json wijzigingen
       - 'appstore/index.json'
 
 permissions:
@@ -147,10 +147,19 @@ jobs:
             VERVANGT=$(jq -r '.vervangt // -1' "$APP_DIR/manifest.json")
             [ "$VERVANGT" != "-1" ] && echo "WAARSCHUWING: app vervangt systeem-scherm $VERVANGT — handmatige review"
 
-            # ── 9. main.lua aanwezig ──────────────────────────────────────
+            # ── 9–11. Lua checks (alleen als main.lua bestaat) ────────────
             if [ ! -f "$APP_DIR/main.lua" ]; then
-              echo "FOUT: main.lua ontbreekt in $APP_DIR"
-              FOUTEN=$((FOUTEN+1)); continue
+              # Alleen manifest.json gewijzigd voor een bestaande app → OK
+              # Nieuwe app zonder main.lua → fout
+              IN_INDEX=$(jq -r --arg id "$APP_ID" \
+                '.[] | select(.id == $id) | .id' appstore/index.json 2>/dev/null || true)
+              if [ -z "$IN_INDEX" ]; then
+                echo "FOUT: main.lua ontbreekt — nieuw app-manifest vereist ook een main.lua"
+                FOUTEN=$((FOUTEN+1))
+              else
+                echo "INFO: alleen manifest.json gewijzigd voor bestaande app '$APP_ID' — Lua-checks overgeslagen"
+              fi
+              continue
             fi
 
             # ── 10. Lua syntaxcheck ───────────────────────────────────────
