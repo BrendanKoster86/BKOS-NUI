@@ -6,10 +6,21 @@ on:
       - 'appstore/apps/**'
       - 'appstore/index.json'
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 1: Validatie — altijd uitvoeren
+  # ─────────────────────────────────────────────────────────────────────────────
   valideer:
     name: Automatische app-check
     runs-on: ubuntu-latest
+    outputs:
+      alleen_appstore: ${{ steps.scope.outputs.alleen_appstore }}
+      app_ids:         ${{ steps.scope.outputs.app_ids }}
+      scherm_override: ${{ steps.scope.outputs.scherm_override }}
 
     steps:
       - name: Checkout
@@ -22,19 +33,52 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y lua5.4 jq
 
+      - name: Scope analyse
+        id: scope
+        run: |
+          ALLE=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
+
+          # Zijn er bestanden buiten appstore/ gewijzigd?
+          BUITEN=$(echo "$ALLE" | grep -v '^appstore/' || true)
+          if [ -z "$BUITEN" ]; then
+            echo "alleen_appstore=true" >> "$GITHUB_OUTPUT"
+            echo "✓ Scope: alleen appstore-bestanden — automatisch samenvoegen mogelijk"
+          else
+            echo "alleen_appstore=false" >> "$GITHUB_OUTPUT"
+            echo "ℹ Scope: ook niet-appstore bestanden gewijzigd → handmatige review"
+            echo "$BUITEN"
+          fi
+
+          # Gewijzigde app-IDs (spatie-gescheiden)
+          APP_IDS=$(echo "$ALLE" \
+            | grep '^appstore/apps/' \
+            | sed 's|^appstore/apps/\([^/]*\)/.*|\1|' \
+            | sort -u \
+            | tr '\n' ' ' \
+            | sed 's/ *$//')
+          echo "app_ids=$APP_IDS" >> "$GITHUB_OUTPUT"
+
+          # Scherm-override aanwezig?
+          OVERRIDE=false
+          for ID in $APP_IDS; do
+            MAN="appstore/apps/$ID/manifest.json"
+            if [ -f "$MAN" ]; then
+              V=$(jq -r '.vervangt // -1' "$MAN")
+              [ "$V" != "-1" ] && OVERRIDE=true
+            fi
+          done
+          echo "scherm_override=$OVERRIDE" >> "$GITHUB_OUTPUT"
+          [ "$OVERRIDE" = "true" ] && echo "⚠ Scherm-override gedetecteerd → handmatige review vereist"
+
       - name: Valideer gewijzigde apps
         run: |
           set +e
           FOUTEN=0
-
-          # Vind alle gewijzigde app-mappen in deze PR
-          GEWIJZIGD=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" \
-            | grep '^appstore/apps/' \
-            | sed 's|^appstore/apps/\([^/]*\)/.*|\1|' \
-            | sort -u)
+          GEWIJZIGD="${{ steps.scope.outputs.app_ids }}"
 
           if [ -z "$GEWIJZIGD" ]; then
-            echo "Geen app-bestanden gewijzigd — alleen index.json check."
+            echo "Geen app-bestanden gewijzigd — alleen index.json."
+            exit 0
           fi
 
           for DIR in $GEWIJZIGD; do
@@ -44,22 +88,20 @@ jobs:
             echo " Controleer app: $DIR"
             echo "══════════════════════════════════════"
 
-            # ── 1. Manifest aanwezig ───────────────────────────────────────
+            # ── 1. Manifest aanwezig ──────────────────────────────────────
             if [ ! -f "$APP_DIR/manifest.json" ]; then
               echo "FOUT: manifest.json ontbreekt in $APP_DIR"
-              FOUTEN=$((FOUTEN+1))
-              continue
+              FOUTEN=$((FOUTEN+1)); continue
             fi
 
-            # ── 2. Geldige JSON ────────────────────────────────────────────
+            # ── 2. Geldige JSON ───────────────────────────────────────────
             if ! jq empty "$APP_DIR/manifest.json" 2>/dev/null; then
               echo "FOUT: manifest.json is geen geldige JSON"
-              FOUTEN=$((FOUTEN+1))
-              continue
+              FOUTEN=$((FOUTEN+1)); continue
             fi
-            echo "OK:   manifest.json is geldige JSON"
+            echo "OK:   manifest.json geldig"
 
-            # ── 3. Verplichte velden ───────────────────────────────────────
+            # ── 3. Verplichte velden ──────────────────────────────────────
             for VELD in id naam versie auteur; do
               VAL=$(jq -r ".$VELD // empty" "$APP_DIR/manifest.json")
               if [ -z "$VAL" ]; then
@@ -70,64 +112,45 @@ jobs:
 
             APP_ID=$(jq -r '.id // ""' "$APP_DIR/manifest.json")
 
-            # ── 4. App-ID formaat: [a-z0-9_], 3–18 tekens ─────────────────
-            #    Limiet 18 chars: SPIFFS bestandsnaam "app_<id>_main.lua"
-            #    = 13 + len(id) ≤ 31 → len(id) ≤ 18
+            # ── 4. ID formaat: [a-z0-9_], 3–18 tekens ────────────────────
             if ! echo "$APP_ID" | grep -qE '^[a-z0-9_]{3,18}$'; then
-              echo "FOUT: id '$APP_ID' ongeldig — alleen kleine letters, cijfers, underscore; min 3 en max 18 tekens"
+              echo "FOUT: id '$APP_ID' ongeldig — alleen a-z 0-9 _ toegestaan, min 3 max 18 tekens"
               FOUTEN=$((FOUTEN+1))
             else
-              echo "OK:   id '$APP_ID' correct"
+              echo "OK:   id '$APP_ID'"
             fi
 
-            # ── 5. ID moet overeenkomen met mapnaam ────────────────────────
+            # ── 5. ID = mapnaam ───────────────────────────────────────────
             if [ "$APP_ID" != "$DIR" ]; then
-              echo "FOUT: id '$APP_ID' in manifest.json komt niet overeen met mapnaam '$DIR'"
+              echo "FOUT: id '$APP_ID' komt niet overeen met mapnaam '$DIR'"
               FOUTEN=$((FOUTEN+1))
             fi
 
-            # ── 6. Veldlengtes ─────────────────────────────────────────────
+            # ── 6. Veldlengtes ────────────────────────────────────────────
             NAAM=$(jq -r '.naam // ""' "$APP_DIR/manifest.json")
-            if [ ${#NAAM} -gt 31 ]; then
-              echo "FOUT: naam '${NAAM}' te lang (${#NAAM} tekens, max 31)"
-              FOUTEN=$((FOUTEN+1))
-            fi
+            [ ${#NAAM} -gt 31 ] && echo "FOUT: naam te lang (${#NAAM}/31)" && FOUTEN=$((FOUTEN+1))
 
             AUTEUR=$(jq -r '.auteur // ""' "$APP_DIR/manifest.json")
-            if [ ${#AUTEUR} -gt 40 ]; then
-              echo "FOUT: auteur '${AUTEUR}' te lang (${#AUTEUR} tekens, max 40)"
-              FOUTEN=$((FOUTEN+1))
-            fi
+            [ ${#AUTEUR} -gt 40 ] && echo "FOUT: auteur te lang (${#AUTEUR}/40)" && FOUTEN=$((FOUTEN+1))
 
             BESCHR=$(jq -r '.beschrijving // ""' "$APP_DIR/manifest.json")
-            if [ ${#BESCHR} -gt 79 ]; then
-              echo "FOUT: beschrijving te lang (${#BESCHR} tekens, max 79)"
-              FOUTEN=$((FOUTEN+1))
-            fi
+            [ ${#BESCHR} -gt 79 ] && echo "FOUT: beschrijving te lang (${#BESCHR}/79)" && FOUTEN=$((FOUTEN+1))
 
-            # ── 7. SPIFFS padlengtes (dubbele check) ──────────────────────
-            PAD_M="app_${APP_ID}_m.json"
+            # ── 7. SPIFFS padlengte ───────────────────────────────────────
             PAD_LUA="app_${APP_ID}_main.lua"
-            if [ ${#PAD_M} -gt 31 ]; then
-              echo "FOUT: SPIFFS pad '${PAD_M}' te lang (${#PAD_M}/31 tekens)"
-              FOUTEN=$((FOUTEN+1))
-            fi
             if [ ${#PAD_LUA} -gt 31 ]; then
               echo "FOUT: SPIFFS pad '${PAD_LUA}' te lang (${#PAD_LUA}/31 tekens)"
               FOUTEN=$((FOUTEN+1))
             fi
 
-            # ── 8. scherm-override waarschuwing ───────────────────────────
+            # ── 8. Scherm-override waarschuwing ───────────────────────────
             VERVANGT=$(jq -r '.vervangt // -1' "$APP_DIR/manifest.json")
-            if [ "$VERVANGT" != "-1" ]; then
-              echo "WAARSCHUWING: app vervangt systeem-scherm $VERVANGT — extra reviewaandacht vereist"
-            fi
+            [ "$VERVANGT" != "-1" ] && echo "WAARSCHUWING: app vervangt systeem-scherm $VERVANGT — handmatige review"
 
             # ── 9. main.lua aanwezig ──────────────────────────────────────
             if [ ! -f "$APP_DIR/main.lua" ]; then
               echo "FOUT: main.lua ontbreekt in $APP_DIR"
-              FOUTEN=$((FOUTEN+1))
-              continue
+              FOUTEN=$((FOUTEN+1)); continue
             fi
 
             # ── 10. Lua syntaxcheck ───────────────────────────────────────
@@ -140,45 +163,125 @@ jobs:
             fi
 
             # ── 11. Verboden patronen ─────────────────────────────────────
-            #    De Lua-sandbox blokkeert deze al bij uitvoering, maar we
-            #    willen dit ook bij review signaleren.
-            declare -A PATRONEN=(
-              ["io\\."]="bestandssysteem-toegang (io.*)"
-              # ["os\\."]="OS-systeemaanroepen (os.*)"  # os. komt ook voor in bkos. dus deze uitsluiten gaat niet helaas.
-              ["dofile"]="bestandsuitvoering (dofile)"
-              ["loadfile"]="bestandsladen (loadfile)"
-              ["require"]="module-import (require)"
-              ["package\\."]="pakketmanipulatie (package.*)"
-              ["debug\\."]="debugbibliotheek (debug.*)"
-            )
-            for PAT in "${!PATRONEN[@]}"; do
+            VERBODEN_FOUTEN=0
+            for PAT in 'io\.' 'dofile' 'loadfile' 'require' 'package\.' 'debug\.'; do
               if grep -qE "$PAT" "$APP_DIR/main.lua"; then
-                echo "FOUT: main.lua bevat verboden patroon '${PATRONEN[$PAT]}'"
-                echo "      Gebruik de bkos.* API — directe toegang is niet toegestaan."
-                FOUTEN=$((FOUTEN+1))
+                echo "FOUT: verboden patroon '$PAT' gevonden in main.lua"
+                VERBODEN_FOUTEN=$((VERBODEN_FOUTEN+1))
               fi
             done
+            [ $VERBODEN_FOUTEN -eq 0 ] && echo "OK:   geen verboden patronen"
+            FOUTEN=$((FOUTEN+VERBODEN_FOUTEN))
 
-            # ── 12. App aanwezig in index.json ────────────────────────────
-            if [ -f "appstore/index.json" ]; then
-              INDEX_HIT=$(jq -r --arg id "$APP_ID" '.[] | select(.id == $id) | .id' appstore/index.json 2>/dev/null)
-              if [ -z "$INDEX_HIT" ]; then
-                echo "FOUT: app '$APP_ID' ontbreekt in appstore/index.json"
-                FOUTEN=$((FOUTEN+1))
-              else
-                echo "OK:   app gevonden in appstore/index.json"
-              fi
+            # ── 12. Index check (info — bot voegt toe bij auto-merge) ─────
+            IN_INDEX=$(jq -r --arg id "$APP_ID" \
+              '.[] | select(.id == $id) | .id' appstore/index.json 2>/dev/null || true)
+            if [ -z "$IN_INDEX" ]; then
+              echo "INFO: '$APP_ID' nog niet in index.json — wordt automatisch toegevoegd bij merge"
+            else
+              echo "OK:   app gevonden in index.json"
             fi
-
-            echo ""
           done
 
-          # ── Samenvatting ──────────────────────────────────────────────────
+          echo ""
           echo "══════════════════════════════════════"
           if [ $FOUTEN -eq 0 ]; then
-            echo "✓ Alle automatische checks geslaagd."
-            echo "  De PR kan nu worden beoordeeld door de beheerder."
+            echo "✓ Alle checks geslaagd."
           else
-            echo "✗ $FOUTEN fout(en) gevonden — herstel deze voor verdere beoordeling."
+            echo "✗ $FOUTEN fout(en) gevonden — herstel voor verdere beoordeling."
             exit 1
           fi
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 2: Auto-merge — alleen als scope en checks kloppen
+  # Vereisten: alleen appstore-bestanden + geen scherm-override + validatie OK
+  # ─────────────────────────────────────────────────────────────────────────────
+  auto_samenvoegen:
+    name: Index bijwerken en PR samenvoegen
+    runs-on: ubuntu-latest
+    needs: valideer
+    if: |
+      needs.valideer.result == 'success' &&
+      needs.valideer.outputs.alleen_appstore == 'true' &&
+      needs.valideer.outputs.scherm_override == 'false'
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Installeer jq
+        run: sudo apt-get install -y jq
+
+      - name: index.json bijwerken
+        id: idx
+        run: |
+          GEWIJZIGD="${{ needs.valideer.outputs.app_ids }}"
+          VERANDERD=false
+
+          for ID in $GEWIJZIGD; do
+            MAN="appstore/apps/$ID/manifest.json"
+            [ ! -f "$MAN" ] && echo "Geen manifest voor $ID, sla over" && continue
+
+            # Grootte berekenen op basis van alle bestanden in de app-map
+            BYTES=0
+            for F in appstore/apps/$ID/*; do
+              [ -f "$F" ] && BYTES=$((BYTES + $(wc -c < "$F")))
+            done
+            KB=$(( (BYTES + 1023) / 1024 ))
+            [ $KB -lt 1 ] && KB=1
+
+            # Nieuw index-item samenstellen uit manifest + berekende grootte
+            ITEM=$(jq -n \
+              --argjson src "$(cat "$MAN")" \
+              --argjson kb "$KB" \
+              '$src | {
+                id,naam,versie,auteur,
+                beschrijving: (.beschrijving // ""),
+                scherm_b:     (.scherm_b  // 800),
+                scherm_h:     (.scherm_h  // 480),
+                vervangt:     (.vervangt  // -1),
+                api_versie:   (.api_versie // 1),
+                grootte_kb:   $kb,
+                actief:       true
+              }')
+
+            IN=$(jq -r --arg id "$ID" \
+              '.[] | select(.id == $id) | .id' appstore/index.json 2>/dev/null || true)
+
+            if [ -z "$IN" ]; then
+              echo "Toevoegen aan index: $ID"
+              jq --argjson item "$ITEM" '. += [$item]' appstore/index.json > /tmp/idx.json
+            else
+              echo "Bijwerken in index: $ID"
+              jq --arg id "$ID" --argjson item "$ITEM" \
+                'map(if .id == $id then $item else . end)' \
+                appstore/index.json > /tmp/idx.json
+            fi
+            mv /tmp/idx.json appstore/index.json
+            VERANDERD=true
+          done
+
+          echo "veranderd=$VERANDERD" >> "$GITHUB_OUTPUT"
+
+      - name: Commit bijgewerkte index.json
+        if: steps.idx.outputs.veranderd == 'true'
+        run: |
+          git config user.name  "BKOS App Bot"
+          git config user.email "actions@github.com"
+          git add appstore/index.json
+          git diff --cached --quiet || \
+            git commit -m "bot: index.json bijgewerkt voor [${{ needs.valideer.outputs.app_ids }}]"
+          git push
+
+      - name: PR samenvoegen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr merge ${{ github.event.pull_request.number }} \
+            --merge \
+            --subject "Auto-merge: ${{ github.event.pull_request.title }}" \
+            --body "Automatisch samengevoegd — alle app-checks geslaagd en index.json bijgewerkt."
