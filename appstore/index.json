@@ -28,14 +28,14 @@
   {
     "id": "schaak",
     "naam": "Schaakspel",
-    "versie": "1.0.2",
+    "versie": "1.0.3",
     "auteur": "Claude",
     "beschrijving": "Schaak: speel tegen een andere speler of de computer (3 niveaus).",
     "scherm_b": 800,
     "scherm_h": 480,
     "vervangt": -1,
     "api_versie": 1,
-    "grootte_kb": 41,
+    "grootte_kb": 40,
     "actief": true
   },
   {
