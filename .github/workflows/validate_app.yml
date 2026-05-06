@@ -1,10 +1,12 @@
 name: Valideer App PR
 
 on:
-  pull_request:
+  pull_request_target:
     paths:
       - 'appstore/apps/**'          # *.lua én *.json wijzigingen
       - 'appstore/index.json'
+# pull_request_target geeft schrijfrechten ook voor fork-PRs (van BrendanKoster86/main).
+# Veilig: we draaien geen code uit de PR — alleen jq+luac parsering.
 
 permissions:
   contents: write
@@ -23,9 +25,10 @@ jobs:
       scherm_override: ${{ steps.scope.outputs.scherm_override }}
 
     steps:
-      - name: Checkout
+      - name: Checkout PR inhoud
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
       - name: Installeer tools
