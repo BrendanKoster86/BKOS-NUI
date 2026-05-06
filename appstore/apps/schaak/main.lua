@@ -865,31 +865,28 @@ local function tekenPanel()
     end
   end
 
+  -- 6 icoontjes in 2 kolommen, rij-hoogte 26px → eindigt op y=116+3*26=194
   local stukTypes = {KONING, KONINGIN, TOREN, LOPER, PAARD, PION}
   local stukNamen = {"Koning","Koningin","Toren","Loper","Paard","Pion"}
   for i=1,6 do
     local col = (i-1) % 2
     local row = math.floor((i-1)/2)
     local ix  = px + col * 142
-    local iy  = 126 + row * 28
+    local iy  = 126 + row * 26
     bkos.fillRect(ix, iy, SC, SC, C.bg)
     mini(stukTypes[i], ix, iy, C.wit, C.tekst)
     bkos.drawText(ix + SC + 3, iy + 7, stukNamen[i], 1, C.tekst)
   end
 
-  -- Geslagen stukken (toekomstige uitbreiding — voor nu lijn)
-  bkos.drawFastHLine(px, 250, 285, C.border)
-
-  -- Knoppen
+  -- Knoppen: beginnen op y=210, hoogte=36, onderkant=246/290/334 — ruim boven nav bar
+  bkos.drawFastHLine(px, 206, 285, C.border)
   if matOfPat ~= "" then
-    tekenKnop(px, 270, 285, 38, "Nieuw spel", true, 2)
-    tekenKnop(px, 318, 285, 38, "Menu", false, 2)
+    tekenKnop(px, 212, 285, 36, "Nieuw spel", true,  2)
+    tekenKnop(px, 254, 285, 36, "Menu",       false, 2)
   else
-    tekenKnop(px, 270, 285, 38, "Nieuw spel", false, 2)
-    tekenKnop(px, 318, 285, 38, "Menu", false, 2)
-    if matOfPat == "" then
-      tekenKnop(px, 366, 285, 38, "Geef op", false, 2)
-    end
+    tekenKnop(px, 212, 285, 36, "Nieuw spel", false, 2)
+    tekenKnop(px, 254, 285, 36, "Menu",       false, 2)
+    tekenKnop(px, 296, 285, 36, "Geef op",    false, 2)
   end
 end
 
@@ -948,8 +945,8 @@ end
 local function tekenNiveauKeuze()
   bkos.fillScreen(C.bg)
   local jouwKleur = spelersKleur==1 and "Wit" or "Zwart"
-  bkos.drawText(160, 30, "Moeilijkheidsgraad", 3, C.tekst)
-  bkos.drawText(290, 68, "U speelt: "..jouwKleur, 2, C.highlight)
+  bkos.drawText(160, 20, "Moeilijkheidsgraad", 3, C.tekst)
+  bkos.drawText(290, 58, "U speelt: "..jouwKleur, 2, C.highlight)
 
   local niveaus = {"Makkelijk","Gemiddeld","Moeilijk"}
   local omschrijving = {
@@ -957,14 +954,16 @@ local function tekenNiveauKeuze()
     "Denkt 2 zetten vooruit",
     "Denkt 3 zetten vooruit",
   }
+  -- Knoppen op y=90, 170, 250  hoogte=60
   for i, naam in ipairs(niveaus) do
     local actief = niveauComp == i
-    tekenKnop(240, 120 + (i-1)*90, 320, 60, naam, actief, 2)
-    bkos.drawText(270, 186 + (i-1)*90, omschrijving[i], 1, C.tekstDim)
+    tekenKnop(240, 90 + (i-1)*80, 320, 60, naam, actief, 2)
+    bkos.drawText(270, 156 + (i-1)*80, omschrijving[i], 1, C.tekstDim)
   end
 
-  tekenKnop(240, 410, 150, 44, "Terug", false, 2)
-  tekenKnop(410, 410, 150, 44, "Start!", true, 2)
+  -- Terug / Start knoppen op y=360 (veilig boven nav bar)
+  tekenKnop(200, 360, 160, 50, "Terug",  false, 2)
+  tekenKnop(390, 360, 160, 50, "Start!", true,  2)
 end
 
 -- =============================================================
@@ -1129,16 +1128,16 @@ bkos.touch = function(x, y)
 
   -- ── NIVEAU KEUZE ─────────────────────────────────────────────
   elseif staat == NIVEAU then
-    -- Makkelijk: y=120..180
-    if x>=240 and x<=560 and y>=120 and y<=180 then niveauComp=1 end
-    -- Gemiddeld: y=210..270
-    if x>=240 and x<=560 and y>=210 and y<=270 then niveauComp=2 end
-    -- Moeilijk: y=300..360
-    if x>=240 and x<=560 and y>=300 and y<=360 then niveauComp=3 end
-    -- Terug
-    if x>=240 and x<=390 and y>=410 and y<=454 then staat=KLEUR end
-    -- Start
-    if x>=410 and x<=560 and y>=410 and y<=454 then
+    -- Makkelijk: y=90..150
+    if x>=240 and x<=560 and y>=90  and y<=150 then niveauComp=1 end
+    -- Gemiddeld: y=170..230
+    if x>=240 and x<=560 and y>=170 and y<=230 then niveauComp=2 end
+    -- Moeilijk:  y=250..310
+    if x>=240 and x<=560 and y>=250 and y<=310 then niveauComp=3 end
+    -- Terug: x=200..360, y=360..410
+    if x>=200 and x<=360 and y>=360 and y<=410 then staat=KLEUR end
+    -- Start: x=390..550, y=360..410
+    if x>=390 and x<=550 and y>=360 and y<=410 then
       initialiseerBord()
       staat = SPEL
     end
@@ -1164,18 +1163,18 @@ bkos.touch = function(x, y)
   elseif staat == SPEL then
     local px = 492
 
-    -- Knop: Nieuw spel (y=270..308)
-    if x>=px and x<=px+285 and y>=270 and y<=308 then
+    -- Knop: Nieuw spel (y=212..248)
+    if x>=px and x<=px+285 and y>=212 and y<=248 then
       initialiseerBord()
       return
     end
-    -- Knop: Menu (y=318..356)
-    if x>=px and x<=px+285 and y>=318 and y<=356 then
+    -- Knop: Menu (y=254..290)
+    if x>=px and x<=px+285 and y>=254 and y<=290 then
       staat = MENU
       return
     end
-    -- Knop: Geef op (y=366..404)
-    if x>=px and x<=px+285 and y>=366 and y<=404 then
+    -- Knop: Geef op (y=296..332)
+    if x>=px and x<=px+285 and y>=296 and y<=332 then
       berichtTekst = aanBeurt==1 and "Wit geeft op! Zwart wint." or "Zwart geeft op! Wit wint."
       matOfPat = "mat"
       return
