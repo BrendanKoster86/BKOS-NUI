@@ -911,9 +911,9 @@ local function tekenMenu()
   end
   bkos.drawRect(mx-1, my-1, 8*ms+2, 8*ms+2, C.border)
 
-  -- Knoppen
-  tekenKnop(210, 360, 180, 50, "2 Spelers", false, 2)
-  tekenKnop(410, 360, 180, 50, "vs Computer", false, 2)
+  -- Knoppen op y=300, hoogte=44 → onderkant y=344, ruim binnen 396px content
+  tekenKnop(190, 300, 180, 44, "2 Spelers",   false, 2)
+  tekenKnop(390, 300, 180, 44, "vs Computer", false, 2)
 end
 
 -- =============================================================
@@ -922,20 +922,21 @@ end
 
 local function tekenKleurKeuze()
   bkos.fillScreen(C.bg)
-  bkos.drawText(220, 40, "Kies uw kleur", 3, C.tekst)
+  bkos.drawText(220, 15, "Kies uw kleur", 3, C.tekst)
 
-  -- Wit stuk illustratie
-  bkos.fillRoundRect(160, 130, 160, 160, 12, C.lichtVak)
-  bkos.drawText(200, 175, "K", 8, C.wit)
-  bkos.drawText(172, 270, "Wit", 2, C.tekst)
+  -- Wit vlak: y=60..220
+  bkos.fillRoundRect(130, 60, 180, 160, 12, C.lichtVak)
+  bkos.drawText(175, 95, "K", 8, C.wit)
+  bkos.drawText(182, 212, "Wit", 2, C.tekst)
 
-  -- Zwart stuk illustratie
-  bkos.fillRoundRect(480, 130, 160, 160, 12, C.donkerVak)
-  bkos.drawText(520, 175, "K", 8, C.zwart)
-  bkos.drawText(492, 270, "Zwart", 2, C.tekst)
+  -- Zwart vlak: y=60..220
+  bkos.fillRoundRect(470, 60, 180, 160, 12, C.donkerVak)
+  bkos.drawText(515, 95, "K", 8, C.zwart)
+  bkos.drawText(477, 212, "Zwart", 2, C.tekst)
 
-  bkos.drawText(275, 320, "Wit begint altijd!", 1, C.tekstDim)
-  tekenKnop(300, 360, 200, 50, "Terug", false, 2)
+  bkos.drawText(255, 242, "Wit begint altijd!", 1, C.tekstDim)
+  -- Terug knop: y=265, onderkant=309 — ruim binnen 396px
+  tekenKnop(300, 265, 200, 44, "Terug", false, 2)
 end
 
 -- =============================================================
@@ -945,8 +946,8 @@ end
 local function tekenNiveauKeuze()
   bkos.fillScreen(C.bg)
   local jouwKleur = spelersKleur==1 and "Wit" or "Zwart"
-  bkos.drawText(160, 20, "Moeilijkheidsgraad", 3, C.tekst)
-  bkos.drawText(290, 58, "U speelt: "..jouwKleur, 2, C.highlight)
+  bkos.drawText(160, 10, "Moeilijkheidsgraad", 3, C.tekst)
+  bkos.drawText(290, 48, "U speelt: "..jouwKleur, 2, C.highlight)
 
   local niveaus = {"Makkelijk","Gemiddeld","Moeilijk"}
   local omschrijving = {
@@ -954,16 +955,16 @@ local function tekenNiveauKeuze()
     "Denkt 2 zetten vooruit",
     "Denkt 3 zetten vooruit",
   }
-  -- Knoppen op y=90, 170, 250  hoogte=60
+  -- Knoppen op y=75, 145, 215  hoogte=50, onderlinge ruimte=70
   for i, naam in ipairs(niveaus) do
     local actief = niveauComp == i
-    tekenKnop(240, 90 + (i-1)*80, 320, 60, naam, actief, 2)
-    bkos.drawText(270, 156 + (i-1)*80, omschrijving[i], 1, C.tekstDim)
+    tekenKnop(240, 75 + (i-1)*70, 320, 50, naam, actief, 2)
+    bkos.drawText(270, 130 + (i-1)*70, omschrijving[i], 1, C.tekstDim)
   end
 
-  -- Terug / Start knoppen op y=360 (veilig boven nav bar)
-  tekenKnop(200, 360, 160, 50, "Terug",  false, 2)
-  tekenKnop(390, 360, 160, 50, "Start!", true,  2)
+  -- Terug / Start knoppen op y=305, onderkant=349 — veilig binnen 396px
+  tekenKnop(200, 305, 160, 44, "Terug",  false, 2)
+  tekenKnop(390, 305, 160, 44, "Start!", true,  2)
 end
 
 -- =============================================================
@@ -1097,47 +1098,47 @@ bkos.touch = function(x, y)
 
   -- ── MENU ────────────────────────────────────────────────────
   if staat == MENU then
-    -- "2 Spelers" knop: x=210,y=360,w=180,h=50
-    if x>=210 and x<=390 and y>=360 and y<=410 then
+    -- "2 Spelers": x=190..370, y=300..344
+    if x>=190 and x<=370 and y>=300 and y<=344 then
       tegenComputer = false
       initialiseerBord()
       staat = SPEL
     end
-    -- "vs Computer" knop: x=410,y=360,w=180,h=50
-    if x>=410 and x<=590 and y>=360 and y<=410 then
+    -- "vs Computer": x=390..570, y=300..344
+    if x>=390 and x<=570 and y>=300 and y<=344 then
       tegenComputer = true
       staat = KLEUR
     end
 
   -- ── KLEUR KEUZE ─────────────────────────────────────────────
   elseif staat == KLEUR then
-    -- Wit: x=160,y=130,w=160,h=160
-    if x>=160 and x<=320 and y>=130 and y<=290 then
+    -- Wit: x=130..310, y=60..220
+    if x>=130 and x<=310 and y>=60 and y<=220 then
       spelersKleur = 1
       staat = NIVEAU
     end
-    -- Zwart: x=480,y=130,w=160,h=160
-    if x>=480 and x<=640 and y>=130 and y<=290 then
+    -- Zwart: x=470..650, y=60..220
+    if x>=470 and x<=650 and y>=60 and y<=220 then
       spelersKleur = -1
       staat = NIVEAU
     end
-    -- Terug
-    if x>=300 and x<=500 and y>=360 and y<=410 then
+    -- Terug: x=300..500, y=265..309
+    if x>=300 and x<=500 and y>=265 and y<=309 then
       staat = MENU
     end
 
   -- ── NIVEAU KEUZE ─────────────────────────────────────────────
   elseif staat == NIVEAU then
-    -- Makkelijk: y=90..150
-    if x>=240 and x<=560 and y>=90  and y<=150 then niveauComp=1 end
-    -- Gemiddeld: y=170..230
-    if x>=240 and x<=560 and y>=170 and y<=230 then niveauComp=2 end
-    -- Moeilijk:  y=250..310
-    if x>=240 and x<=560 and y>=250 and y<=310 then niveauComp=3 end
-    -- Terug: x=200..360, y=360..410
-    if x>=200 and x<=360 and y>=360 and y<=410 then staat=KLEUR end
-    -- Start: x=390..550, y=360..410
-    if x>=390 and x<=550 and y>=360 and y<=410 then
+    -- Makkelijk: y=75..125
+    if x>=240 and x<=560 and y>=75  and y<=125 then niveauComp=1 end
+    -- Gemiddeld: y=145..195
+    if x>=240 and x<=560 and y>=145 and y<=195 then niveauComp=2 end
+    -- Moeilijk:  y=215..265
+    if x>=240 and x<=560 and y>=215 and y<=265 then niveauComp=3 end
+    -- Terug: x=200..360, y=305..349
+    if x>=200 and x<=360 and y>=305 and y<=349 then staat=KLEUR end
+    -- Start: x=390..550, y=305..349
+    if x>=390 and x<=550 and y>=305 and y<=349 then
       initialiseerBord()
       staat = SPEL
     end
