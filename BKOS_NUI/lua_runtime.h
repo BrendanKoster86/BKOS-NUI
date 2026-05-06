@@ -30,8 +30,9 @@ void lua_app_teken(int app_idx);
 void lua_app_run(int app_idx, int x, int y, bool aanraking);
 void lua_app_sluiten();
 
-// Schaalvariabelen (app design → schermcoördinaten)
-extern float lua_sx;          // schaal X
-extern float lua_sy;          // schaal Y
+// Coördinaattransformatie (app-ruimte → schermcoördinaten)
+extern float lua_sx;            // schaalfactor X (1.0 = geen schaling)
+extern float lua_sy;            // schaalfactor Y (1.0 = geen schaling)
+extern int   lua_x_offset;      // pixel-offset X (centering bij evenredig)
+extern int   lua_y_offset;      // pixel-offset Y (SB_H bij sandbox; + centering bij evenredig)
 extern bool  lua_sandbox_modus; // true = standalone app in sandbox (SB_H..NAV_Y)
-extern int   lua_y_offset;      // SB_H bij sandbox, anders 0

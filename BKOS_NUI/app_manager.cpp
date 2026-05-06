@@ -45,6 +45,8 @@ static void _json_naar_manifest(JsonObject obj, AppManifest& m) {
     m.auteur[APP_AUTEUR_LEN-1] = m.beschrijving[APP_DESC_LEN-1] = '\0';
     m.scherm_b   = obj["scherm_b"]   | 800;
     m.scherm_h   = obj["scherm_h"]   | 480;
+    strncpy(m.schaal, obj["schaal"] | "geen", APP_SCHAAL_LEN - 1);
+    m.schaal[APP_SCHAAL_LEN - 1] = '\0';
     m.vervangt   = obj["vervangt"]   | APP_VERVANGT_GEEN;
     m.api_versie = obj["api_versie"] | 1;
     m.grootte_kb = obj["grootte_kb"] | 0;
@@ -59,6 +61,7 @@ static void _manifest_naar_json(AppManifest& m, JsonObject obj) {
     obj["beschrijving"]= m.beschrijving;
     obj["scherm_b"]    = m.scherm_b;
     obj["scherm_h"]    = m.scherm_h;
+    if (strcmp(m.schaal, "geen") != 0) obj["schaal"] = m.schaal;  // weglaten als standaard
     obj["vervangt"]    = m.vervangt;
     obj["api_versie"]  = m.api_versie;
     obj["grootte_kb"]  = m.grootte_kb;

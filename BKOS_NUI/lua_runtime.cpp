@@ -11,8 +11,9 @@ bool  lua_fout_actief   = false;
 char  lua_fout_tekst[LUA_FOUT_LEN] = "";
 float lua_sx            = 1.0f;
 float lua_sy            = 1.0f;
-bool  lua_sandbox_modus = false;
+int   lua_x_offset      = 0;
 int   lua_y_offset      = 0;
+bool  lua_sandbox_modus = false;
 
 static int lua_app_huidig = -1;
 
@@ -31,7 +32,7 @@ static void* lua_bkos_alloc(void* ud, void* ptr, size_t osize, size_t nsize) {
 }
 
 // ─── Coördinaat helpers ───────────────────────────────────────────────────────
-static inline int sx(int v) { return (int)(v * lua_sx); }
+static inline int sx(int v) { return (int)(v * lua_sx) + lua_x_offset; }
 static inline int sy(int v) { return (int)(v * lua_sy) + lua_y_offset; }
 static inline int sr(int v) { return (int)(v * (lua_sx + lua_sy) * 0.5f); }
 
@@ -47,7 +48,8 @@ static int l_color565(lua_State* ls) {
 // ─── Scherm: basistekening ────────────────────────────────────────────────────
 static int l_fillScreen(lua_State* ls) {
     uint16_t kl = (uint16_t)luaL_checkinteger(ls, 1);
-    int y = lua_y_offset;
+    // Wis altijd het volledige content-gebied, inclusief eventuele letterbox-randen
+    int y = lua_sandbox_modus ? SB_H : 0;
     int h = lua_sandbox_modus ? CONTENT_H : TFT_H;
     tft.fillRect(0, y, TFT_W, h, kl);
     return 0;
@@ -385,9 +387,9 @@ static int l_log(lua_State* ls) {
 static void lua_registreer_api(lua_State* ls) {
     lua_newtable(ls);  // bkos
 
-    // Schermdimensies (ontwerp-ruimte)
-    lua_pushinteger(ls, (lua_Integer)TFT_W);  lua_setfield(ls, -2, "W");
-    lua_pushinteger(ls, (lua_Integer)TFT_H);  lua_setfield(ls, -2, "H");
+    // W en H worden per app ingesteld in lua_app_laden(); hier alleen placeholders
+    lua_pushinteger(ls, (lua_Integer)TFT_W);     lua_setfield(ls, -2, "W");
+    lua_pushinteger(ls, (lua_Integer)CONTENT_H); lua_setfield(ls, -2, "H");
 
     // Arduino-stijl HIGH/LOW constanten
     lua_pushinteger(ls, 1); lua_setfield(ls, -2, "HIGH");
@@ -517,13 +519,48 @@ bool lua_app_laden(int app_idx, bool sandbox) {
     lua_fout_actief   = false;
     lua_app_huidig    = app_idx;
     lua_sandbox_modus = sandbox;
-    lua_y_offset      = sandbox ? SB_H : 0;
 
     AppManifest& app = apps[app_idx];
-    lua_sx = (float)TFT_W  / max(1, app.scherm_b);
-    lua_sy = sandbox
-             ? (float)CONTENT_H / max(1, app.scherm_h)
-             : (float)TFT_H     / max(1, app.scherm_h);
+    const char*  sc  = app.schaal;   // "geen" / "evenredig" / "onevenredig"
+    int ch = sandbox ? CONTENT_H : TFT_H;
+    int app_w, app_h;
+
+    if (strcmp(sc, "onevenredig") == 0) {
+        // Rek uit: elke as onafhankelijk geschaald naar het content-gebied
+        lua_sx       = (float)TFT_W / max(1, app.scherm_b);
+        lua_sy       = (float)ch    / max(1, app.scherm_h);
+        lua_x_offset = 0;
+        lua_y_offset = sandbox ? SB_H : 0;
+        app_w = app.scherm_b;
+        app_h = app.scherm_h;
+    } else if (strcmp(sc, "evenredig") == 0) {
+        // Bewaar aspect ratio; centreer binnen het content-gebied
+        float scx = (float)TFT_W / max(1, app.scherm_b);
+        float scy = (float)ch    / max(1, app.scherm_h);
+        float s   = (scx < scy) ? scx : scy;
+        lua_sx       = s;
+        lua_sy       = s;
+        lua_x_offset = (TFT_W - (int)(app.scherm_b * s)) / 2;
+        lua_y_offset = (sandbox ? SB_H : 0) + (ch - (int)(app.scherm_h * s)) / 2;
+        app_w = app.scherm_b;
+        app_h = app.scherm_h;
+    } else {
+        // "geen" (standaard): geen schaling, 1:1 pixel in het content-gebied
+        lua_sx       = 1.0f;
+        lua_sy       = 1.0f;
+        lua_x_offset = 0;
+        lua_y_offset = sandbox ? SB_H : 0;
+        app_w = TFT_W;
+        app_h = ch;
+    }
+
+    // bkos.W en bkos.H bijwerken vóór het draaien van het script
+    lua_getglobal(L, "bkos");
+    if (lua_istable(L, -1)) {
+        lua_pushinteger(L, (lua_Integer)app_w); lua_setfield(L, -2, "W");
+        lua_pushinteger(L, (lua_Integer)app_h); lua_setfield(L, -2, "H");
+    }
+    lua_pop(L, 1);
 
     String pad = app_pad(app.id);
     File f = SPIFFS.open(pad, "r");
@@ -548,7 +585,7 @@ bool lua_app_laden(int app_idx, bool sandbox) {
 
 void lua_app_teken(int app_idx) {
     if (lua_fout_actief) {
-        int ey = lua_y_offset;
+        int ey = lua_sandbox_modus ? SB_H : 0;
         int eh = lua_sandbox_modus ? CONTENT_H : TFT_H;
         tft.fillRect(0, ey, TFT_W, eh, C_BG);
         tft.setTextSize(1);
@@ -565,7 +602,7 @@ void lua_app_teken(int app_idx) {
 void lua_app_run(int app_idx, int x, int y, bool aanraking) {
     if (lua_fout_actief || !L) return;
     if (aanraking) {
-        int app_x = (lua_sx > 0.01f) ? (int)(x / lua_sx) : x;
+        int app_x = (lua_sx > 0.01f) ? (int)((x - lua_x_offset) / lua_sx) : x;
         int app_y = (lua_sy > 0.01f) ? (int)((y - lua_y_offset) / lua_sy) : y;
         _callback("touch", 2, app_x, app_y);
     } else {
@@ -576,6 +613,7 @@ void lua_app_run(int app_idx, int x, int y, bool aanraking) {
 void lua_app_sluiten() {
     lua_app_huidig = -1;
     lua_sx = lua_sy = 1.0f;
+    lua_x_offset = lua_y_offset = 0;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

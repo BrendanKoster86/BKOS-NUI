@@ -13,6 +13,7 @@
 #define APP_DESC_LEN      80
 
 #define APP_VERVANGT_GEEN   -1
+#define APP_SCHAAL_LEN      12  // "geen" / "evenredig" / "onevenredig"
 
 // URL voor de BKOS app store index
 #define APPSTORE_INDEX_URL \
@@ -26,6 +27,7 @@ struct AppManifest {
     char  beschrijving[APP_DESC_LEN];
     int   scherm_b;       // ontwerpbreedte (bijv. 800)
     int   scherm_h;       // ontwerphoogte  (bijv. 480)
+    char  schaal[APP_SCHAAL_LEN]; // "geen" (standaard) / "evenredig" / "onevenredig"
     int   vervangt;       // SCREEN_* constante of APP_VERVANGT_GEEN
     int   api_versie;
     int   grootte_kb;     // geschatte installatiegrootte in KB
