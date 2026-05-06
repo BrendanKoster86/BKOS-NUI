@@ -16,7 +16,9 @@ void ota_setup() {
 }
 
 void ota_loop() {
+#if PLATFORM_ESP32
     if (ota_push_actief) ArduinoOTA.handle();
+#endif
     if (millis() - ota_last_git_check > OTA_GIT_INTERVAL) {
         ota_last_git_check = millis();
         if (wifi_verbonden && strlen(OTA_GITHUB_VERSIE_URL) > 5) {
@@ -44,6 +46,7 @@ static void ota_voortgang_teken(unsigned int progress, unsigned int totaal) {
 
 void ota_push_inschakelen(bool aan) {
     ota_push_actief = aan;
+#if PLATFORM_ESP32
     if (aan) {
         ArduinoOTA.setHostname("BKOS-NUI");
         ArduinoOTA.setPassword("bkos2025");
@@ -87,6 +90,9 @@ void ota_push_inschakelen(bool aan) {
     } else {
         ota_status_tekst = "Push OTA uit";
     }
+#else
+    ota_status_tekst = aan ? "Push OTA n.v.t." : "Push OTA uit";
+#endif
 }
 
 void ota_git_check() {
@@ -129,6 +135,10 @@ void ota_git_update() {
 }
 
 bool ota_download_toepassen(String url) {
+#if !PLATFORM_ESP32
+    ota_status_tekst = "OTA downloaden n.v.t. op Pico";
+    return false;
+#else
     HTTPClient http;
     http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
     http.begin(url);
@@ -193,6 +203,7 @@ bool ota_download_toepassen(String url) {
     tft.setTextSize(2); tft.setTextColor(C_GREEN);
     tft.setCursor(bx, by + bh + 8); tft.print("100%  Klaar! Herstarten...");
     delay(1200);
-    ESP.restart();
+    PLATFORM_REBOOT();
     return true;
+#endif
 }

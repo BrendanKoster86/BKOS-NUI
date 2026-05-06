@@ -5,7 +5,7 @@
 #include "io.h"
 #include "ui_colors.h"
 #include "ota.h"
-#include <SPIFFS.h>
+#include "platform_fs.h"
 
 bool  lua_fout_actief   = false;
 char  lua_fout_tekst[LUA_FOUT_LEN] = "";
@@ -22,13 +22,12 @@ static int lua_app_huidig = -1;
 
 static lua_State* L = nullptr;
 
-// PSRAM-bewuste allocator
+// Platform-bewuste allocator (PSRAM op ESP32, gewoon heap op Pico)
 static void* lua_bkos_alloc(void* ud, void* ptr, size_t osize, size_t nsize) {
     (void)ud; (void)osize;
-    if (nsize == 0) { heap_caps_free(ptr); return nullptr; }
-    if (ptr == nullptr)
-        return heap_caps_malloc(nsize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    return heap_caps_realloc(ptr, nsize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (nsize == 0) { PLATFORM_FREE(ptr); return nullptr; }
+    if (ptr == nullptr) return PLATFORM_MALLOC(nsize);
+    return PLATFORM_REALLOC(ptr, nsize);
 }
 
 // ─── Coördinaat helpers ───────────────────────────────────────────────────────

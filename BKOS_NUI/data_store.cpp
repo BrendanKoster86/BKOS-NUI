@@ -1,5 +1,5 @@
 #include "data_store.h"
-#include <SPIFFS.h>
+#include "platform_fs.h"
 #include <ArduinoJson.h>
 
 struct DataEntry {

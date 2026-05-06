@@ -1,10 +1,13 @@
 #include "fout_log.h"
+#include "platform.h"
 #include "app_state.h"
 #include "ota.h"
 #include <Preferences.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
-#include <mbedtls/sha256.h>
+#if PLATFORM_ESP32
+  #include <mbedtls/sha256.h>
+#endif
 
 static char          _token[120] = "";
 static unsigned long _laatste_ms = 0;
@@ -41,8 +44,9 @@ bool fout_log_token_aanwezig() {
     return _token[0] != '\0';
 }
 
-// SHA-256 van chip eFuse MAC → geanonimiseerde device ID (niet omkeerbaar)
+// Geanonimiseerde device ID op basis van chip-ID
 static String _device_id() {
+#if PLATFORM_ESP32
     uint64_t chipid = ESP.getEfuseMac();
     uint8_t  hash[32];
     mbedtls_sha256((const unsigned char*)&chipid, 8, hash, 0);
@@ -50,6 +54,12 @@ static String _device_id() {
     for (int i = 0; i < 8; i++) snprintf(hex + i * 2, 3, "%02x", hash[i]);
     hex[16] = '\0';
     return String(hex);
+#else
+    uint32_t id = rp2040.getChipID();
+    char hex[9];
+    snprintf(hex, sizeof(hex), "%08x", id);
+    return String(hex);
+#endif
 }
 
 static const char* _type_naam(FoutType t) {
@@ -99,7 +109,7 @@ static void _flog_taak(void* param) {
                     "|------|--------|\\n"
                     "| Firmware versie | %s |\\n"
                     "| Uptime (s) | %lu |\\n"
-                    "| Vrij heap (bytes) | %lu |\\n"
+                    "| Vrij heap (bytes) | %u |\\n"
                     "| Tijd | %s |\\n"
                     "| Device ID | %s |\","
           "\"labels\":[\"automatisch\",\"onbeoordeeld\"]"
@@ -110,7 +120,7 @@ static void _flog_taak(void* param) {
         p->context[0] ? p->context : "(geen)",
         BKOS_NUI_VERSIE,
         millis() / 1000,
-        (unsigned long)ESP.getFreeHeap(),
+        (unsigned)PLATFORM_FREE_HEAP(),
         klok_tijd.c_str(),
         dev_id.c_str()
     );
@@ -136,5 +146,5 @@ void fout_log_stuur(FoutType type, const char* bericht, const char* context) {
     _pakket.context[sizeof(_pakket.context) - 1] = '\0';
 
     _bezig = true;
-    xTaskCreatePinnedToCore(_flog_taak, "fout_log", 12288, &_pakket, 1, NULL, 0);
+    PLATFORM_TASK_CREATE(_flog_taak, "fout_log", 12288, &_pakket, 1, NULL);
 }

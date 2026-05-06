@@ -1,6 +1,6 @@
 #include "app_state.h"
 #include "hw_io.h"
-#include <SPIFFS.h>
+#include "platform_fs.h"
 
 int   actief_scherm    = SCREEN_MAIN;
 bool  scherm_bouwen    = true;

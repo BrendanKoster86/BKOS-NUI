@@ -1,9 +1,16 @@
 #pragma once
+#include "platform.h"
 #include "wifi.h"
 
 #define BKOS_NUI_VERSIE     "0.0.260506.2"
-#define OTA_GITHUB_VERSIE_URL   "https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/BKOS_NUI/versie.txt"
-#define OTA_GITHUB_FIRMWARE_URL "https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/BKOS_NUI/firmware.bin"
+
+#if PLATFORM_PICO
+  #define OTA_GITHUB_VERSIE_URL   "https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/BKOS_NUI/versie_pico.txt"
+  #define OTA_GITHUB_FIRMWARE_URL "https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/BKOS_NUI/firmware_pico.bin"
+#else
+  #define OTA_GITHUB_VERSIE_URL   "https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/BKOS_NUI/versie.txt"
+  #define OTA_GITHUB_FIRMWARE_URL "https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/BKOS_NUI/firmware.bin"
+#endif
 
 extern bool ota_wifi_actief;
 extern bool ota_push_actief;   // ArduinoOTA push, standaard UIT

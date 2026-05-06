@@ -96,3 +96,48 @@ jobs:
           git add BKOS_NUI/firmware.bin BKOS_NUI/versie.txt
           git diff --staged --quiet || git commit -m "ci: build firmware $(cat BKOS_NUI/versie.txt)"
           git push
+
+  build_pico:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Arduino CLI
+        uses: arduino/setup-arduino-cli@v1
+
+      - name: Install arduino-pico platform
+        run: |
+          arduino-cli config init
+          arduino-cli config add board_manager.additional_urls \
+            https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
+          arduino-cli core update-index
+          arduino-cli core install rp2040:rp2040@4.4.3
+
+      - name: Install libraries
+        run: |
+          arduino-cli lib install "GFX Library for Arduino@1.3.7"
+          arduino-cli lib install "XPT2046_Touchscreen"
+          arduino-cli lib install "ArduinoJson"
+
+      - name: Compile firmware (Pico W)
+        run: |
+          arduino-cli compile \
+            --fqbn "rp2040:rp2040:rpipicow:flash=2097152_65536,freq=133,opt=Optimize2,rtti=disabled,stackprotect=disabled,exceptions=disabled,dbgport=Disabled,dbglvl=None,usbstack=picosdk,ipbtstack=ipv4only" \
+            --output-dir build_pico/ \
+            BKOS_NUI/
+
+      - name: Copy firmware_pico.bin to sketch folder
+        run: cp build_pico/BKOS_NUI.ino.bin BKOS_NUI/firmware_pico.bin
+
+      - name: Commit firmware_pico
+        run: |
+          git config user.name  "GitHub Actions"
+          git config user.email "actions@github.com"
+          git pull --rebase
+          git add BKOS_NUI/firmware_pico.bin BKOS_NUI/versie_pico.txt
+          git diff --staged --quiet || git commit -m "ci: build pico firmware $(cat BKOS_NUI/versie_pico.txt)"
+          git push

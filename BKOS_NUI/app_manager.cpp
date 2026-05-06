@@ -1,14 +1,18 @@
 #include "app_manager.h"
 #include "lua_runtime.h"
 #include "wifi.h"
-#include <SPIFFS.h>
-#include <SD_MMC.h>
+#include "platform_fs.h"
+#if PLATFORM_ESP32
+  #include <SD_MMC.h>
+#endif
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 
+#if PLATFORM_ESP32
 static bool _sd_geinitialiseerd = false;
 static bool _sd_aanwezig        = false;
+#endif
 
 // SPIFFS heeft geen echte mappen — bestanden worden plat opgeslagen:
 //   /app_<id>_manifest.json
@@ -301,7 +305,7 @@ void app_installeer_start(int winkel_idx) {
     _ins_winkel_idx = winkel_idx;
     app_ins_status  = APP_INS_VERBINDEN;
     strncpy(app_ins_bericht, "Starten...", sizeof(app_ins_bericht) - 1);
-    xTaskCreatePinnedToCore(_installeer_taak, "app_ins", 16384, NULL, 1, NULL, 0);
+    PLATFORM_TASK_CREATE(_installeer_taak, "app_ins", 16384, NULL, 1, NULL);
 }
 
 bool app_installeer_uit_winkel(int winkel_idx) {
@@ -327,16 +331,23 @@ size_t app_spiffs_totaal() {
 }
 
 bool app_sd_aanwezig() {
+#if PLATFORM_ESP32
     if (!_sd_geinitialiseerd) {
         _sd_geinitialiseerd = true;
-        // 1-bit modus, geen pin-remapping — lukt alleen als kaart aanwezig is
         _sd_aanwezig = SD_MMC.begin("/sdcard", true);
         if (!_sd_aanwezig) SD_MMC.end();
     }
     return _sd_aanwezig;
+#else
+    return false;
+#endif
 }
 
 size_t app_sd_vrij() {
+#if PLATFORM_ESP32
     if (!app_sd_aanwezig()) return 0;
     return (size_t)SD_MMC.totalBytes() - (size_t)SD_MMC.usedBytes();
+#else
+    return 0;
+#endif
 }

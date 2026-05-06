@@ -2,7 +2,7 @@
 #include "nav_bar.h"
 #include "meteo.h"
 #include "fout_log.h"
-#include <SPIFFS.h>
+#include "platform_fs.h"
 
 // ─── PIN code helpers ────────────────────────────────────────────────────
 static void pin_lezen(char* buf, int len) {

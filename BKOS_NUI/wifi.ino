@@ -91,14 +91,13 @@ static void netwerk_taak(void* param) {
 
 // ─── Publieke API ─────────────────────────────────────────────────────────
 void wifi_taak_start() {
-    xTaskCreatePinnedToCore(
+    PLATFORM_TASK_CREATE(
         netwerk_taak,
         "netwerk",
         20480,  // stack (WiFiClientSecure TLS handshake heeft ~16KB nodig)
         NULL,
         1,
-        &netwerk_task_handle,
-        0   // Core 0 (main loop draait op Core 1)
+        &netwerk_task_handle
     );
 }
 
@@ -143,9 +142,11 @@ void wifi_reset() {
     wprefs.begin("wifi_creds", false);
     wprefs.clear();
     wprefs.end();
+#if PLATFORM_ESP32
     WiFiManager wm;
     wm.resetSettings();
-    ESP.restart();
+#endif
+    PLATFORM_REBOOT();
 }
 
 bool wifi_check() {

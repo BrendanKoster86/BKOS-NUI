@@ -1,7 +1,7 @@
 #include "screen_info.h"
 #include "screen_config.h"   // hergebruik config keyboard
 #include "nav_bar.h"
-#include <SPIFFS.h>
+#include "platform_fs.h"
 
 #define INFO_BESTAND "/bkos_info.csv"
 

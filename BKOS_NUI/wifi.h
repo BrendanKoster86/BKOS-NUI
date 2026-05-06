@@ -1,10 +1,13 @@
 #pragma once
+#include "platform.h"
 #include <Preferences.h>
 #include <WiFi.h>
-#include <WiFiManager.h>
+#if PLATFORM_ESP32
+  #include <WiFiManager.h>
+  #include <ArduinoOTA.h>
+  #include <Update.h>
+#endif
 #include <HTTPClient.h>
-#include <Update.h>
-#include <ArduinoOTA.h>
 #include <time.h>
 
 #define WIFI_CONFIG_FILE "/bkos_nui.json"
