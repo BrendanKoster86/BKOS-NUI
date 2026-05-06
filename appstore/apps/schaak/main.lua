@@ -28,9 +28,9 @@ local C = {
 }
 
 -- ── Bord-layout ──────────────────────────────────────────────
-local BX  = 20   -- bord linker x
-local BY  = 10   -- bord boven y
-local SQ  = 56   -- vakgrootte
+local BX  = 14   -- bord linker x
+local BY  =  8   -- bord boven y
+local SQ  = 46   -- vakgrootte: 8×46=368px, past in 396px content-hoogte
 
 -- ── Stukken: positief = wit, negatief = zwart ────────────────
 -- 1=Pion 2=Toren 3=Paard 4=Loper 5=Koningin 6=Koning
@@ -591,137 +591,92 @@ local function tekenVakje(r, k)
 end
 
 -- =============================================================
---  2D STUK-ILLUSTRATIES
---  ox,oy = linkerbovenhoek van het vakje (56×56)
---  vul   = vulkleur (wit of zwart stuk)
---  rand  = randkleur (contrasterend)
+--  2D STUK-ILLUSTRATIES  (schalen met SQ i.p.v. vaste 56px)
+--  ox,oy = linkerbovenhoek van het vakje
 -- =============================================================
 
+-- Hulp: teken stuk-primitieven relatief aan vakje, geschaald naar SQ
+local function stukFR(ox,oy, x,y,w,h, c)
+  local s=SQ/56
+  bkos.fillRect(ox+math.floor(x*s), oy+math.floor(y*s), math.max(1,math.floor(w*s)), math.max(1,math.floor(h*s)), c)
+end
+local function stukDR(ox,oy, x,y,w,h, c)
+  local s=SQ/56
+  bkos.drawRect(ox+math.floor(x*s), oy+math.floor(y*s), math.max(1,math.floor(w*s)), math.max(1,math.floor(h*s)), c)
+end
+local function stukFC(ox,oy, x,y,r2, c)
+  local s=SQ/56
+  bkos.fillCircle(ox+math.floor(x*s), oy+math.floor(y*s), math.max(1,math.floor(r2*s)), c)
+end
+local function stukDC(ox,oy, x,y,r2, c)
+  local s=SQ/56
+  bkos.drawCircle(ox+math.floor(x*s), oy+math.floor(y*s), math.max(1,math.floor(r2*s)), c)
+end
+local function stukFT(ox,oy, x0,y0,x1,y1,x2,y2, c)
+  local s=SQ/56
+  bkos.fillTriangle(ox+math.floor(x0*s),oy+math.floor(y0*s), ox+math.floor(x1*s),oy+math.floor(y1*s), ox+math.floor(x2*s),oy+math.floor(y2*s), c)
+end
+local function stukFRR(ox,oy, x,y,w,h,r2, c)
+  local s=SQ/56
+  bkos.fillRoundRect(ox+math.floor(x*s), oy+math.floor(y*s), math.max(2,math.floor(w*s)), math.max(2,math.floor(h*s)), math.max(1,math.floor(r2*s)), c)
+end
+local function stukDRR(ox,oy, x,y,w,h,r2, c)
+  local s=SQ/56
+  bkos.drawRoundRect(ox+math.floor(x*s), oy+math.floor(y*s), math.max(2,math.floor(w*s)), math.max(2,math.floor(h*s)), math.max(1,math.floor(r2*s)), c)
+end
+
 local function tekenPion(ox, oy, vul, rand)
-  -- Voet: breed rechthoek onderaan
-  bkos.fillRoundRect(ox+14, oy+43, 28, 8,  3, vul)
-  bkos.drawRoundRect(ox+14, oy+43, 28, 8,  3, rand)
-  -- Steel: smal
-  bkos.fillRect(ox+23, oy+34, 10, 11, vul)
-  bkos.drawRect(ox+23, oy+34, 10, 11, rand)
-  -- Hoofd: cirkel
-  bkos.fillCircle(ox+28, oy+26, 11, vul)
-  bkos.drawCircle(ox+28, oy+26, 11, rand)
-  -- Binnenring highlight
-  bkos.drawCircle(ox+28, oy+26,  7, rand)
+  stukFRR(ox,oy, 14,43,28,8,3, vul);  stukDRR(ox,oy, 14,43,28,8,3, rand)
+  stukFR( ox,oy, 23,34,10,11,  vul);  stukDR( ox,oy, 23,34,10,11,  rand)
+  stukFC( ox,oy, 28,26,11,     vul);  stukDC( ox,oy, 28,26,11,     rand)
+  stukDC( ox,oy, 28,26,7,      rand)
 end
 
 local function tekenToren(ox, oy, vul, rand)
-  -- Voet
-  bkos.fillRoundRect(ox+10, oy+44, 36, 8,  2, vul)
-  bkos.drawRoundRect(ox+10, oy+44, 36, 8,  2, rand)
-  -- Schacht
-  bkos.fillRect(ox+15, oy+22, 26, 24, vul)
-  bkos.drawRect(ox+15, oy+22, 26, 24, rand)
-  -- Kantelen (3 blokjes bovenop)
-  bkos.fillRect(ox+13, oy+14, 8, 10, vul)
-  bkos.drawRect(ox+13, oy+14, 8, 10, rand)
-  bkos.fillRect(ox+24, oy+14, 8, 10, vul)
-  bkos.drawRect(ox+24, oy+14, 8, 10, rand)
-  bkos.fillRect(ox+35, oy+14, 8, 10, vul)
-  bkos.drawRect(ox+35, oy+14, 8, 10, rand)
-  -- Spleten tussen kantelen
-  bkos.fillRect(ox+21, oy+14, 3, 10, rand)
-  bkos.fillRect(ox+33, oy+14, 2, 10, rand)
+  stukFRR(ox,oy, 10,44,36,8,2, vul);  stukDRR(ox,oy, 10,44,36,8,2, rand)
+  stukFR( ox,oy, 15,22,26,24,  vul);  stukDR( ox,oy, 15,22,26,24,  rand)
+  stukFR( ox,oy, 13,14,8,10,   vul);  stukDR( ox,oy, 13,14,8,10,   rand)
+  stukFR( ox,oy, 24,14,8,10,   vul);  stukDR( ox,oy, 24,14,8,10,   rand)
+  stukFR( ox,oy, 35,14,8,10,   vul);  stukDR( ox,oy, 35,14,8,10,   rand)
 end
 
 local function tekenPaard(ox, oy, vul, rand)
-  -- Voet
-  bkos.fillRoundRect(ox+11, oy+44, 32, 8,  2, vul)
-  bkos.drawRoundRect(ox+11, oy+44, 32, 8,  2, rand)
-  -- Lichaam (schuin naar voor)
-  bkos.fillTriangle(ox+18, oy+44, ox+38, oy+44, ox+32, oy+22, vul)
-  bkos.fillTriangle(ox+18, oy+44, ox+25, oy+22, ox+32, oy+22, vul)
-  bkos.drawTriangle(ox+18, oy+44, ox+38, oy+44, ox+32, oy+22, rand)
-  -- Nek
-  bkos.fillRect(ox+20, oy+18, 14, 26, vul)
-  bkos.drawRect(ox+20, oy+18, 14, 26, rand)
-  -- Hoofd (naar rechts gericht)
-  bkos.fillRoundRect(ox+22, oy+12, 22, 14, 4, vul)
-  bkos.drawRoundRect(ox+22, oy+12, 22, 14, 4, rand)
-  -- Snuit
-  bkos.fillRoundRect(ox+36, oy+18, 10, 9,  3, vul)
-  bkos.drawRoundRect(ox+36, oy+18, 10, 9,  3, rand)
-  -- Oog
-  bkos.fillCircle(ox+38, oy+15, 2, rand)
-  -- Oor
-  bkos.fillTriangle(ox+24, oy+12, ox+28, oy+12, ox+26, oy+7, vul)
-  bkos.drawTriangle(ox+24, oy+12, ox+28, oy+12, ox+26, oy+7, rand)
+  stukFRR(ox,oy, 11,44,32,8,2, vul);  stukDRR(ox,oy, 11,44,32,8,2, rand)
+  stukFT( ox,oy, 18,44,38,44,32,22,   vul)
+  stukFR( ox,oy, 20,18,14,26,  vul);  stukDR( ox,oy, 20,18,14,26,  rand)
+  stukFRR(ox,oy, 22,12,22,14,4,vul);  stukDRR(ox,oy, 22,12,22,14,4,rand)
+  stukFC( ox,oy, 38,15,2,      rand)
+  stukFT( ox,oy, 24,12,28,12,26,7,    vul)
 end
 
 local function tekenLoper(ox, oy, vul, rand)
-  -- Voet
-  bkos.fillRoundRect(ox+12, oy+44, 32, 8,  3, vul)
-  bkos.drawRoundRect(ox+12, oy+44, 32, 8,  3, rand)
-  -- Basis
-  bkos.fillRoundRect(ox+16, oy+37, 24, 9,  2, vul)
-  bkos.drawRoundRect(ox+16, oy+37, 24, 9,  2, rand)
-  -- Romp (breed naar smal)
-  bkos.fillTriangle(ox+16, oy+37, ox+40, oy+37, ox+28, oy+18, vul)
-  bkos.drawTriangle(ox+16, oy+37, ox+40, oy+37, ox+28, oy+18, rand)
-  -- Hoofd: kleine bol
-  bkos.fillCircle(ox+28, oy+16, 8, vul)
-  bkos.drawCircle(ox+28, oy+16, 8, rand)
-  -- Kruis bovenop
-  bkos.fillCircle(ox+28, oy+9,  3, vul)
-  bkos.drawCircle(ox+28, oy+9,  3, rand)
-  bkos.drawFastVLine(ox+28, oy+6,  6, rand)
-  bkos.drawFastHLine(ox+25, oy+9,  6, rand)
+  stukFRR(ox,oy, 12,44,32,8,3, vul);  stukDRR(ox,oy, 12,44,32,8,3, rand)
+  stukFRR(ox,oy, 16,37,24,9,2, vul);  stukDRR(ox,oy, 16,37,24,9,2, rand)
+  stukFT( ox,oy, 16,37,40,37,28,18,   vul)
+  stukFC( ox,oy, 28,16,8,      vul);  stukDC( ox,oy, 28,16,8,      rand)
+  stukFC( ox,oy, 28,9,3,       vul);  stukDC( ox,oy, 28,9,3,       rand)
 end
 
 local function tekenKoningin(ox, oy, vul, rand)
-  -- Voet
-  bkos.fillRoundRect(ox+9,  oy+44, 38, 8,  3, vul)
-  bkos.drawRoundRect(ox+9,  oy+44, 38, 8,  3, rand)
-  -- Rok (trapezium)
-  bkos.fillTriangle(ox+12, oy+42, ox+44, oy+42, ox+28, oy+24, vul)
-  bkos.fillTriangle(ox+14, oy+42, ox+42, oy+42, ox+28, oy+30, vul)
-  bkos.drawTriangle(ox+12, oy+42, ox+44, oy+42, ox+28, oy+24, rand)
-  -- Lichaam midden
-  bkos.fillRoundRect(ox+20, oy+23, 16, 20, 2, vul)
-  bkos.drawRoundRect(ox+20, oy+23, 16, 20, 2, rand)
-  -- Hoofd
-  bkos.fillCircle(ox+28, oy+19, 8, vul)
-  bkos.drawCircle(ox+28, oy+19, 8, rand)
-  -- Kroon: 3 punten
-  bkos.fillTriangle(ox+19, oy+14, ox+23, oy+14, ox+21, oy+8,  vul)
-  bkos.drawTriangle(ox+19, oy+14, ox+23, oy+14, ox+21, oy+8,  rand)
-  bkos.fillTriangle(ox+26, oy+13, ox+30, oy+13, ox+28, oy+6,  vul)
-  bkos.drawTriangle(ox+26, oy+13, ox+30, oy+13, ox+28, oy+6,  rand)
-  bkos.fillTriangle(ox+33, oy+14, ox+37, oy+14, ox+35, oy+8,  vul)
-  bkos.drawTriangle(ox+33, oy+14, ox+37, oy+14, ox+35, oy+8,  rand)
-  -- Kroontjes bolletjes
-  bkos.fillCircle(ox+21, oy+8,  2, vul)
-  bkos.drawCircle(ox+21, oy+8,  2, rand)
-  bkos.fillCircle(ox+28, oy+6,  2, vul)
-  bkos.drawCircle(ox+28, oy+6,  2, rand)
-  bkos.fillCircle(ox+35, oy+8,  2, vul)
-  bkos.drawCircle(ox+35, oy+8,  2, rand)
+  stukFRR(ox,oy, 9,44,38,8,3,  vul);  stukDRR(ox,oy, 9,44,38,8,3,  rand)
+  stukFT( ox,oy, 12,42,44,42,28,24,   vul)
+  stukFRR(ox,oy, 20,23,16,20,2,vul);  stukDRR(ox,oy, 20,23,16,20,2,rand)
+  stukFC( ox,oy, 28,19,8,      vul);  stukDC( ox,oy, 28,19,8,      rand)
+  stukFT( ox,oy, 19,14,23,14,21,8,    vul)
+  stukFT( ox,oy, 26,13,30,13,28,6,    vul)
+  stukFT( ox,oy, 33,14,37,14,35,8,    vul)
+  stukFC( ox,oy, 21,8,2,       vul);  stukDC( ox,oy, 21,8,2,       rand)
+  stukFC( ox,oy, 28,6,2,       vul);  stukDC( ox,oy, 28,6,2,       rand)
+  stukFC( ox,oy, 35,8,2,       vul);  stukDC( ox,oy, 35,8,2,       rand)
 end
 
 local function tekenKoning(ox, oy, vul, rand)
-  -- Voet
-  bkos.fillRoundRect(ox+9,  oy+44, 38, 8,  3, vul)
-  bkos.drawRoundRect(ox+9,  oy+44, 38, 8,  3, rand)
-  -- Rok
-  bkos.fillTriangle(ox+12, oy+42, ox+44, oy+42, ox+28, oy+26, vul)
-  bkos.drawTriangle(ox+12, oy+42, ox+44, oy+42, ox+28, oy+26, rand)
-  -- Lichaam
-  bkos.fillRoundRect(ox+20, oy+25, 16, 18, 2, vul)
-  bkos.drawRoundRect(ox+20, oy+25, 16, 18, 2, rand)
-  -- Hoofd
-  bkos.fillCircle(ox+28, oy+20, 8, vul)
-  bkos.drawCircle(ox+28, oy+20, 8, rand)
-  -- Kruis (groot kruis bovenop)
-  bkos.fillRect(ox+26, oy+6,  4, 14, vul)
-  bkos.drawRect(ox+26, oy+6,  4, 14, rand)
-  bkos.fillRect(ox+21, oy+9,  14, 4,  vul)
-  bkos.drawRect(ox+21, oy+9,  14, 4,  rand)
+  stukFRR(ox,oy, 9,44,38,8,3,  vul);  stukDRR(ox,oy, 9,44,38,8,3,  rand)
+  stukFT( ox,oy, 12,42,44,42,28,26,   vul)
+  stukFRR(ox,oy, 20,25,16,18,2,vul);  stukDRR(ox,oy, 20,25,16,18,2,rand)
+  stukFC( ox,oy, 28,20,8,      vul);  stukDC( ox,oy, 28,20,8,      rand)
+  stukFR( ox,oy, 26,6,4,14,    vul);  stukDR( ox,oy, 26,6,4,14,    rand)
+  stukFR( ox,oy, 21,9,14,4,    vul);  stukDR( ox,oy, 21,9,14,4,    rand)
 end
 
 local TEKEN_FN = {
@@ -782,10 +737,11 @@ end
 
 -- ── Panel tekst ───────────────────────────────────────────────
 local function tekenPanel()
-  local px = 492
-  -- Achtergrond
-  bkos.fillRect(px-4, 8, 308, 8*SQ+4, C.panel)
-  bkos.drawRect(px-4, 8, 308, 8*SQ+4, C.border)
+  local px = BX + 8*SQ + 14   -- direct rechts van bord + kleine marge
+  local pw = 800 - px - 4     -- resterende breedte
+  -- Achtergrond: zelfde hoogte als bord
+  bkos.fillRect(px-4, BY-2, pw+4, 8*SQ+4, C.panel)
+  bkos.drawRect(px-4, BY-2, pw+4, 8*SQ+4, C.border)
 
   -- Aan de beurt
   local beurtTekst = aanBeurt==1 and "Wit aan zet" or "Zwart aan zet"
@@ -865,28 +821,29 @@ local function tekenPanel()
     end
   end
 
-  -- 6 icoontjes in 2 kolommen, rij-hoogte 26px → eindigt op y=116+3*26=194
+  -- 6 icoontjes in 2 kolommen, rij-hoogte 26px
   local stukTypes = {KONING, KONINGIN, TOREN, LOPER, PAARD, PION}
   local stukNamen = {"Koning","Koningin","Toren","Loper","Paard","Pion"}
+  local kolBreedte = math.floor(pw / 2)
   for i=1,6 do
     local col = (i-1) % 2
     local row = math.floor((i-1)/2)
-    local ix  = px + col * 142
+    local ix  = px + col * kolBreedte
     local iy  = 126 + row * 26
     bkos.fillRect(ix, iy, SC, SC, C.bg)
     mini(stukTypes[i], ix, iy, C.wit, C.tekst)
     bkos.drawText(ix + SC + 3, iy + 7, stukNamen[i], 1, C.tekst)
   end
 
-  -- Knoppen: beginnen op y=210, hoogte=36, onderkant=246/290/334 — ruim boven nav bar
-  bkos.drawFastHLine(px, 206, 285, C.border)
+  -- Knoppen
+  bkos.drawFastHLine(px, 206, pw, C.border)
   if matOfPat ~= "" then
-    tekenKnop(px, 212, 285, 36, "Nieuw spel", true,  2)
-    tekenKnop(px, 254, 285, 36, "Menu",       false, 2)
+    tekenKnop(px, 212, pw, 36, "Nieuw spel", true,  2)
+    tekenKnop(px, 254, pw, 36, "Menu",       false, 2)
   else
-    tekenKnop(px, 212, 285, 36, "Nieuw spel", false, 2)
-    tekenKnop(px, 254, 285, 36, "Menu",       false, 2)
-    tekenKnop(px, 296, 285, 36, "Geef op",    false, 2)
+    tekenKnop(px, 212, pw, 36, "Nieuw spel", false, 2)
+    tekenKnop(px, 254, pw, 36, "Menu",       false, 2)
+    tekenKnop(px, 296, pw, 36, "Geef op",    false, 2)
   end
 end
 
@@ -1162,20 +1119,21 @@ bkos.touch = function(x, y)
 
   -- ── SPEL ─────────────────────────────────────────────────────
   elseif staat == SPEL then
-    local px = 492
+    local px = BX + 8*SQ + 14   -- zelfde berekening als tekenPanel
+    local pw = 800 - px - 4
 
     -- Knop: Nieuw spel (y=212..248)
-    if x>=px and x<=px+285 and y>=212 and y<=248 then
+    if x>=px and x<=px+pw and y>=212 and y<=248 then
       initialiseerBord()
       return
     end
     -- Knop: Menu (y=254..290)
-    if x>=px and x<=px+285 and y>=254 and y<=290 then
+    if x>=px and x<=px+pw and y>=254 and y<=290 then
       staat = MENU
       return
     end
     -- Knop: Geef op (y=296..332)
-    if x>=px and x<=px+285 and y>=296 and y<=332 then
+    if x>=px and x<=px+pw and y>=296 and y<=332 then
       berichtTekst = aanBeurt==1 and "Wit geeft op! Zwart wint." or "Zwart geeft op! Wit wint."
       matOfPat = "mat"
       return
