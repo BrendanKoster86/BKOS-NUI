@@ -344,6 +344,19 @@ De CI downloadt Lua 5.4.7 automatisch van lua.org. Voor lokale compilatie:
 3. Kopieer `BKOS_NUI/lua_bkos_conf.h` → `~/Arduino/libraries/LuaBKOS/src/luaconf.h`
 4. Kopieer `BKOS_NUI/lua_linit_bkos.c` → `~/Arduino/libraries/LuaBKOS/src/linit.c`
 5. Verwijder: `loadlib.c`, `loslib.c`, `liolib.c`, `luac.c`
+6. Maak `~/Arduino/libraries/LuaBKOS/library.properties` aan met deze inhoud:
+   ```
+   name=LuaBKOS
+   version=5.4.7
+   author=PUC-Rio (stripped for ESP32)
+   maintainer=BKOS-NUI
+   sentence=Lua 5.4 embedded interpreter voor BKOS apps
+   paragraph=Zonder os/io/package bibliotheken; gebruikt PSRAM heap
+   category=Other
+   url=https://lua.org
+   architectures=esp32
+   ```
+   **Zonder dit bestand herkent Arduino IDE de library niet en werkt `__has_include("lua.h")` niet.**
 
 ## Conventies
 
