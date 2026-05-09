@@ -619,7 +619,7 @@ void lua_app_sluiten() {
 #else   // LUA_BESCHIKBAAR == 0
 
 void lua_setup()                                          { }
-bool lua_app_laden(int)                                   { return false; }
+bool lua_app_laden(int, bool)                             { return false; }
 void lua_app_teken(int)                                   {
     tft.fillScreen(C_BG);
     tft.setTextSize(2);
