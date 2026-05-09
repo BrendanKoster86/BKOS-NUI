@@ -141,124 +141,17 @@ Touch debouncing via `touch_verwerkt` flag; eerste touch na display wake wordt g
 
 ---
 
-## Taakoverzicht (bijgehouden per sessie)
+## Taakoverzicht
 
-| # | Sessie | Taak | Status |
-|---|---|---|---|
-| 1 | Sessie 1 | Modulaire herstructurering van BKOS4 naar BKOS-NUI met scheiding hardware/screens/state | ✅ Afgerond |
-| 2 | Sessie 1 | OTA systeem via GitHub (versie.txt + firmware.bin) | ✅ Afgerond |
-| 3 | Sessie 1 | IO scherm met scrollbaar kanaallijst en toggle functionaliteit | ✅ Afgerond |
-| 4 | Sessie 1 | WiFiManager integratie met NTP tijdsynchronisatie | ✅ Afgerond |
-| 5 | Sessie 1 | Donker marine kleurthema (ui_colors.h) | ✅ Afgerond |
-| 6 | Sessie 2 | Naamopslag van NVS naar SPIFFS — NVS namespace limiet (126 entries) veroorzaakte verlies bij 240 kanalen | ✅ Afgerond |
-| 7 | Sessie 2 | delay(25) per IO-kanaal verwijderd uit io_cyclus() — scherm bevroor tijdens IO polling | ✅ Afgerond |
-| 8 | Sessie 2 | PRESETS menu in config scherm (CR1070, Klein jacht, Motorboot, Alles wissen) | ✅ Afgerond |
-| 9 | Sessie 2 | Alle chips zichtbaar in config toetsenbord (twee rijen) | ✅ Afgerond |
-| 10 | Sessie 2 | Duplicate code opgeruimd (licht_staat, MAX_IO_KANALEN, IO_NAAM_LEN) | ✅ Afgerond |
-| 11 | Sessie 2 | ota_push_inschakelen() gedeclareerd in ota.h | ✅ Afgerond |
-| 12 | Sessie 2 | GitHub Actions workflow (.github/workflows/build.yml) — automatische compilatie en firmware.bin push | ✅ Aangemaakt — FQBN verificatie vereist (zie sectie GitHub Actions) |
-| 13 | Sessie 2 | Touch debounce: 320ms minimum tussen aparte aanrakingen, dubbele taps worden genegeerd | ✅ Afgerond |
-| 14 | Sessie 2 | Scherm wekt niet na dimmen: ts_touched()+tft_loop() naar begin hw_loop() vóór blokkerende IO-code | ✅ Afgerond |
-| 15 | Sessie 2 | Info-opslag (bootnaam, eigenaar) verplaatst van NVS naar SPIFFS (/bkos_info.csv) | ✅ Afgerond |
-| 16 | Sessie 3 | IO NAMEN + IO CFG scroll (VORIGE/VOLGENDE strip), IO scherm 9 rijen breed zonder zijbalken | ✅ Afgerond |
-| 17 | Sessie 3 | Helderheid herstelt correct na idle (tft_helderheid_zet overschreef waarde niet meer) | ✅ Afgerond |
-| 18 | Sessie 3 | 2-fase idle: na timer→3% (GT911 actief), 5s later→0% (volledig zwart) | ✅ Afgerond |
-| 19 | Sessie 3 | IO flikkering: fillRect verwijderd uit periodieke update, elke rij schildert eigen achtergrond | ✅ Afgerond |
-| 20 | Sessie 3 | Schakelaar-bug: io_apparaat_toggle/staat gebruiken io_zichtbaar() i.p.v. io_kanalen_cnt | ✅ Afgerond |
-| 21 | Sessie 3 | Keyboard: CLR-knop, CAPS-toggle (HOOFD/klein), @ toegevoegd als toets | ✅ Afgerond |
-| 22 | Sessie 3 | IO CFG NAAM-knop: toetsenbord direct in overlay, geen schermwissel meer | ✅ Afgerond |
-| 23 | Sessie 3 | Versienummer format gewijzigd naar MAJOR.MINOR.YYMMDD.I | ✅ Afgerond |
-| 24 | Sessie 4 | Toggle gedrag: io_apparaat_staat = true alleen als ALLE poorten AAN; toggle zet ALLE poorten uniform | ✅ Afgerond |
-| 25 | Sessie 4 | Config state van Preferences naar SPIFFS (/bkos_config.csv) | ✅ Afgerond |
-| 26 | Sessie 4 | 7 kleurenpaletten (MARINE/ROOD/GOUD/BLAUW/GROEN/WIT/NACHT) als runtime variabelen; swatch-selectie in config | ✅ Afgerond |
-| 27 | Sessie 4 | SYM-modus op toetsenbord: speciale tekens voor WiFi-wachtwoorden | ✅ Afgerond |
-| 28 | Sessie 4 | IO NAMEN: 2-kolom compact layout (7×2=14 per pagina, CFG_RIJ_H=38) | ✅ Afgerond |
-| 29 | Sessie 4 | Boot type tekeningen: kruizer, strijkijzer, catamaran | ✅ Afgerond |
-| 30 | Sessie 4 | Info scherm: hergebruik config-toetsenbord; numerieke velden tonen ft/in conversie | ✅ Afgerond |
-| 31 | Sessie 5 | Kleurpaletten: achtergrond wordt overheersende kleur per palet (ROOD=donkerrood, GROEN=donkergroen, etc.) | ✅ Afgerond |
-| 32 | Sessie 5 | Wake-touch fix: laatste_touch_ms=millis() bij scherm-wake → vasthouden vinger triggert geen actie | ✅ Afgerond |
-| 33 | Sessie 5 | IO schakelaar-bug: io_gewijzigd[kanaal]=true toegevoegd, toggle vereenvoudigd (geen INV-logica meer) | ✅ Afgerond |
-| 34 | Sessie 5 | IO flikkering: alleen gewijzigde rijen hertekenen via prev_io_output/prev_io_input vergelijking | ✅ Afgerond |
-| 35 | Sessie 5 | cfg_kb_label: toetsenbord toont veldnaam i.p.v. hardcoded "Naam:" | ✅ Afgerond |
-| 36 | Sessie 5 | cfg_kb_numeriek: cijfertoetsenbord (0-9 + komma) voor maatvelden; komma als decimaalteken | ✅ Afgerond |
-| 37 | Sessie 5 | Afmetingen: weergave op grootte 2 met ft/in conversie in grootte 1 eronder | ✅ Afgerond |
-| 38 | Sessie 5 | Boot mini-preview in CONFIG boottype knoppen (60×22px silhouet per type) | ✅ Afgerond |
-| 39 | Sessie 5 | ROOD palet meer verzadigd rood; BLAUW palet meer verzadigd blauw (RGB565 verhoogd) | ✅ Afgerond |
-| 40 | Sessie 5 | meteo.h + meteo.ino: locatie (ip-api), weer (Open-Meteo), getij (harmonisch) module | ✅ Afgerond |
-| 41 | Sessie 5 | screen_meteo.h + screen_meteo.ino: METEO scherm met WEER/GETIJ/LOCATIE tabs | ✅ Afgerond |
-| 42 | Sessie 5 | Nav bar 6 items (PANEEL/IO/METEO/CONFIG/OTA/INFO); SCREEN_METEO=2 toegevoegd | ✅ Afgerond |
-| 43 | Sessie 5 | Meteo strip onderaan bootpaneel: actueel weer + wind + eerste 2 HW/LW extremen | ✅ Afgerond |
-| 44 | Sessie 5 | FreeRTOS netwerktaak op Core 0: HTTP/WiFi nooit meer in main loop → touch altijd responsief | ✅ Afgerond |
-| 45 | Sessie 5 | WiFi on-demand: verbindt alleen bij boot/30min-update/OTA; verbreekt daarna voor energiebesparing | ✅ Afgerond |
-| 46 | Sessie 5 | Boot instant naar PANEEL na 1s splash, geen wachten op WiFi meer | ✅ Afgerond |
-| 47 | Sessie 5 | Boot tekening schaal 1.75 (was 2): vrije ruimte rondom boot en boven meteo strip | ✅ Afgerond |
-| 48 | Sessie 5 | Maanfase: tekst + springtij/doodtij indicator in meteo strip en METEO WEER tab | ✅ Afgerond |
-| 49 | Sessie 5 | Getij tabel: 2-regelige weergave per rij (tijd+HW/LW groter, hoogte+LAT kleiner eronder) | ✅ Afgerond |
-| 50 | Sessie 6 | Status bar centrale functie sb_teken_basis(): WiFi(x=8)+BT placeholder(x=36)+Alert placeholder(x=56)+Klok(x=732) op alle schermen | ✅ Afgerond |
-| 51 | Sessie 6 | Getij tab: 16 entries (8×2), groter lettertype voor hoogte (size2), waterstand nu + opkomend/afgaand pijl, maanfase altijd zichtbaar | ✅ Afgerond |
-| 52 | Sessie 6 | PANEEL: toont altijd maanfase + eerstvolgende HW én LW; bij geen weer ook waterstand nu + richting | ✅ Afgerond |
-| 53 | Sessie 6 | Vlissingen stationsdata gecorrigeerd: MLWS -2.13m, MLWN -0.74m (waren -0.52/-0.07, onjuist) | ✅ Afgerond |
-| 54 | Sessie 6 | Open-Meteo API gewijzigd naar http:// (was https://) om SSL-handshake problemen op ESP32 te omzeilen | ✅ Afgerond |
-| 55 | Sessie 7 | PANEEL schakelaar sync: apparaat_knoppen_teken() toegevoegd aan io_runned update block | ✅ Afgerond |
-| 56 | Sessie 7 | Nautische maanfase: getekend maansymbool + kwartiercode (NM/EK/VM/LK) + "+X dagen" in PANEEL, GETIJ, WEER | ✅ Afgerond |
-| 57 | Sessie 7 | Getij tab: tijd ook size2 (was size1); "Di 14:30  HW" volledig groot | ✅ Afgerond |
-| 58 | Sessie 7 | PANEEL HW/LW chronologische volgorde: eerste komende event bovenaan, ongeacht type | ✅ Afgerond |
-| 59 | Sessie 7 | Weer API fix: https:// + setInsecure(); FreeRTOS stack 12KB→20KB voor WiFiClientSecure TLS | ✅ Afgerond |
-| 60 | Sessie 8 | Weer fix: http.useHTTP10(true) + timeout 15s om chunked transfer problemen op ESP32 te omzeilen | ✅ Afgerond |
-| 61 | Sessie 8 | Getij dagverschuiving: hw_uur_dag = hw_uur + dag×0.8333h per dag (~50 min per dag) | ✅ Afgerond |
-| 62 | Sessie 8 | Getij tabel: 1 regel per entry "Di 28-04  14:30  HW  1.23m", 12×2=24 entries, maand links boven | ✅ Afgerond |
-| 63 | Sessie 8 | PANEEL sync fix: io_zichtbaar() ipv io_kanalen_cnt in apparaat_knoppen_teken() | ✅ Afgerond |
-| 64 | Sessie 8 | Vaarmodi navigatielichten: ZEILEN→L_3kl+L_hek; MOTOR→L_stoom+L_hek; ANKER→L_anker; HAVEN→alles uit | ✅ Afgerond |
-| 65 | Sessie 8 | IO NAMEN tab verwijderd uit CONFIG scherm (CFG_TAB_H=0, tab UI weg) | ✅ Afgerond |
-| 66 | Sessie 8 | PIN beveiliging CONFIG: cijfertoetsenbord, kleur/boot/zeilnr achter PIN; helderheid vrij; PIN wijzigen → SPIFFS /bkos_pin.txt | ✅ Afgerond |
-| 67 | Sessie 9 | Vaarmodi lichtconfiguraties: ZEILEN cfg0=L_3kl, cfg1=L_navi+L_hek; MOTOR cfg0=L_stoom+L_hek+L_navi, cfg1=L_navi+L_anker, cfg2=L_3kl+L_stoom; ANKER cfg0=L_anker, cfg1=L_stoom+L_hek | ✅ Afgerond |
-| 68 | Sessie 9 | licht_cfg_idx cyclus: zelfde modus klikken → volgende cfg; andere modus → reset naar 0 | ✅ Afgerond |
-| 69 | Sessie 9 | io_zekering_check(): elke 5s, detecteer LSTATE_GEEN_SIGNAAL op actief nav licht → auto volgende cfg | ✅ Afgerond |
-| 70 | Sessie 9 | WiFi wachtwoord toetsenbord: volledig CONFIG keyboard (CAPS/SYM/kleine letters/speciale tekens), wachtwoord als sterretjes | ✅ Afgerond |
-| 71 | Sessie 9 | IO CONFIGURATIE achter PIN beveiliging in CONFIG scherm | ✅ Afgerond |
-| 72 | Sessie 9 | BKOS-NUI VERWIJDEREN knop in OTA scherm: bevestigingsoverlay, flash blanco firmware van brennyc86/BKOS-blanco | ✅ Afgerond |
-| 73 | Sessie 10 | IO verlichting fix: io_verlichting_update() gebruikt io_zichtbaar() i.p.v. io_kanalen_cnt | ✅ Afgerond |
-| 74 | Sessie 10 | Interieur verlichting: IL_wit standaard AAN; IL_rood bij ZEILEN/MOTOR + nav lichten aan + 15min na zonsondergang | ✅ Afgerond |
-| 75 | Sessie 10 | LICHT_AUTO klokgestuurd: nav_licht_ok = !meteo_is_dag; ankerlicht altijd aan bij ANKER (veiligheid) | ✅ Afgerond |
-| 76 | Sessie 10 | Nav bar herschikt: WIFI op positie 4 (altijd zichtbaar); OTA via CONFIG→UPDATEN (achter PIN) | ✅ Afgerond |
-| 77 | Sessie 10 | CONFIG vergrendeling visueel: gestreepte overlay op paletten, grijze tekst/knoppen; ONTGRENDELEN/VERGRENDELEN knop | ✅ Afgerond |
-| 78 | Sessie 10 | INFO scherm lees-alleen: BEWERK knop in statusbalk vraagt PIN; velden alleen bewerkbaar na ontgrendeling | ✅ Afgerond |
-| 79 | Sessie 11 | Open-Meteo API vernieuwd: apparent_temperature, weather_code, wind_speed_unit=kn, minutely_15 voor is_day+gusts, 4 KNMI modellen | ✅ Afgerond |
-| 80 | Sessie 11 | Getij tabel rijen 50% hoger: GTJ_ROW_H 25→38, GTJ_ROWS_N 12→7 (2×7=14 entries, meer rust in overzicht) | ✅ Afgerond |
-| 81 | Sessie 11 | WiFi knop verwijderd uit nav bar (was pos 4); 5 items met mapping array; WiFi via CONFIG bereikbaar | ✅ Afgerond |
-| 82 | Sessie 12 | ArduinoJson toegevoegd aan GitHub Actions workflow — getijdata.cpp dependency veroorzaakte CI-build fout | ✅ Afgerond |
-| 83 | Sessie 12 | IO_SERIAL macro verwijderd — directe Serial.print() calls; Serial2 pins verwijderd uit hw_io.h | ✅ Afgerond |
-| 84 | Sessie 12 | Serial.begin(115200) verwijderd uit hardware.ino — conflict met Serial.begin(9600) voor IO op UART0 | ✅ Afgerond |
-| 85 | Sessie 12 | IO protocol herschreven op basis van BKOSS broncode: 1:1 per-bit (stuur '0' → ATtiny echoet input direct terug) | ✅ Afgerond |
-| 86 | Sessie 12 | CDCOnBoot=default bevestigd via binaire vergelijking — Serial = UART0 = ATtiny (niet USB CDC) | ✅ Afgerond |
-| 87 | Sessie 12 | BKOSS versiecheck bij opstart: io_bkoss_check() stuurt "?\n", parseert "BKOS Serial 3217 V 0.4"; splash toont module/kanaal info | ✅ Afgerond |
-| 88 | Sessie 12 | INFO scherm SYSTEEM tab (3e tab): BKOS-NUI versie, BKOSS module+versie, IO modules/kanalen, WiFi status | ✅ Afgerond |
-| 89 | Sessie 13 | data_store.h/.ino: genaamde key-value opslag met tijdstempel + TTL, ArduinoJson persistentie in SPIFFS | ✅ Afgerond |
-| 90 | Sessie 13 | app_manager.h/.ino: app-manifesten (JSON), SPIFFS /apps/<id>/, GitHub winkel (APPSTORE_INDEX_URL), installeren/verwijderen | ✅ Afgerond |
-| 91 | Sessie 13 | lua_runtime.h/.ino: Lua 5.4 runtime met PSRAM-allocator; bkos.scherm/io/data/sys API; schaalbare coördinaten | ✅ Afgerond |
-| 92 | Sessie 13 | screen_apps.h/.ino: app-beheer scherm (3 tabs: GEÏNSTALLEERD / WINKEL / INSTELLINGEN) | ✅ Afgerond |
-| 93 | Sessie 13 | Nav bar uitgebreid naar 6 items: PANEEL / IO / METEO / CONFIG / APPS / INFO | ✅ Afgerond |
-| 94 | Sessie 13 | Lua-app scherm-override: hardware.ino dispatcht naar lua_app_teken/run als app_voor_scherm() iets vindt | ✅ Afgerond |
-| 95 | Sessie 13 | CI workflow: Lua 5.4.7 downloaden van lua.org, veilige kern-bestanden kopiëren, custom luaconf + linit | ✅ Afgerond |
-| 96 | Sessie 13 | appstore/index.json + voorbeeld_klok app (main.lua met bkos.teken/aanraking/update callbacks) | ✅ Afgerond |
-| 97 | Sessie 14 | APPS nav bar verplaatst: tussen METEO en CONFIG (was na CONFIG) | ✅ Afgerond |
-| 98 | Sessie 14 | screen_apps herschreven naar 2-panel layout: links=geïnstalleerd+SCHERMEN, rechts=APP STORE | ✅ Afgerond |
-| 99 | Sessie 14 | Arduino-stijl API: bkos.HIGH/LOW, bkos.digitalRead/digitalWrite(poort), bkos.drawCircle/fillCircle; poort = int, "A1"-"Z8" of naam | ✅ Afgerond |
-| 100 | Sessie 14 | BKOS_APP_HANDLEIDING.md bijgewerkt: Arduino aliassen, poortnummer-notatie, drawCircle/fillCircle | ✅ Afgerond |
-| 101 | Sessie 15 | fout_log.h + fout_log.cpp: foutrapportage naar GitHub Issues (BKOS-NUI-logs); privacy-toggle + TOKEN INSTELLEN in CONFIG | ✅ Afgerond |
-| 102 | Sessie 15 | App installatie WiFi-fix: WiFi.status() ipv bool, wifi_ota_modus lock tijdens download, vTaskDelay in wacht-loops | ✅ Afgerond |
-| 103 | Sessie 16 | SPIFFS bestandsnaam-fix: "/app_voorbeeld_klok_manifest.json" = 32 tekens → overschrijdt SPIFFS limiet (31); verkort naar "_m.json"; migratie voor bestaande apps | ✅ Afgerond |
-| 104 | Sessie 16 | App sandbox: standalone Lua-apps draaien in content-gebied (y=SB_H..NAV_Y); BKOS-NUI beheert header+footer; lua_y_offset+sandbox-schaling in alle tekenfuncties | ✅ Afgerond |
-| 105 | Sessie 16 | Sluitknop: rood X-blokje rechts in status bar bij standalone apps (sb_app_teken); touch op TFT_W-SB_H..TFT_W, y<SB_H → terug naar APPS | ✅ Afgerond |
-| 106 | Sessie 16 | Periodieke app-update (bkos.update) ook in standalone modus (lua_forceer_app meenemen in geen-aanraking-lus) | ✅ Afgerond |
-| 107 | Sessie 16 | Test apps aangepast: BKE GRID_Y 68→48, voorbeeld_klok nav-hint verwijderd; auto-scaling via sandbox lua_sy past alles passend | ✅ Afgerond |
-| 108 | Sessie 17 | PANEEL verlichting herschreven: LICHT_UIT=alles uit, LICHT_AAN per modus, LICHT_AUTO tijdgestuurd met twee aparte offsets (nav + interieur rood) | ✅ Afgerond |
-| 109 | Sessie 17 | Lang indrukken AUTO knop → overlay menu voor nav/int offset instelling (minuten t.o.v. zonsondergang, stap 5 min, bereik -120..+120) | ✅ Afgerond |
-| 110 | Sessie 17 | io_verlichting_update() bij opstarten (na io_boot) → verlichting direct correct na herstart | ✅ Afgerond |
-| 111 | Sessie 17 | LICHT_AUTO achtergrond update elke 60s in hw_loop, ook als andere schermen/apps actief zijn | ✅ Afgerond |
-| 112 | Sessie 17 | "Onthoud lichtmodus" toggle in CONFIG scherm (midden-rechts in wow_y rij); AAN = sla modus/instelling op, UIT = start altijd HAVEN + AUTO | ✅ Afgerond |
-| 113 | Sessie 18 | Coördinatenstelsel overhaul: 1:1 pixels standaard, bkos.H = CONTENT_H = 396; app.schaal "evenredig"/"onevenredig" voor schaalbare apps | ✅ Afgerond |
-| 114 | Sessie 18 | Pico port fasen 1-3: platform.h (ESP32/Pico defines), platform_fs.h (SPIFFS/LittleFS alias), hw_scherm (GFX pointer), hw_touch (GT911/XPT2046), wifi/ota/lua/app_manager/fout_log conditioneel; CI Pico build job | ✅ Afgerond |
+Volledige geschiedenis: zie [docs/TAAKHISTORIE.md](docs/TAAKHISTORIE.md) (sessies 1–18).
+
+Recente taken:
+
+| # | Sessie | Taak |
+|---|---|---|
+| 113 | Sessie 18 | Coördinatenstelsel: 1:1 pixels, bkos.H=396, schaal-modi in manifest |
+| 114 | Sessie 18 | Pico port fasen 1-3: platform.h, platform_fs.h, hw_scherm/touch, wifi/ota conditioneel, CI Pico job |
+| 115 | Sessie 18 | lua_app_laden stub signatuur fix (int,bool); lua_linit_bkos.c compileert leeg zonder Lua; library.properties vereist voor LuaBKOS |
 
 ---
 
