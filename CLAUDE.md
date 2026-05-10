@@ -152,6 +152,8 @@ Recente taken:
 | 113 | Sessie 18 | Coördinatenstelsel: 1:1 pixels, bkos.H=396, schaal-modi in manifest |
 | 114 | Sessie 18 | Pico port fasen 1-3: platform.h, platform_fs.h, hw_scherm/touch, wifi/ota conditioneel, CI Pico job |
 | 115 | Sessie 18 | lua_app_laden stub signatuur fix (int,bool); lua_linit_bkos.c compileert leeg zonder Lua; library.properties vereist voor LuaBKOS |
+| 116 | Sessie 19 | Pico Compileer-fixes: FreeRTOS stubs, WiFi API guards, LittleFS.begin(), SPI constructor, hardware pins (ILI9341+XPT2046) |
+| 117 | Sessie 19 | Pico UI: compact nav bar (< 3 items >) + portret hoofdscherm 240×320 (boot links, controls rechts) |
 
 ---
 
