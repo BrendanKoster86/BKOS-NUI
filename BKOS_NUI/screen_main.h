@@ -58,6 +58,43 @@
 // Interieur status balk
 #define INT_STATUS_Y  (DKNOP_Y2 + DKNOP_H + 8)
 
+#if PLATFORM_PICO
+// ─── Pico portret-layout (240×320) ────────────────────────────────────────
+// Content: CONTENT_Y=24 .. NAV_Y=284, hoogte=260
+#define PICO_LEFT_W   120   // linker paneel (boot)
+#define PICO_RIGHT_X  120   // rechter paneel start
+#define PICO_RIGHT_W  120   // rechter paneel breedte
+
+// Boot tekening op Pico: schaal ×7/10, raw 0..120 × 0..165
+// Uitkomst: 84px breed, 115px hoog — gecentreerd in linker paneel
+#define PICO_BOOT_BX_OFF  18                           // (120-84)/2
+#define PICO_BOOT_BY_OFF  (CONTENT_Y + 10)
+#define PICO_BOOT_BX(x)   (PICO_BOOT_BX_OFF + ((x)*7)/10)
+#define PICO_BOOT_BY(y)   (PICO_BOOT_BY_OFF + ((y)*7)/10)
+#define PICO_BOOT_LICHT_R  4
+
+// Vaarmodus knoppen: 4 gestapeld in rechter kolom
+#define PICO_MKNOP_X    (PICO_RIGHT_X + 4)
+#define PICO_MKNOP_W    112
+#define PICO_MKNOP_H    38
+#define PICO_MKNOP_Y0   (CONTENT_Y + 4)
+#define PICO_MKNOP_Y(i) (PICO_MKNOP_Y0 + (i) * (PICO_MKNOP_H + 4))
+
+// Verlichting: 1 cyclische knop
+#define PICO_LKNOP_X    (PICO_RIGHT_X + 4)
+#define PICO_LKNOP_W    112
+#define PICO_LKNOP_H    24
+#define PICO_LKNOP_Y    (PICO_MKNOP_Y(4) + 6)         // = 24+4+4*42+6 = 198
+
+// Apparaat knoppen: 2×2 grid (WATER, TV, USB, 230V)
+#define PICO_DKNOP_W    54
+#define PICO_DKNOP_H    24
+#define PICO_DKNOP_X1   (PICO_RIGHT_X + 4)
+#define PICO_DKNOP_X2   (PICO_DKNOP_X1 + PICO_DKNOP_W + 4)
+#define PICO_DKNOP_Y1   (PICO_LKNOP_Y + PICO_LKNOP_H + 6)
+#define PICO_DKNOP_Y2   (PICO_DKNOP_Y1 + PICO_DKNOP_H + 4)
+#endif
+
 void screen_main_teken();
 void screen_main_run(int x, int y, bool aanraking);
 void screen_main_update_boot();

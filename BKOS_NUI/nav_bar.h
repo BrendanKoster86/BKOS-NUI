@@ -7,13 +7,18 @@
 static const char* nav_labels[NAV_ITEMS] = {"PANEEL", "IO", "METEO", "APPS", "CONFIG", "INFO"};
 static const int   nav_scherm[NAV_ITEMS] = {SCREEN_MAIN, SCREEN_IO, SCREEN_METEO, SCREEN_APPS, SCREEN_CONFIG, SCREEN_INFO};
 
-// Status bar vaste posities (SB_H = 42px):
-//   x=8:   WiFi signaal icoon (22px)
-//   x=36:  Bluetooth placeholder (14px)
-//   x=56:  Alert placeholder (14px)
-//   x=732: Klok HH:MM (5 chars × 12px = 60px)
-//   x=86..724: vrij voor schermnaam / bootnaam
-#define SB_KLOK_X  732
+// Status bar klok positie
+#if PLATFORM_PICO
+  // Pico 240px: klok rechts uitgelijnd (textSize 1 = 5×6=30px)
+  #define SB_KLOK_X  (TFT_W - 34)
+#else
+  // ESP32 800px: x=732, 5 chars × 12px = 60px, 8px marge
+  #define SB_KLOK_X  732
+#endif
+
+#if PLATFORM_PICO
+extern int pico_nav_scroll;  // eerste zichtbare nav-item (0..3)
+#endif
 
 void nav_bar_teken();
 int  nav_bar_klik(int x, int y);

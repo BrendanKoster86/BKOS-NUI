@@ -1,11 +1,17 @@
 #pragma once
 #include "hw_scherm.h"
 #include "ui_colors.h"
+#include "platform.h"
 
 // Layout constanten
-#define SB_H       42    // Status bar hoogte
-#define NAV_H      42    // Nav bar hoogte
-#define NAV_Y      (TFT_H - NAV_H)  // Nav bar y positie
+#if PLATFORM_PICO
+  #define SB_H   24    // Compact status bar voor 240×320
+  #define NAV_H  36    // Scrollbare nav bar hoogte
+#else
+  #define SB_H   42    // Status bar hoogte
+  #define NAV_H  42    // Nav bar hoogte
+#endif
+#define NAV_Y      (TFT_H - NAV_H)
 #define CONTENT_Y  SB_H
 #define CONTENT_H  (TFT_H - SB_H - NAV_H)
 
