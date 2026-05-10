@@ -121,7 +121,7 @@
 
 // ─── FreeRTOS taak aanmaken ───────────────────────────────────────────────────
 // ESP32: xTaskCreatePinnedToCore op core 0
-// Pico:  geen echte FreeRTOS — taken worden niet gestart (no-op)
+// Pico:  taken worden NIET gestart (no-op) — alles draait op de hoofd-thread
 #if PLATFORM_PICO
   #define PLATFORM_TASK_CREATE(fn, naam, stack, param, prio, handle) ((void)0)
 #else
@@ -129,12 +129,23 @@
       xTaskCreatePinnedToCore((fn), (naam), (stack), (param), (prio), (handle), 0)
 #endif
 
-// ─── FreeRTOS type/functie stubs voor RP2040 ─────────────────────────────────
+// ─── FreeRTOS types voor RP2040 ──────────────────────────────────────────────
+// Pico W gebruikt FreeRTOS intern voor de WiFi-stack (pico-sdk CYW43 driver).
+// Als FreeRTOS.h beschikbaar is: gebruik echte types zodat er geen typedef-
+// conflict ontstaat wanneer WiFi.h/WiFiClientSecure.h dezelfde headers includeert.
+// Als FreeRTOS niet aanwezig is: minimale stubs voor standaard Pico (zonder WiFi).
 #if PLATFORM_PICO
-  typedef void*  TaskHandle_t;
-  typedef long   BaseType_t;
-  #define pdTRUE             ((BaseType_t)1)
-  #define portTICK_PERIOD_MS 1
-  static inline void vTaskDelay(unsigned long ms) { delay(ms); }
-  static inline void vTaskDelete(TaskHandle_t)    { }
+  #if __has_include(<FreeRTOS.h>)
+    #include <FreeRTOS.h>
+    #include <task.h>
+    // TaskHandle_t, BaseType_t, pdTRUE, portTICK_PERIOD_MS, vTaskDelay, vTaskDelete
+    // zijn nu beschikbaar — geen stubs nodig
+  #else
+    typedef void*  TaskHandle_t;
+    typedef long   BaseType_t;
+    #define pdTRUE             ((BaseType_t)1)
+    #define portTICK_PERIOD_MS 1
+    static inline void vTaskDelay(unsigned long ms) { delay(ms); }
+    static inline void vTaskDelete(TaskHandle_t)    { }
+  #endif
 #endif
