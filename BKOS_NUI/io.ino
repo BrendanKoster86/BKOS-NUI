@@ -5,7 +5,7 @@
 byte licht_cfg_idx = 0;
 
 // ─── Pico GPIO helpers ────────────────────────────────────────────────────
-#if PLATFORM_PICO
+#if SCREEN_SMALL
 
 static void _pck_puls() {
     digitalWrite(HC_PCK, LOW);  delayMicroseconds(100);
@@ -24,10 +24,10 @@ static byte _lees_id_byte() {
     return id;
 }
 
-#endif // PLATFORM_PICO
+#endif // SCREEN_SMALL
 
 void io_bkoss_check() {
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     bkoss_actief = false;  // geen ATtiny op Pico
     return;
 #endif
@@ -59,7 +59,7 @@ void io_bkoss_check() {
 }
 
 void io_boot() {
-#if !PLATFORM_PICO
+#if !SCREEN_SMALL
     Serial.flush();
     io_bkoss_check();
 #endif
@@ -70,7 +70,7 @@ void io_detect() {
     io_aparaten_cnt = 0;
     io_kanalen_cnt  = 0;
 
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     // Pico: directe GPIO — parallel klok zet modules in detectiemodus,
     // daarna 8 klokpulsen per module om het ID via HC_ID uit te lezen.
     _pck_puls();
@@ -117,7 +117,7 @@ void io_cyclus() {
     int n = min(io_kanalen_cnt, MAX_IO_KANALEN);
     if (n == 0) { io_actief = false; return; }
 
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     // Pico: directe GPIO shift register cyclus
     // Parallelle klok laadt huidige uitgangswaarden
     _pck_puls();

@@ -58,7 +58,7 @@
 // Interieur status balk
 #define INT_STATUS_Y  (DKNOP_Y2 + DKNOP_H + 8)
 
-#if PLATFORM_PICO
+#if SCREEN_SMALL
 // ─── Pico portret-layout (240×320) ────────────────────────────────────────
 // Content: CONTENT_Y=24 .. NAV_Y=284, hoogte=260
 // Links 180px: boot   |   Rechts 60px: vaarmodus + licht knoppen

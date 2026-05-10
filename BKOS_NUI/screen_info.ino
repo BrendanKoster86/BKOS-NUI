@@ -196,7 +196,7 @@ static void info_velden_teken() {
 }
 
 // ─────────────────────── PICO UI ────────────────────────────────────────────
-#if PLATFORM_PICO
+#if SCREEN_SMALL
 
 #define PICO_INFO_TAB_H   24
 #define PICO_INFO_TAB_N   3
@@ -278,14 +278,14 @@ static void pico_info_velden_teken() {
     }
 }
 
-#endif  // PLATFORM_PICO
+#endif  // SCREEN_SMALL
 // ────────────────────────────────────────────────────────────────────────────
 
 // ─── Hoofdfuncties ───────────────────────────────────────────────────
 void screen_info_teken() {
     if (!info_geladen) info_laden();
     tft.fillScreen(C_BG);
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     sb_scherm_teken("INFO", C_CYAN);
     ui_knop(TFT_W - 56, (SB_H - 18) / 2, 52, 18,
             info_bewerkbaar ? "SLOT" : "BEWERK",
@@ -308,7 +308,7 @@ void screen_info_run(int x, int y, bool aanraking) {
     if (!aanraking) return;
     if (millis() - info_kb_sloot < 400) return;
 
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     // PIN overlay
     if (info_pin_wacht && pin_overlay_actief) {
         if (pin_overlay_run(x, y)) {

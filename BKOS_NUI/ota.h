@@ -2,14 +2,17 @@
 #include "platform.h"
 #include "wifi.h"
 
-#define BKOS_NUI_VERSIE     "0.0.260510.9"
+#define BKOS_NUI_VERSIE     "0.0.260510.10"
 
 #if PLATFORM_PICO
-  #define OTA_GITHUB_VERSIE_URL   "https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/BKOS_NUI/versie_pico.txt"
-  #define OTA_GITHUB_FIRMWARE_URL "https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/BKOS_NUI/firmware_pico.bin"
+  #define OTA_GITHUB_VERSIE_URL   "https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/firmware/versie_pico.txt"
+  #define OTA_GITHUB_FIRMWARE_URL "https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/firmware/bkos_pico1w2432.bin"
+#elif PLATFORM_WROOM
+  #define OTA_GITHUB_VERSIE_URL   "https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/firmware/versie_wroom.txt"
+  #define OTA_GITHUB_FIRMWARE_URL "https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/firmware/bkos_esp32wroom2432.bin"
 #else
-  #define OTA_GITHUB_VERSIE_URL   "https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/BKOS_NUI/versie.txt"
-  #define OTA_GITHUB_FIRMWARE_URL "https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/BKOS_NUI/firmware.bin"
+  #define OTA_GITHUB_VERSIE_URL   "https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/firmware/versie_esp32s3.txt"
+  #define OTA_GITHUB_FIRMWARE_URL "https://raw.githubusercontent.com/brennyc86/BKOS-NUI/main/firmware/bkos_esp32s3_8048s070.bin"
 #endif
 
 extern bool ota_wifi_actief;

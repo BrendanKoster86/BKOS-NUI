@@ -249,7 +249,7 @@ static void boot_teken_catamaran() {
 }
 
 void boot_teken() {
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     pico_boot_teken();
 #else
     tft.fillRect(BDX, BDY, BDW, BDH, C_BG);
@@ -577,7 +577,7 @@ static void licht_auto_menu_run(int x, int y) {
 }
 
 void screen_main_lang_indruk(int x, int y) {
-#if !PLATFORM_PICO
+#if !SCREEN_SMALL
     if (x >= LKNOP_X3 && x < LKNOP_X3 + LKNOP_W &&
         y >= LKNOP_Y  && y < LKNOP_Y  + LKNOP_H) {
         licht_auto_menu_open = true;
@@ -612,7 +612,7 @@ static void scheidingslijn_teken() {
 }
 
 // ─── Pico-specifieke implementatie ──────────────────────────────────
-#if PLATFORM_PICO
+#if SCREEN_SMALL
 
 static void pico_boot_seg_teken(const int data[][2], int cnt, uint16_t kleur) {
     int px = 0, py = 0;
@@ -854,7 +854,7 @@ static void pico_screen_main_run(int x, int y, bool aanraking) {
     }
 }
 
-#endif // PLATFORM_PICO
+#endif // SCREEN_SMALL
 
 // ─── Hoofdfuncties ──────────────────────────────────────────────────
 // ─── Meteo strip onderaan bootpaneel ────────────────────────────────────
@@ -991,7 +991,7 @@ static void meteo_strip_teken() {
 }
 
 void screen_main_teken() {
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     pico_screen_main_teken();
 #else
     licht_auto_menu_open = false;
@@ -1010,7 +1010,7 @@ void screen_main_teken() {
 }
 
 void screen_main_update_boot() {
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     pico_boot_teken();
 #else
     boot_lichten_teken();
@@ -1018,7 +1018,7 @@ void screen_main_update_boot() {
 }
 
 void screen_main_update_controls() {
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     pico_controls_teken();
 #else
     tft.fillRect(CTRL_PANEL_X, CONTENT_Y, CTRL_PANEL_W, CONTENT_H, C_BG);
@@ -1030,7 +1030,7 @@ void screen_main_update_controls() {
 }
 
 void screen_main_run(int x, int y, bool aanraking) {
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     pico_screen_main_run(x, y, aanraking);
     return;
 #else
@@ -1127,5 +1127,5 @@ void screen_main_run(int x, int y, bool aanraking) {
         screen_main_update_controls();
         boot_lichten_teken();
     }
-#endif // PLATFORM_PICO
+#endif // SCREEN_SMALL
 }

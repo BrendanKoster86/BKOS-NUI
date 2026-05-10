@@ -4,7 +4,7 @@
 #include "platform.h"
 
 // Layout constanten
-#if PLATFORM_PICO
+#if SCREEN_SMALL
   #define SB_H   24    // Compact status bar voor 240×320
   #define NAV_H  36    // Scrollbare nav bar hoogte
 #else

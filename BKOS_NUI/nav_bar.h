@@ -8,7 +8,7 @@ static const char* nav_labels[NAV_ITEMS] = {"PANEEL", "IO", "METEO", "APPS", "CO
 static const int   nav_scherm[NAV_ITEMS] = {SCREEN_MAIN, SCREEN_IO, SCREEN_METEO, SCREEN_APPS, SCREEN_CONFIG, SCREEN_INFO};
 
 // Status bar klok positie
-#if PLATFORM_PICO
+#if SCREEN_SMALL
   // Pico 240px: klok rechts uitgelijnd (textSize 1 = 5×6=30px)
   #define SB_KLOK_X  (TFT_W - 34)
 #else
@@ -16,7 +16,7 @@ static const int   nav_scherm[NAV_ITEMS] = {SCREEN_MAIN, SCREEN_IO, SCREEN_METEO
   #define SB_KLOK_X  732
 #endif
 
-#if PLATFORM_PICO
+#if SCREEN_SMALL
 extern int pico_nav_scroll;  // eerste zichtbare nav-item (0..3)
 #endif
 

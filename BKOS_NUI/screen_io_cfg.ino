@@ -265,7 +265,7 @@ static void iocfg_overlay_teken() {
 }
 
 // ─────────────────────── PICO UI ────────────────────────────────────────────
-#if PLATFORM_PICO
+#if SCREEN_SMALL
 
 #define PIOCFG_COUNT_Y   (SB_H + 2)
 #define PIOCFG_COUNT_H   38
@@ -456,7 +456,7 @@ static void pico_iocfg_preset_teken() {
     ui_knop(8 + bw2,  btn_y + 30, bw2, 26, "OPSLN",  C_GREEN,    C_TEXT_DARK);
 }
 
-#endif  // PLATFORM_PICO
+#endif  // SCREEN_SMALL
 // ────────────────────────────────────────────────────────────────────────────
 
 // ─── Hoofd scherm ───────────────────────────────────────────────────────
@@ -465,7 +465,7 @@ void screen_io_cfg_teken() {
     sb_scherm_teken("IO CFG", C_CYAN);
 
     if (iocfg_naam_kb) {
-#if PLATFORM_PICO
+#if SCREEN_SMALL
         if (iocfg_preset_modus) { pico_iocfg_preset_teken(); nav_bar_teken(); return; }
 #endif
         screen_config_toetsenbord_teken();
@@ -473,7 +473,7 @@ void screen_io_cfg_teken() {
         return;
     }
 
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     pico_iocfg_count_teken();
     pico_iocfg_lijst_teken();
     if (iocfg_overlay) pico_iocfg_overlay_teken();
@@ -497,13 +497,13 @@ static bool ov_actie_klik(int x, int y, int ov_cy, uint8_t &doel) {
 
 void screen_io_cfg_run(int x, int y, bool aanraking) {
     if (!aanraking) return;
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     if (millis() - iocfg_sloot < 700) return;
 #else
     if (millis() - iocfg_sloot < 400) return;
 #endif
 
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     if (iocfg_naam_kb) {
         int nav = nav_bar_klik(x, y);
         if (nav >= 0 && nav != actief_scherm) {

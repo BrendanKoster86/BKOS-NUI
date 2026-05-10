@@ -107,7 +107,7 @@ static const char* cfg_chips_r2[] = {
 };
 
 // ─────────────────────── PICO UI ────────────────────────────────────────────
-#if PLATFORM_PICO
+#if SCREEN_SMALL
 
 // PIN overlay voor 240×320
 #define PICO_PIN_OV_X   4
@@ -554,12 +554,12 @@ static void pico_cfg_instellingen_run(int x, int y) {
     }
 }
 
-#endif  // PLATFORM_PICO
+#endif  // SCREEN_SMALL
 // ────────────────────────────────────────────────────────────────────────────
 
 // ─── PIN overlay ────────────────────────────────────────────────────────
 static void pin_overlay_teken() {
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     pico_pin_overlay_teken(); return;
 #endif
     tft.fillRect(0, CFG_CONT_Y, TFT_W, CONTENT_H, RGB565(5, 10, 20));
@@ -640,7 +640,7 @@ static void pin_overlay_teken() {
 static bool pin_verwerk_ok();  // forward
 
 bool pin_overlay_run(int x, int y) {
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     int kx = PICO_PIN_OV_X + (PICO_PIN_OV_W - (3 * PICO_PIN_KW + 2 * PICO_PIN_KGAP)) / 2;
     int ky = PICO_PIN_OV_Y + 58;
     const char* krows[3] = {"789","456","123"};
@@ -1322,7 +1322,7 @@ static void cfg_chips_teken() {
 
 // ─── Toetsenbord ────────────────────────────────────────────────────────
 void screen_config_toetsenbord_teken() {
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     pico_screen_config_toetsenbord_teken(); return;
 #endif
     tft.fillRect(0, CONTENT_Y, TFT_W, CONTENT_H, C_SURFACE);
@@ -1434,7 +1434,7 @@ static bool cfg_chip_klik(int x, int y) {
 }
 
 bool screen_config_toetsenbord_run(int x, int y) {
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     return pico_screen_config_toetsenbord_run(x, y);
 #endif
     // Numeriek toetsenbord
@@ -1750,7 +1750,7 @@ static void cfg_io_namen_run(int x, int y) {
 void screen_config_teken() {
     tft.fillScreen(C_BG);
     sb_scherm_teken("CONFIG", C_CYAN);
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     pico_cfg_instellingen_teken();
 #else
     cfg_instellingen_teken();
@@ -1760,13 +1760,13 @@ void screen_config_teken() {
 
 void screen_config_run(int x, int y, bool aanraking) {
     if (!aanraking) return;
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     if (millis() - cfg_kb_sloot < 700) return;
 #else
     if (millis() - cfg_kb_sloot < 400) return;
 #endif
 
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     if (pin_overlay_actief) {
         if (pin_overlay_run(x, y)) { cfg_kb_sloot = millis(); scherm_bouwen = true; }
         return;

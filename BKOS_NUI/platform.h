@@ -5,18 +5,30 @@
 // Ondersteunde targets:
 //   PLATFORM_ESP32  — ESP32-S3, 800×480 RGB panel, PSRAM, GT911 touch
 //   PLATFORM_PICO   — RP2040/RP2350 (Pico W), 240×320 SPI display, XPT2046
+//   PLATFORM_WROOM  — ESP32 WROOM32, 240×320 SPI display, XPT2046
 //
-// Pinnen zijn standaard-waarden; pas aan in dit bestand voor jouw hardware.
+// PLATFORM_WROOM moet worden doorgegeven via compiler flag: -DPLATFORM_WROOM=1
+// SCREEN_SMALL is true voor Pico en WROOM (240×320 ILI9341 scherm)
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─── Platform detectie ────────────────────────────────────────────────────────
+#ifndef PLATFORM_WROOM
+  #define PLATFORM_WROOM 0
+#endif
+
 #if defined(ARDUINO_ARCH_RP2040) || defined(ARDUINO_ARCH_RP2350)
   #define PLATFORM_PICO  1
   #define PLATFORM_ESP32 0
+  #undef  PLATFORM_WROOM
+  #define PLATFORM_WROOM 0
 #else
   #define PLATFORM_PICO  0
   #define PLATFORM_ESP32 1
+  // PLATFORM_WROOM blijft zoals doorgegeven via compiler flag
 #endif
+
+// ─── SCREEN_SMALL: 240×320 ILI9341 scherm (Pico of WROOM) ───────────────────
+#define SCREEN_SMALL (PLATFORM_PICO || PLATFORM_WROOM)
 
 // ─── Scherm en pinnen ─────────────────────────────────────────────────────────
 #if PLATFORM_PICO
@@ -45,6 +57,31 @@
   #define HC_PCK   2    // GP2  — parallelle klok (load)
   #define HC_UIT   3    // GP3  — seriële data uitgang (Pico → HC595)
   #define HC_ID    4    // GP4  — module ID data ingang
+
+#elif PLATFORM_WROOM
+  // ILI9341 SPI display, 240×320 portret — ESP32 WROOM32
+  #define TFT_W     240
+  #define TFT_H     320
+  #define TFT_BL    19   // GPIO19 — backlight PWM
+  #define TFT_CS     0   // GPIO0  — display chip select
+  #define TFT_DC    23   // GPIO23 — data/command
+  #define TFT_RST   17   // GPIO17 — reset
+  #define TFT_SCK   14   // GPIO14 — SPI SCK
+  #define TFT_MOSI  13   // GPIO13 — SPI MOSI
+  #define TFT_MISO  12   // GPIO12 — SPI MISO
+
+  // XPT2046 resistieve touch (gedeelde SPI bus met display)
+  #define WROOM_TOUCH_XPT2046
+  #define WROOM_TS_CS   22   // GPIO22 — touch chip select
+  #define WROOM_TS_IRQ  21   // GPIO21 — touch interrupt
+
+  // IO shift register bus (zelfde HC165/HC595 protocol als Pico)
+  #define HC_IN    34   // GPIO34 — HC165 data in (input-only pin)
+  #define HC_SCK   25   // GPIO25 — seriële klok
+  #define HC_PCK   26   // GPIO26 — parallelle klok (load)
+  #define HC_UIT   27   // GPIO27 — HC595 data uitgang
+  #define HC_ID    35   // GPIO35 — module ID (input-only pin)
+
 #else
   // Arduino_ESP32RGBPanel 800×480 liggend
   #define TFT_W    800
@@ -55,12 +92,14 @@
 #endif
 
 // ─── Geheugen allocatie ───────────────────────────────────────────────────────
-#if PLATFORM_ESP32
+#if PLATFORM_ESP32 && !PLATFORM_WROOM
+  // ESP32-S3 met PSRAM
   #include <esp_heap_caps.h>
   #define PLATFORM_MALLOC(n)    heap_caps_malloc((n), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)
   #define PLATFORM_REALLOC(p,n) heap_caps_realloc((p), (n), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)
   #define PLATFORM_FREE(p)      heap_caps_free(p)
 #else
+  // Pico en WROOM: gewoon malloc (geen PSRAM)
   #define PLATFORM_MALLOC(n)    malloc(n)
   #define PLATFORM_REALLOC(p,n) realloc((p), (n))
   #define PLATFORM_FREE(p)      free(p)
@@ -91,8 +130,6 @@
 #endif
 
 // ─── FreeRTOS type/functie stubs voor RP2040 ─────────────────────────────────
-// De earlephilhower RP2040 core heeft geen standaard FreeRTOS bibliotheek
-// tenzij je de RTOS-build activeert. Stubs vervangen de RTOS-calls.
 #if PLATFORM_PICO
   typedef void*  TaskHandle_t;
   typedef long   BaseType_t;

@@ -1,7 +1,7 @@
 #include "nav_bar.h"
 #include "screen_info.h"
 
-#if PLATFORM_PICO
+#if SCREEN_SMALL
 int pico_nav_scroll = 0;  // index van het eerste zichtbare nav-item (0..3)
 #define PICO_NAV_ARROW_W  20
 #define PICO_NAV_ITEM_W   ((TFT_W - 2 * PICO_NAV_ARROW_W) / 3)   // 64px
@@ -64,7 +64,7 @@ void sb_teken_basis() {
     tft.fillRect(0, 0, TFT_W, SB_H, C_STATUSBAR);
     tft.drawFastHLine(0, SB_H - 1, TFT_W, C_SURFACE2);
 
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     // Kleine WiFi-indicator (gekleurde cirkel)
     uint16_t wkl = wifi_verbonden ? C_GREEN : RGB565(80, 90, 100);
     tft.fillCircle(8, SB_H / 2, 3, wkl);
@@ -88,7 +88,7 @@ void sb_teken_basis() {
 // ─── Status bar met schermnaam ────────────────────────────────────────────
 void sb_scherm_teken(const char* titel, uint16_t kleur) {
     sb_teken_basis();
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     tft.setTextSize(1);
     tft.setTextColor(kleur);
     tft.setCursor(16, (SB_H - 8) / 2);
@@ -138,7 +138,7 @@ void nav_bar_teken() {
     tft.fillRect(0, y, TFT_W, NAV_H, C_NAVBAR);
     tft.drawFastHLine(0, y, TFT_W, C_SURFACE2);
 
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     // Pico: pijltje links | 3 zichtbare items | pijltje rechts
     // Linker pijl
     tft.setTextSize(1);
@@ -198,7 +198,7 @@ void nav_bar_teken() {
 
 int nav_bar_klik(int x, int y) {
     if (y < NAV_Y || y >= TFT_H) return -1;
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     if (x < PICO_NAV_ARROW_W) {
         // Linker pijl: scroll links
         if (pico_nav_scroll > 0) {

@@ -117,7 +117,7 @@ static void wifi_lijst_teken() {
 }
 
 // ─────────────────────── PICO UI ────────────────────────────────────────────
-#if PLATFORM_PICO
+#if SCREEN_SMALL
 
 #define PICO_WIFI_RIJ_H   36
 #define PICO_WIFI_RIJEN_N 5
@@ -163,7 +163,7 @@ static void pico_wifi_lijst_teken() {
     }
 }
 
-#endif  // PLATFORM_PICO
+#endif  // SCREEN_SMALL
 // ────────────────────────────────────────────────────────────────────────────
 
 // ─── Hoofdfuncties ───────────────────────────────────────────────────
@@ -171,7 +171,7 @@ void screen_wifi_teken() {
     tft.fillScreen(C_BG);
     sb_scherm_teken("WIFI", C_CYAN);
 
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     // Terug knop rechts in statusbalk (compact voor Pico)
     ui_knop(TFT_W - 56, (SB_H - 18) / 2, 52, 18, "<TERUG", C_SURFACE2, C_TEXT_DIM);
 
@@ -253,7 +253,7 @@ void screen_wifi_run(int x, int y, bool aanraking) {
     if (!aanraking) return;
     if (millis() - wifi_kb_sloot < 300) return;
 
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     // Terug knop
     if (y < SB_H && x >= TFT_W - 56) {
         actief_scherm = SCREEN_CONFIG; scherm_bouwen = true; wifi_staat = WIFI_ST_IDLE; return;

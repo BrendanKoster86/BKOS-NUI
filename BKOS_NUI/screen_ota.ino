@@ -2,7 +2,7 @@
 #include "nav_bar.h"
 
 // ─────────────────────── PICO UI ────────────────────────────────────────────
-#if PLATFORM_PICO
+#if SCREEN_SMALL
 
 #define PICO_OTA_BTN_X   8
 #define PICO_OTA_BTN_W   (TFT_W - 16)
@@ -56,7 +56,7 @@ static void pico_screen_ota_teken_impl() {
     nav_bar_teken();
 }
 
-#endif  // PLATFORM_PICO
+#endif  // SCREEN_SMALL
 // ────────────────────────────────────────────────────────────────────────────
 
 #define OTA_BTN_X   60
@@ -130,7 +130,7 @@ static void ota_info_teken() {
 }
 
 void screen_ota_status_update() {
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     pico_ota_info_teken();
 #else
     ota_info_teken();
@@ -138,7 +138,7 @@ void screen_ota_status_update() {
 }
 
 void screen_ota_teken() {
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     pico_screen_ota_teken_impl();
     return;
 #endif
@@ -189,7 +189,7 @@ void screen_ota_teken() {
 }
 
 void screen_ota_run(int x, int y, bool aanraking) {
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     if (!aanraking) {
         static unsigned long last_update = 0;
         if (millis() - last_update > 3000) {

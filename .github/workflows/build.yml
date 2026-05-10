@@ -13,7 +13,7 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  build_esp32s3:
     runs-on: ubuntu-latest
 
     steps:
@@ -40,13 +40,11 @@ jobs:
           arduino-cli lib install "TAMC_GT911@1.0.2"
           arduino-cli lib install "ArduinoJson"
 
-      - name: Install Lua 5.4 (embedded scripting voor apps)
+      - name: Install Lua 5.4
         run: |
           curl -L https://www.lua.org/ftp/lua-5.4.7.tar.gz -o /tmp/lua.tgz
           tar xzf /tmp/lua.tgz -C /tmp
           mkdir -p ~/Arduino/libraries/LuaBKOS/src
-
-          # Kopieer alleen veilige kern-bestanden (geen os/io/package/loadlib)
           for name in lapi lauxlib lbaselib lcode lctype ldebug ldo ldump \
                       lfunc lgc llex lmathlib lmem lobject lopcodes lparser \
                       lstate lstring lstrlib ltable ltablib ltm lundump \
@@ -60,13 +58,8 @@ jobs:
           cp /tmp/lua-5.4.7/src/llimits.h ~/Arduino/libraries/LuaBKOS/src/
           cp /tmp/lua-5.4.7/src/ljumptab.h ~/Arduino/libraries/LuaBKOS/src/
           cp /tmp/lua-5.4.7/src/lopnames.h ~/Arduino/libraries/LuaBKOS/src/
-
-          # Gebruik onze aangepaste luaconf (PSRAM, stack-limiet)
           cp $GITHUB_WORKSPACE/BKOS_NUI/lua_bkos_conf.h ~/Arduino/libraries/LuaBKOS/src/luaconf.h
-          # Verwijder library linit.c — sketch compileert lua_linit_bkos.c direct
           rm -f ~/Arduino/libraries/LuaBKOS/src/linit.c
-
-          # Library metadata
           cat > ~/Arduino/libraries/LuaBKOS/library.properties << 'PROPS'
           name=LuaBKOS
           version=5.4.7
@@ -79,26 +72,80 @@ jobs:
           architectures=esp32
           PROPS
 
-      - name: Compile firmware
+      - name: Compile ESP32-S3 firmware
         run: |
           arduino-cli compile \
             --fqbn "esp32:esp32:esp32s3:CDCOnBoot=default,PartitionScheme=default_8MB,FlashSize=16M,FlashMode=dio,PSRAM=opi" \
-            --output-dir build/ \
+            --output-dir build_esp32s3/ \
             BKOS_NUI/
 
-      - name: Copy firmware.bin to sketch folder
-        run: cp build/BKOS_NUI.ino.bin BKOS_NUI/firmware.bin
+      - name: Copy firmware to firmware/ folder
+        run: |
+          mkdir -p firmware
+          cp build_esp32s3/BKOS_NUI.ino.bin firmware/bkos_esp32s3_8048s070.bin
 
-      - name: Commit firmware
+      - name: Commit ESP32-S3 firmware
         run: |
           git config user.name  "GitHub Actions"
           git config user.email "actions@github.com"
-          git add BKOS_NUI/firmware.bin BKOS_NUI/versie.txt
-          git diff --staged --quiet || git commit -m "ci: build firmware $(cat BKOS_NUI/versie.txt)"
+          git pull --rebase
+          git add firmware/bkos_esp32s3_8048s070.bin firmware/versie_esp32s3.txt
+          git diff --staged --quiet || git commit -m "ci: ESP32-S3 firmware $(cat firmware/versie_esp32s3.txt)"
+          git push
+
+  build_wroom:
+    runs-on: ubuntu-latest
+    needs: build_esp32s3
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Arduino CLI
+        uses: arduino/setup-arduino-cli@v1
+
+      - name: Install ESP32 platform (core 2.x)
+        run: |
+          arduino-cli config init
+          arduino-cli config add board_manager.additional_urls \
+            https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@2.0.17
+
+      - name: Install libraries
+        run: |
+          arduino-cli lib install "GFX Library for Arduino@1.3.7"
+          arduino-cli lib install "WiFiManager@2.0.17"
+          arduino-cli lib install "XPT2046_Touchscreen"
+          arduino-cli lib install "ArduinoJson"
+
+      - name: Compile WROOM firmware
+        run: |
+          arduino-cli compile \
+            --fqbn "esp32:esp32:esp32:PartitionScheme=default,FlashFreq=80,FlashMode=dio" \
+            --build-property "compiler.cpp.extra_flags=-DPLATFORM_WROOM=1" \
+            --output-dir build_wroom/ \
+            BKOS_NUI/
+
+      - name: Copy firmware to firmware/ folder
+        run: |
+          mkdir -p firmware
+          cp build_wroom/BKOS_NUI.ino.bin firmware/bkos_esp32wroom2432.bin
+
+      - name: Commit WROOM firmware
+        run: |
+          git config user.name  "GitHub Actions"
+          git config user.email "actions@github.com"
+          git pull --rebase
+          git add firmware/bkos_esp32wroom2432.bin firmware/versie_wroom.txt
+          git diff --staged --quiet || git commit -m "ci: WROOM firmware $(cat firmware/versie_wroom.txt)"
           git push
 
   build_pico:
     runs-on: ubuntu-latest
+    needs: build_wroom
 
     steps:
       - name: Checkout
@@ -123,21 +170,23 @@ jobs:
           arduino-cli lib install "XPT2046_Touchscreen"
           arduino-cli lib install "ArduinoJson"
 
-      - name: Compile firmware (Pico W)
+      - name: Compile Pico W firmware
         run: |
           arduino-cli compile \
             --fqbn "rp2040:rp2040:rpipicow:flash=2097152_65536,freq=133,opt=Optimize2,rtti=disabled,stackprotect=disabled,exceptions=disabled,dbgport=Disabled,dbglvl=None,usbstack=picosdk,ipbtstack=ipv4only" \
             --output-dir build_pico/ \
             BKOS_NUI/
 
-      - name: Copy firmware_pico.bin to sketch folder
-        run: cp build_pico/BKOS_NUI.ino.bin BKOS_NUI/firmware_pico.bin
+      - name: Copy firmware to firmware/ folder
+        run: |
+          mkdir -p firmware
+          cp build_pico/BKOS_NUI.ino.bin firmware/bkos_pico1w2432.bin
 
-      - name: Commit firmware_pico
+      - name: Commit Pico firmware
         run: |
           git config user.name  "GitHub Actions"
           git config user.email "actions@github.com"
           git pull --rebase
-          git add BKOS_NUI/firmware_pico.bin BKOS_NUI/versie_pico.txt
-          git diff --staged --quiet || git commit -m "ci: build pico firmware $(cat BKOS_NUI/versie_pico.txt)"
+          git add firmware/bkos_pico1w2432.bin firmware/versie_pico.txt
+          git diff --staged --quiet || git commit -m "ci: Pico firmware $(cat firmware/versie_pico.txt)"
           git push

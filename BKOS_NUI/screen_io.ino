@@ -8,7 +8,7 @@ static bool prev_io_input[IO_RIJEN_PER_PAGINA];
 static int  prev_pagina = -1;
 
 // ─────────────────────── PICO UI ────────────────────────────────────────────
-#if PLATFORM_PICO
+#if SCREEN_SMALL
 
 #define PICO_IO_RIJ_H    28
 #define PICO_IO_RIJEN_N  8
@@ -79,7 +79,7 @@ static void pico_io_scroll_teken() {
             "VOLGENDE >", acht ? C_SURFACE2 : C_SURFACE, acht ? C_TEXT : C_TEXT_DIM);
 }
 
-#endif  // PLATFORM_PICO
+#endif  // SCREEN_SMALL
 // ────────────────────────────────────────────────────────────────────────────
 
 static void io_rij_teken(int kanaal, int rij_y) {
@@ -164,7 +164,7 @@ static void io_sb_teken() {
 }
 
 void screen_io_teken_rijen() {
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     for (int r = 0; r < PICO_IO_RIJEN_N; r++)
         pico_io_rij_teken(io_pagina * PICO_IO_RIJEN_N + r, CONTENT_Y + r * PICO_IO_RIJ_H);
 #else
@@ -177,7 +177,7 @@ void screen_io_teken_rijen() {
 
 void screen_io_teken() {
     tft.fillScreen(C_BG);
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     sb_scherm_teken("IO OVERZICHT", C_CYAN);
     screen_io_teken_rijen();
     pico_io_scroll_teken();
@@ -189,7 +189,7 @@ void screen_io_teken() {
 }
 
 void screen_io_run(int x, int y, bool aanraking) {
-#if PLATFORM_PICO
+#if SCREEN_SMALL
     if (!aanraking) {
         if (io_runned) {
             screen_io_teken_rijen();

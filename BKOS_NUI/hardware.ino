@@ -16,7 +16,7 @@
 static bool          vorige_touch        = false;
 static bool          touch_verwerkt      = false;
 static unsigned long laatste_touch_ms    = 0;
-#if PLATFORM_PICO
+#if SCREEN_SMALL
 #define TOUCH_DEBOUNCE_MS  600   // resistive touch: langere debounce
 #else
 #define TOUCH_DEBOUNCE_MS  320   // minimale tijd tussen twee aparte aanrakingen
