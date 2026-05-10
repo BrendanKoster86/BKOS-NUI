@@ -16,7 +16,11 @@
 static bool          vorige_touch        = false;
 static bool          touch_verwerkt      = false;
 static unsigned long laatste_touch_ms    = 0;
+#if PLATFORM_PICO
+#define TOUCH_DEBOUNCE_MS  600   // resistive touch: langere debounce
+#else
 #define TOUCH_DEBOUNCE_MS  320   // minimale tijd tussen twee aparte aanrakingen
+#endif
 #define LANG_DRUK_MS       700   // minimale tijd voor lang indrukken
 
 static unsigned long touch_start_ms      = 0;
@@ -94,7 +98,9 @@ void hw_loop() {
     // Scherm (her)bouwen
     if (scherm_bouwen) {
         scherm_bouwen = false;
-        touch_verwerkt = false;
+        // Alleen resetten als er geen aanraking is — anders vuurt de touch opnieuw
+        // zodra de (trage SPI-)redraw klaar is terwijl de vinger nog op het scherm ligt
+        if (!aanraking) touch_verwerkt = false;
         // lua_forceer_app heeft voorrang boven scherm-toewijzing
         int app_idx = (lua_forceer_app >= 0 && lua_forceer_app < apps_cnt)
                       ? lua_forceer_app

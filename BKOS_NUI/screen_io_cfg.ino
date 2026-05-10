@@ -5,7 +5,8 @@
 static int  iocfg_scroll        = 0;
 static bool iocfg_overlay       = false;
 static int  iocfg_kanaal        = -1;
-static bool iocfg_naam_kb       = false;  // toetsenbord actief in overlay
+static bool iocfg_naam_kb       = false;  // naambewerking actief
+static bool iocfg_preset_modus  = true;   // true = preset-keuze, false = toetsenbord
 static unsigned long iocfg_sloot = 0;
 
 // Tijdelijke waarden in overlay (bewerkbaar)
@@ -410,6 +411,51 @@ static void pico_iocfg_overlay_teken() {
     ui_knop(TFT_W - 116, save_y, 108, 40, "SLUITEN", C_SURFACE2, C_TEXT_DIM);
 }
 
+static void pico_iocfg_preset_teken() {
+    tft.fillRect(0, CONTENT_Y, TFT_W, CONTENT_H, C_SURFACE);
+
+    // Huidig invoer
+    int inv_y = CONTENT_Y + 2;
+    tft.fillRoundRect(0, inv_y, TFT_W, 22, 4, C_SURFACE2);
+    tft.drawRoundRect(0, inv_y, TFT_W, 22, 4, C_CYAN);
+    tft.setTextSize(1); tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(4, inv_y + (22 - 8) / 2); tft.print("NAAM: ");
+    tft.setTextColor(C_TEXT); tft.print(cfg_invoer[0] ? cfg_invoer : "(leeg)");
+
+    // Preset grid (3 kolommen)
+    const char** prij[2] = { cfg_chips_r1, cfg_chips_r2 };
+    int cols = 3;
+    int pw   = (TFT_W - 8) / cols;
+    int ph   = 26, pg = 2;
+    int grid_y = inv_y + 26;
+
+    int idx = 0;
+    for (int ri = 0; ri < 2; ri++) {
+        for (int i = 0; prij[ri][i]; i++, idx++) {
+            int col = idx % cols;
+            int row = idx / cols;
+            int px = 4 + col * pw;
+            int py = grid_y + row * (ph + pg);
+            const char* lbl = prij[ri][i] + 2;  // sla "**" over
+            bool sel = (strcmp(cfg_invoer, prij[ri][i]) == 0);
+            tft.fillRoundRect(px, py, pw - 2, ph, 4, sel ? C_CYAN : C_SURFACE2);
+            tft.drawRoundRect(px, py, pw - 2, ph, 4, sel ? C_WHITE : C_SURFACE3);
+            tft.setTextSize(1); tft.setTextColor(sel ? C_TEXT_DARK : C_TEXT);
+            char tbuf[10]; strncpy(tbuf, lbl, 9); tbuf[9] = '\0';
+            int tw = strlen(tbuf) * 6;
+            tft.setCursor(px + (pw - 2 - tw) / 2, py + (ph - 8) / 2);
+            tft.print(tbuf);
+        }
+    }
+
+    // Knoppen onderaan
+    int btn_y = NAV_Y - 60;
+    ui_knop(4, btn_y, TFT_W - 8, 26, "TOETSENBORD", C_SURFACE2, C_TEXT_DIM);
+    int bw2 = (TFT_W - 12) / 2;
+    ui_knop(4,        btn_y + 30, bw2, 26, "ANNUL",  C_SURFACE2, C_TEXT_DIM);
+    ui_knop(8 + bw2,  btn_y + 30, bw2, 26, "OPSLN",  C_GREEN,    C_TEXT_DARK);
+}
+
 #endif  // PLATFORM_PICO
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -419,6 +465,9 @@ void screen_io_cfg_teken() {
     sb_scherm_teken("IO CFG", C_CYAN);
 
     if (iocfg_naam_kb) {
+#if PLATFORM_PICO
+        if (iocfg_preset_modus) { pico_iocfg_preset_teken(); nav_bar_teken(); return; }
+#endif
         screen_config_toetsenbord_teken();
         nav_bar_teken();
         return;
@@ -448,22 +497,91 @@ static bool ov_actie_klik(int x, int y, int ov_cy, uint8_t &doel) {
 
 void screen_io_cfg_run(int x, int y, bool aanraking) {
     if (!aanraking) return;
+#if PLATFORM_PICO
+    if (millis() - iocfg_sloot < 700) return;
+#else
     if (millis() - iocfg_sloot < 400) return;
+#endif
 
 #if PLATFORM_PICO
     if (iocfg_naam_kb) {
         int nav = nav_bar_klik(x, y);
-        if (nav >= 0 && nav != actief_scherm) { iocfg_naam_kb = false; actief_scherm = nav; scherm_bouwen = true; return; }
-        if (screen_config_toetsenbord_run(x, y)) { iocfg_sloot = millis(); iocfg_naam_kb = false; scherm_bouwen = true; }
+        if (nav >= 0 && nav != actief_scherm) {
+            iocfg_naam_kb = false; iocfg_preset_modus = true;
+            actief_scherm = nav; scherm_bouwen = true; return;
+        }
+        if (iocfg_preset_modus) {
+            // Preset-raster
+            const char** prij[2] = { cfg_chips_r1, cfg_chips_r2 };
+            int inv_y  = CONTENT_Y + 2;
+            int grid_y = inv_y + 26;
+            int cols   = 3;
+            int pw = (TFT_W - 8) / cols;
+            int ph = 26, pg = 2;
+            int idx = 0;
+            for (int ri = 0; ri < 2; ri++) {
+                for (int i = 0; prij[ri][i]; i++, idx++) {
+                    int px = 4 + (idx % cols) * pw;
+                    int py = grid_y + (idx / cols) * (ph + pg);
+                    if (x >= px && x < px + pw - 2 && y >= py && y < py + ph) {
+                        // Flash
+                        tft.fillRoundRect(px, py, pw - 2, ph, 4, C_CYAN);
+                        tft.setTextSize(1); tft.setTextColor(C_TEXT_DARK);
+                        const char* lbl = prij[ri][i] + 2;
+                        char tbuf[10]; strncpy(tbuf, lbl, 9); tbuf[9] = '\0';
+                        int tw = strlen(tbuf) * 6;
+                        tft.setCursor(px + (pw - 2 - tw) / 2, py + (ph - 8) / 2);
+                        tft.print(tbuf); delay(60);
+                        // Opslaan
+                        strncpy(io_namen[iocfg_kanaal], prij[ri][i], IO_NAAM_LEN - 1);
+                        io_namen[iocfg_kanaal][IO_NAAM_LEN - 1] = '\0';
+                        hw_io_namen_opslaan();
+                        iocfg_naam_kb = false; iocfg_preset_modus = true;
+                        iocfg_sloot = millis(); scherm_bouwen = true; return;
+                    }
+                }
+            }
+            // Knoppen
+            int btn_y = NAV_Y - 60;
+            int bw2   = (TFT_W - 12) / 2;
+            if (y >= btn_y && y < btn_y + 26) {
+                // TOETSENBORD
+                iocfg_preset_modus = false;
+                cfg_geselecteerd = iocfg_kanaal; cfg_bewerk_zeilnr = false;
+                screen_config_toetsenbord_teken(); nav_bar_teken(); return;
+            }
+            if (y >= btn_y + 30 && y < btn_y + 56) {
+                if (x < 8 + bw2) {
+                    // ANNUL
+                    iocfg_naam_kb = false; iocfg_preset_modus = true;
+                    iocfg_sloot = millis(); scherm_bouwen = true;
+                } else {
+                    // OPSLN — huidige (handmatige) invoer opslaan
+                    if (cfg_invoer[0]) {
+                        strncpy(io_namen[iocfg_kanaal], cfg_invoer, IO_NAAM_LEN - 1);
+                        io_namen[iocfg_kanaal][IO_NAAM_LEN - 1] = '\0';
+                        hw_io_namen_opslaan();
+                    }
+                    iocfg_naam_kb = false; iocfg_preset_modus = true;
+                    iocfg_sloot = millis(); scherm_bouwen = true;
+                }
+            }
+            return;
+        }
+        // Toetsenbord-modus
+        if (screen_config_toetsenbord_run(x, y)) {
+            iocfg_sloot = millis(); iocfg_naam_kb = false;
+            iocfg_preset_modus = true; scherm_bouwen = true;
+        }
         return;
     }
     if (iocfg_overlay) {
-        // NAAM
+        // NAAM → open preset-keuze
         if (y >= SB_H + 6 && y < SB_H + 28 && x >= TFT_W - 68) {
             cfg_geselecteerd = iocfg_kanaal; cfg_bewerk_zeilnr = false;
             strncpy(cfg_invoer, io_namen[iocfg_kanaal], CFG_INVOER_LEN - 1); cfg_invoer[CFG_INVOER_LEN-1]='\0';
-            iocfg_naam_kb = true; iocfg_sloot = millis();
-            screen_config_toetsenbord_teken(); nav_bar_teken(); return;
+            iocfg_naam_kb = true; iocfg_preset_modus = true; iocfg_sloot = millis();
+            pico_iocfg_preset_teken(); nav_bar_teken(); return;
         }
         // Richting
         int ry_btn = SB_H + 36;

@@ -1760,7 +1760,11 @@ void screen_config_teken() {
 
 void screen_config_run(int x, int y, bool aanraking) {
     if (!aanraking) return;
+#if PLATFORM_PICO
+    if (millis() - cfg_kb_sloot < 700) return;
+#else
     if (millis() - cfg_kb_sloot < 400) return;
+#endif
 
 #if PLATFORM_PICO
     if (pin_overlay_actief) {
