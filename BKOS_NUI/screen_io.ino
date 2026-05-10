@@ -7,6 +7,81 @@ static byte prev_io_output[IO_RIJEN_PER_PAGINA];
 static bool prev_io_input[IO_RIJEN_PER_PAGINA];
 static int  prev_pagina = -1;
 
+// ─────────────────────── PICO UI ────────────────────────────────────────────
+#if PLATFORM_PICO
+
+#define PICO_IO_RIJ_H    28
+#define PICO_IO_RIJEN_N  8
+#define PICO_IO_SCROLL_Y (CONTENT_Y + PICO_IO_RIJEN_N * PICO_IO_RIJ_H)
+#define PICO_IO_SCROLL_H (NAV_Y - PICO_IO_SCROLL_Y)
+
+static void pico_io_rij_teken(int kanaal, int rij_y) {
+    int n_vis = io_zichtbaar();
+    bool geldig = (kanaal < n_vis && kanaal < MAX_IO_KANALEN);
+
+    tft.fillRect(0, rij_y, TFT_W, PICO_IO_RIJ_H, (kanaal % 2 == 0) ? C_SURFACE : C_BG);
+    tft.drawFastHLine(0, rij_y + PICO_IO_RIJ_H - 1, TFT_W, C_SURFACE2);
+    if (!geldig) return;
+
+    byte staat  = io_licht_staat(kanaal);
+    byte output = io_output[kanaal];
+    bool is_in  = (io_richting[kanaal] == IO_RICHTING_IN);
+
+    tft.setTextSize(1); tft.setTextColor(C_TEXT_DIM);
+    char nr[5]; snprintf(nr, sizeof(nr), "%3d", kanaal);
+    tft.setCursor(2, rij_y + (PICO_IO_RIJ_H - 8) / 2);
+    tft.print(nr);
+
+    tft.setTextColor(C_TEXT);
+    tft.setCursor(22, rij_y + (PICO_IO_RIJ_H - 8) / 2);
+    char naam_k[11]; strncpy(naam_k, io_namen[kanaal], 10); naam_k[10] = '\0';
+    tft.print(naam_k);
+
+    const uint16_t staat_kleur[] = {C_LIGHT_OFF, C_LIGHT_COOLING, C_LIGHT_PENDING, C_GREEN};
+    tft.fillRoundRect(144, rij_y + 4, 36, PICO_IO_RIJ_H - 8, 3, staat_kleur[staat]);
+    tft.setTextSize(1); tft.setTextColor(staat == LSTATE_ECHT_AAN ? C_TEXT_DARK : C_TEXT_DIM);
+    const char* staat_txt[] = {"UIT", "~", "..", "AAN"};
+    int tw = strlen(staat_txt[staat]) * 6;
+    tft.setCursor(144 + (36 - tw) / 2, rij_y + (PICO_IO_RIJ_H - 8) / 2);
+    tft.print(staat_txt[staat]);
+
+    if (!is_in) {
+        bool aan = (output == IO_AAN || output == IO_INV_AAN);
+        tft.fillRoundRect(184, rij_y + 3, 52, PICO_IO_RIJ_H - 6, 4,
+                          aan ? RGB565(0, 140, 60) : C_SURFACE2);
+        tft.setTextSize(1); tft.setTextColor(aan ? C_WHITE : C_TEXT_DIM);
+        const char* lbl = aan ? "AAN" : "UIT";
+        tw = strlen(lbl) * 6;
+        tft.setCursor(184 + (52 - tw) / 2, rij_y + (PICO_IO_RIJ_H - 8) / 2);
+        tft.print(lbl);
+    } else {
+        tft.fillCircle(230, rij_y + PICO_IO_RIJ_H / 2, 5,
+                       io_input[kanaal] ? C_GREEN : C_DARK_GRAY);
+    }
+}
+
+static void pico_io_scroll_teken() {
+    int n_vis = io_zichtbaar();
+    int n_pag = max(1, (n_vis + PICO_IO_RIJEN_N - 1) / PICO_IO_RIJEN_N);
+    bool voor = (io_pagina > 0);
+    bool acht = (io_pagina < n_pag - 1);
+
+    tft.fillRect(0, PICO_IO_SCROLL_Y, TFT_W, PICO_IO_SCROLL_H, C_SURFACE);
+    tft.drawFastHLine(0, PICO_IO_SCROLL_Y, TFT_W, C_SURFACE2);
+    ui_knop(4, PICO_IO_SCROLL_Y + 4, 108, PICO_IO_SCROLL_H - 8,
+            "< VORIGE", voor ? C_SURFACE2 : C_SURFACE, voor ? C_TEXT : C_TEXT_DIM);
+    char pag[8]; snprintf(pag, sizeof(pag), "%d/%d", io_pagina + 1, n_pag);
+    tft.setTextSize(1); tft.setTextColor(C_TEXT_DIM);
+    int pw = strlen(pag) * 6;
+    tft.setCursor(TFT_W / 2 - pw / 2, PICO_IO_SCROLL_Y + (PICO_IO_SCROLL_H - 8) / 2);
+    tft.print(pag);
+    ui_knop(TFT_W - 112, PICO_IO_SCROLL_Y + 4, 108, PICO_IO_SCROLL_H - 8,
+            "VOLGENDE >", acht ? C_SURFACE2 : C_SURFACE, acht ? C_TEXT : C_TEXT_DIM);
+}
+
+#endif  // PLATFORM_PICO
+// ────────────────────────────────────────────────────────────────────────────
+
 static void io_rij_teken(int kanaal, int rij_y) {
     int n_vis = io_zichtbaar();
     bool geldig = (kanaal < n_vis && kanaal < MAX_IO_KANALEN);
@@ -89,20 +164,71 @@ static void io_sb_teken() {
 }
 
 void screen_io_teken_rijen() {
+#if PLATFORM_PICO
+    for (int r = 0; r < PICO_IO_RIJEN_N; r++)
+        pico_io_rij_teken(io_pagina * PICO_IO_RIJEN_N + r, CONTENT_Y + r * PICO_IO_RIJ_H);
+#else
     // Geen fillRect hier: elke rij tekent zijn eigen achtergrond → geen flikkering
     for (int r = 0; r < IO_RIJEN_PER_PAGINA; r++) {
         io_rij_teken(io_pagina * IO_RIJEN_PER_PAGINA + r, CONTENT_Y + r * IO_RIJ_H);
     }
+#endif
 }
 
 void screen_io_teken() {
     tft.fillScreen(C_BG);
+#if PLATFORM_PICO
+    sb_scherm_teken("IO OVERZICHT", C_CYAN);
+    screen_io_teken_rijen();
+    pico_io_scroll_teken();
+#else
     io_sb_teken();
     screen_io_teken_rijen();
+#endif
     nav_bar_teken();
 }
 
 void screen_io_run(int x, int y, bool aanraking) {
+#if PLATFORM_PICO
+    if (!aanraking) {
+        if (io_runned) {
+            screen_io_teken_rijen();
+            io_runned = false;
+        }
+        return;
+    }
+    int nav = nav_bar_klik(x, y);
+    if (nav >= 0 && nav != actief_scherm) {
+        actief_scherm = nav; scherm_bouwen = true; return;
+    }
+    if (y >= PICO_IO_SCROLL_Y && y < NAV_Y) {
+        int n_vis = io_zichtbaar();
+        int n_pag = max(1, (n_vis + PICO_IO_RIJEN_N - 1) / PICO_IO_RIJEN_N);
+        if (x < TFT_W / 2 && io_pagina > 0) {
+            io_pagina--;
+            screen_io_teken_rijen();
+            pico_io_scroll_teken();
+        } else if (x >= TFT_W / 2 && io_pagina < n_pag - 1) {
+            io_pagina++;
+            screen_io_teken_rijen();
+            pico_io_scroll_teken();
+        }
+        return;
+    }
+    if (y >= CONTENT_Y && y < PICO_IO_SCROLL_Y && x >= 184) {
+        int rij    = (y - CONTENT_Y) / PICO_IO_RIJ_H;
+        int kanaal = io_pagina * PICO_IO_RIJEN_N + rij;
+        int n_vis  = io_zichtbaar();
+        if (kanaal >= 0 && kanaal < n_vis && kanaal < MAX_IO_KANALEN) {
+            if (io_richting[kanaal] != IO_RICHTING_IN) {
+                bool aan = (io_output[kanaal] == IO_AAN || io_output[kanaal] == IO_INV_AAN);
+                io_output[kanaal] = aan ? IO_UIT : IO_AAN;
+                io_gewijzigd[kanaal] = true;
+                pico_io_rij_teken(kanaal, CONTENT_Y + rij * PICO_IO_RIJ_H);
+            }
+        }
+    }
+#else
     if (!aanraking) {
         if (io_runned) {
             int n_vis = io_zichtbaar();
@@ -163,4 +289,5 @@ void screen_io_run(int x, int y, bool aanraking) {
             }
         }
     }
+#endif
 }

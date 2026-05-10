@@ -1,6 +1,64 @@
 #include "screen_ota.h"
 #include "nav_bar.h"
 
+// ─────────────────────── PICO UI ────────────────────────────────────────────
+#if PLATFORM_PICO
+
+#define PICO_OTA_BTN_X   8
+#define PICO_OTA_BTN_W   (TFT_W - 16)
+#define PICO_OTA_BTN_H   32
+#define PICO_OTA_BTN_GAP 6
+#define PICO_OTA_BTN_Y1  (CONTENT_Y + 8)
+#define PICO_OTA_BTN_Y2  (PICO_OTA_BTN_Y1 + PICO_OTA_BTN_H + PICO_OTA_BTN_GAP)
+#define PICO_OTA_BTN_Y3  (PICO_OTA_BTN_Y2 + PICO_OTA_BTN_H + PICO_OTA_BTN_GAP)
+#define PICO_OTA_BTN_Y4  (PICO_OTA_BTN_Y3 + PICO_OTA_BTN_H + PICO_OTA_BTN_GAP)
+
+static void pico_ota_info_teken() {
+    int y = PICO_OTA_BTN_Y4 + PICO_OTA_BTN_H + 8;
+    int h = NAV_Y - y - 4;
+    tft.fillRect(PICO_OTA_BTN_X, y, PICO_OTA_BTN_W, h, C_BG);
+    if (h < 10) return;
+    tft.fillRoundRect(PICO_OTA_BTN_X, y, PICO_OTA_BTN_W, h, 6, C_SURFACE);
+    int ly = y + 8;
+    tft.setTextSize(1);
+    tft.setTextColor(C_TEXT_DIM); tft.setCursor(PICO_OTA_BTN_X + 8, ly);
+    tft.print("Versie: "); tft.setTextColor(C_CYAN); tft.print(BKOS_NUI_VERSIE); ly += 14;
+    tft.setTextColor(C_TEXT_DIM); tft.setCursor(PICO_OTA_BTN_X + 8, ly);
+    tft.print("GitHub: ");
+    tft.setTextColor(ota_versie_github.length() > 0 ? C_GREEN : C_GRAY);
+    tft.print(ota_versie_github.length() > 0 ? ota_versie_github.c_str() : "onbekend"); ly += 14;
+    tft.setTextColor(C_TEXT_DIM); tft.setCursor(PICO_OTA_BTN_X + 8, ly);
+    tft.print("Status: "); tft.setTextColor(C_TEXT); tft.print(ota_status_tekst.c_str()); ly += 14;
+    tft.setTextColor(C_TEXT_DIM); tft.setCursor(PICO_OTA_BTN_X + 8, ly);
+    tft.print("WiFi: ");
+    tft.setTextColor(wifi_verbonden ? C_GREEN : C_RED_BRIGHT);
+    tft.print(wifi_verbonden ? "verbonden" : "niet verbonden");
+}
+
+static void pico_screen_ota_teken_impl() {
+    tft.fillScreen(C_BG);
+    sb_scherm_teken("OTA UPDATE", C_CYAN);
+    ui_knop(PICO_OTA_BTN_X, PICO_OTA_BTN_Y1, PICO_OTA_BTN_W, PICO_OTA_BTN_H,
+            "GITHUB CONTROLEREN", C_SURFACE, C_CYAN);
+    bool update_beschikbaar = (ota_versie_github.length() > 0 &&
+                                ota_versie_github != BKOS_NUI_VERSIE);
+    ui_knop(PICO_OTA_BTN_X, PICO_OTA_BTN_Y2, PICO_OTA_BTN_W, PICO_OTA_BTN_H,
+            update_beschikbaar ? "UPDATE STARTEN" : "GEEN UPDATE",
+            update_beschikbaar ? C_SURFACE2 : C_SURFACE,
+            update_beschikbaar ? C_GREEN    : C_GRAY);
+    ui_knop(PICO_OTA_BTN_X, PICO_OTA_BTN_Y3, PICO_OTA_BTN_W, PICO_OTA_BTN_H,
+            ota_push_actief ? "PUSH OTA: AAN" : "PUSH OTA: UIT",
+            ota_push_actief ? C_SURFACE2 : C_SURFACE,
+            ota_push_actief ? C_ORANGE   : C_TEXT_DIM);
+    ui_knop(PICO_OTA_BTN_X, PICO_OTA_BTN_Y4, PICO_OTA_BTN_W, PICO_OTA_BTN_H,
+            "WIFI NETWERKEN", C_SURFACE, C_CYAN);
+    pico_ota_info_teken();
+    nav_bar_teken();
+}
+
+#endif  // PLATFORM_PICO
+// ────────────────────────────────────────────────────────────────────────────
+
 #define OTA_BTN_X   60
 #define OTA_BTN_W   (TFT_W - 120)
 #define OTA_BTN_H   50
@@ -72,10 +130,18 @@ static void ota_info_teken() {
 }
 
 void screen_ota_status_update() {
+#if PLATFORM_PICO
+    pico_ota_info_teken();
+#else
     ota_info_teken();
+#endif
 }
 
 void screen_ota_teken() {
+#if PLATFORM_PICO
+    pico_screen_ota_teken_impl();
+    return;
+#endif
     tft.fillScreen(C_BG);
     sb_scherm_teken("OTA UPDATE", C_CYAN);
 
@@ -123,6 +189,33 @@ void screen_ota_teken() {
 }
 
 void screen_ota_run(int x, int y, bool aanraking) {
+#if PLATFORM_PICO
+    if (!aanraking) {
+        static unsigned long last_update = 0;
+        if (millis() - last_update > 3000) {
+            last_update = millis();
+            pico_ota_info_teken();
+        }
+        return;
+    }
+    int nav = nav_bar_klik(x, y);
+    if (nav >= 0 && nav != actief_scherm) { actief_scherm = nav; scherm_bouwen = true; return; }
+    if (y >= PICO_OTA_BTN_Y1 && y < PICO_OTA_BTN_Y1 + PICO_OTA_BTN_H) {
+        ota_status_tekst = "Controleren..."; pico_ota_info_teken();
+        ota_git_check(); pico_screen_ota_teken_impl(); return;
+    }
+    if (y >= PICO_OTA_BTN_Y2 && y < PICO_OTA_BTN_Y2 + PICO_OTA_BTN_H) {
+        bool upd = (ota_versie_github.length() > 0 && ota_versie_github != BKOS_NUI_VERSIE);
+        if (upd) ota_git_update(); return;
+    }
+    if (y >= PICO_OTA_BTN_Y3 && y < PICO_OTA_BTN_Y3 + PICO_OTA_BTN_H) {
+        ota_push_inschakelen(!ota_push_actief); pico_screen_ota_teken_impl(); return;
+    }
+    if (y >= PICO_OTA_BTN_Y4 && y < PICO_OTA_BTN_Y4 + PICO_OTA_BTN_H) {
+        actief_scherm = SCREEN_WIFI; scherm_bouwen = true; return;
+    }
+    return;
+#else
     if (!aanraking) {
         static unsigned long last_update = 0;
         if (millis() - last_update > 3000) {
@@ -193,4 +286,5 @@ void screen_ota_run(int x, int y, bool aanraking) {
         screen_ota_teken();
         return;
     }
+#endif
 }

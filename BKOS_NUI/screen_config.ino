@@ -99,8 +99,454 @@ static const char* cfg_chips_r2[] = {
     "**USB",   "**230",    "**tv",    "**water", "**E_dek", nullptr
 };
 
+// ─────────────────────── PICO UI ────────────────────────────────────────────
+#if PLATFORM_PICO
+
+// PIN overlay voor 240×320
+#define PICO_PIN_OV_X   4
+#define PICO_PIN_OV_Y   (CONTENT_Y)
+#define PICO_PIN_OV_W   (TFT_W - 8)
+#define PICO_PIN_OV_H   (NAV_Y - CONTENT_Y)
+#define PICO_PIN_KW     62
+#define PICO_PIN_KH     36
+#define PICO_PIN_KGAP   4
+
+static void pico_pin_overlay_teken() {
+    tft.fillRect(0, PICO_PIN_OV_Y, TFT_W, PICO_PIN_OV_H, RGB565(5,10,20));
+    tft.fillRoundRect(PICO_PIN_OV_X, PICO_PIN_OV_Y, PICO_PIN_OV_W, PICO_PIN_OV_H, 8, C_SURFACE);
+    tft.drawRoundRect(PICO_PIN_OV_X, PICO_PIN_OV_Y, PICO_PIN_OV_W, PICO_PIN_OV_H, 8, C_CYAN);
+
+    const char* titel = (pin_stap == 1) ? "NIEUW PINCODE" : (pin_stap == 2) ? "BEVESTIG" : "PINCODE VEREIST";
+    tft.setTextSize(1); tft.setTextColor(C_CYAN);
+    int ttw = strlen(titel) * 6;
+    tft.setCursor(PICO_PIN_OV_X + (PICO_PIN_OV_W - ttw) / 2, PICO_PIN_OV_Y + 8);
+    tft.print(titel);
+
+    // 4 invoer stippen
+    int slot_w = 40, slot_h = 26, slot_gap = 6;
+    int slot_total = 4 * slot_w + 3 * slot_gap;
+    int sx = PICO_PIN_OV_X + (PICO_PIN_OV_W - slot_total) / 2;
+    int sy = PICO_PIN_OV_Y + 24;
+    int ingevoerd = strlen(pin_invoer);
+    for (int i = 0; i < 4; i++) {
+        int ix = sx + i * (slot_w + slot_gap);
+        tft.fillRoundRect(ix, sy, slot_w, slot_h, 4, C_SURFACE2);
+        tft.drawRoundRect(ix, sy, slot_w, slot_h, 4, (i < ingevoerd) ? C_CYAN : C_SURFACE3);
+        if (i < ingevoerd) tft.fillCircle(ix + slot_w / 2, sy + slot_h / 2, 6, C_CYAN);
+    }
+
+    // 3×3 + 0+DEL toetsen
+    int kx = PICO_PIN_OV_X + (PICO_PIN_OV_W - (3 * PICO_PIN_KW + 2 * PICO_PIN_KGAP)) / 2;
+    int ky = PICO_PIN_OV_Y + 58;
+    const char* krows[3] = {"789","456","123"};
+    for (int r = 0; r < 3; r++) {
+        for (int k = 0; k < 3; k++) {
+            int bkx = kx + k * (PICO_PIN_KW + PICO_PIN_KGAP);
+            int bky = ky + r * (PICO_PIN_KH + PICO_PIN_KGAP);
+            tft.fillRoundRect(bkx, bky, PICO_PIN_KW, PICO_PIN_KH, 4, C_SURFACE2);
+            tft.drawRoundRect(bkx, bky, PICO_PIN_KW, PICO_PIN_KH, 4, C_SURFACE3);
+            tft.setTextSize(2); tft.setTextColor(C_TEXT);
+            tft.setCursor(bkx + (PICO_PIN_KW - 12) / 2, bky + (PICO_PIN_KH - 16) / 2);
+            tft.print(krows[r][k]);
+        }
+    }
+    int ky4 = ky + 3 * (PICO_PIN_KH + PICO_PIN_KGAP);
+    tft.fillRoundRect(kx, ky4, PICO_PIN_KW * 2 + PICO_PIN_KGAP, PICO_PIN_KH, 4, C_SURFACE2);
+    tft.drawRoundRect(kx, ky4, PICO_PIN_KW * 2 + PICO_PIN_KGAP, PICO_PIN_KH, 4, C_SURFACE3);
+    tft.setTextSize(2); tft.setTextColor(C_TEXT);
+    tft.setCursor(kx + (PICO_PIN_KW - 6) / 2, ky4 + (PICO_PIN_KH - 16) / 2); tft.print("0");
+    int del_x = kx + 2 * (PICO_PIN_KW + PICO_PIN_KGAP);
+    tft.fillRoundRect(del_x, ky4, PICO_PIN_KW, PICO_PIN_KH, 4, C_SURFACE2);
+    tft.drawRoundRect(del_x, ky4, PICO_PIN_KW, PICO_PIN_KH, 4, C_RED_BRIGHT);
+    tft.setTextSize(1); tft.setTextColor(C_RED_BRIGHT);
+    tft.setCursor(del_x + (PICO_PIN_KW - 30) / 2, ky4 + (PICO_PIN_KH - 8) / 2); tft.print("< DEL");
+
+    int btn_y = ky4 + PICO_PIN_KH + PICO_PIN_KGAP;
+    int btn_w = (3 * PICO_PIN_KW + 2 * PICO_PIN_KGAP) / 2 - PICO_PIN_KGAP / 2;
+    tft.fillRoundRect(kx, btn_y, btn_w, PICO_PIN_KH, 4, C_SURFACE2);
+    tft.drawRoundRect(kx, btn_y, btn_w, PICO_PIN_KH, 4, C_TEXT_DIM);
+    tft.setTextSize(1); tft.setTextColor(C_TEXT_DIM);
+    int atw = strlen("ANNUL") * 6;
+    tft.setCursor(kx + (btn_w - atw) / 2, btn_y + (PICO_PIN_KH - 8) / 2); tft.print("ANNUL");
+    tft.fillRoundRect(kx + btn_w + PICO_PIN_KGAP, btn_y, btn_w, PICO_PIN_KH, 4, C_GREEN);
+    tft.setTextColor(C_TEXT_DARK);
+    int otw = strlen("OK") * 6;
+    tft.setCursor(kx + btn_w + PICO_PIN_KGAP + (btn_w - otw) / 2, btn_y + (PICO_PIN_KH - 8) / 2);
+    tft.print("OK");
+}
+
+// Pico keyboard layout constanten
+#define PICO_KB_INV_Y   (CONTENT_Y + 2)
+#define PICO_KB_INV_H   26
+#define PICO_KB_KEYS_Y  (PICO_KB_INV_Y + PICO_KB_INV_H + 6)
+#define PICO_KB_TOETS_H 30
+#define PICO_KB_TOETS_G 2
+#define PICO_KB_BTN1_Y  (PICO_KB_KEYS_Y + 4 * (PICO_KB_TOETS_H + PICO_KB_TOETS_G) + 2)
+#define PICO_KB_BTN2_Y  (PICO_KB_BTN1_Y + 28 + 2)
+#define PICO_KB_BTN_H   28
+
+static void pico_kb_invoerveld_teken() {
+    tft.fillRoundRect(0, PICO_KB_INV_Y, TFT_W, PICO_KB_INV_H, 4, C_SURFACE2);
+    tft.drawRoundRect(0, PICO_KB_INV_Y, TFT_W, PICO_KB_INV_H, 4, C_CYAN);
+    tft.setTextSize(1); tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(4, PICO_KB_INV_Y + (PICO_KB_INV_H - 8) / 2);
+    tft.print(cfg_kb_label[0] ? cfg_kb_label : "Naam:"); tft.print(" ");
+    tft.setTextColor(C_WHITE);
+    int lw = (strlen(cfg_kb_label) + 1) * 6 + 4;
+    int max_chars = (TFT_W - lw - 12) / 6;
+    int len = strlen(cfg_invoer);
+    const char* show = cfg_invoer;
+    if (len > max_chars) show = cfg_invoer + len - max_chars;
+    if (cfg_kb_wachtwoord) {
+        int n = strlen(show); for (int i = 0; i < n && i < max_chars; i++) tft.print('*');
+    } else { tft.print(show); }
+    tft.print("_");
+}
+
+static void pico_kb_rijen_teken() {
+    const char** rijen = kb_sym ? kb_sym_rijen : kb_rijen;
+    for (int rij = 0; rij < 4; rij++) {
+        const char* keys = rijen[rij];
+        int cnt = strlen(keys);
+        if (cnt == 0) continue;
+        int tw_k = TFT_W / cnt;
+        int x_off = (TFT_W - cnt * tw_k) / 2;
+        int ky = PICO_KB_KEYS_Y + rij * (PICO_KB_TOETS_H + PICO_KB_TOETS_G);
+        for (int k = 0; k < cnt; k++) {
+            int kx = x_off + k * tw_k;
+            tft.fillRoundRect(kx + 1, ky + 1, tw_k - 2, PICO_KB_TOETS_H - 2, 3, C_SURFACE2);
+            tft.drawRoundRect(kx + 1, ky + 1, tw_k - 2, PICO_KB_TOETS_H - 2, 3, C_SURFACE3);
+            char c = keys[k];
+            if (!kb_sym && !kb_hoofdletters && c >= 'A' && c <= 'Z') c += 32;
+            tft.setTextSize(1); tft.setTextColor(C_TEXT);
+            tft.setCursor(kx + (tw_k - 6) / 2, ky + (PICO_KB_TOETS_H - 8) / 2);
+            tft.print(c);
+        }
+    }
+}
+
+static void pico_kb_num_teken() {
+    static const char* num_rijen[4] = {"789","456","123","0,"};
+    int num_tw = TFT_W / 3;
+    for (int rij = 0; rij < 4; rij++) {
+        const char* keys = num_rijen[rij];
+        int cnt = strlen(keys);
+        for (int k = 0; k < cnt; k++) {
+            int kx = k * num_tw;
+            int ky = PICO_KB_KEYS_Y + rij * (PICO_KB_TOETS_H + PICO_KB_TOETS_G);
+            tft.fillRoundRect(kx + 2, ky + 2, num_tw - 4, PICO_KB_TOETS_H - 4, 4, C_SURFACE2);
+            tft.drawRoundRect(kx + 2, ky + 2, num_tw - 4, PICO_KB_TOETS_H - 4, 4, C_SURFACE3);
+            tft.setTextSize(2); tft.setTextColor(C_TEXT);
+            tft.setCursor(kx + (num_tw - 12) / 2, ky + (PICO_KB_TOETS_H - 16) / 2);
+            tft.print(keys[k]);
+        }
+    }
+    // Buttons
+    ui_knop(2, PICO_KB_BTN1_Y, 58, PICO_KB_BTN_H, "< DEL",   C_SURFACE2, C_RED_BRIGHT);
+    ui_knop(62, PICO_KB_BTN1_Y, 52, PICO_KB_BTN_H, "CLR",     C_SURFACE2, C_RED_BRIGHT);
+    ui_knop(116, PICO_KB_BTN1_Y, 60, PICO_KB_BTN_H, "OPSLN",   C_GREEN, C_TEXT_DARK);
+    ui_knop(178, PICO_KB_BTN1_Y, 58, PICO_KB_BTN_H, "ANNUL",   C_SURFACE2, C_TEXT_DIM);
+}
+
+static void pico_kb_btns_teken() {
+    // Rij 1: DEL | CLR | CAPS | SYM
+    ui_knop(2,   PICO_KB_BTN1_Y,  58, PICO_KB_BTN_H, "< DEL",  C_SURFACE2, C_RED_BRIGHT);
+    ui_knop(62,  PICO_KB_BTN1_Y,  44, PICO_KB_BTN_H, "CLR",    C_SURFACE2, C_RED_BRIGHT);
+    ui_knop(108, PICO_KB_BTN1_Y,  58, PICO_KB_BTN_H,
+            kb_sym ? "ABC" : (kb_hoofdletters ? "HOOFD" : "klein"),
+            (kb_sym || kb_hoofdletters) ? C_CYAN : C_SURFACE2,
+            (kb_sym || kb_hoofdletters) ? C_TEXT_DARK : C_TEXT_DIM);
+    ui_knop(168, PICO_KB_BTN1_Y,  68, PICO_KB_BTN_H,
+            kb_sym ? "NORM" : "SYM", kb_sym ? C_CYAN : C_SURFACE2, kb_sym ? C_TEXT_DARK : C_TEXT_DIM);
+    // Rij 2: SPATIE | OPSLAAN | CANCEL
+    ui_knop(2,   PICO_KB_BTN2_Y,  88, PICO_KB_BTN_H, "SPATIE", C_SURFACE2, C_TEXT);
+    ui_knop(92,  PICO_KB_BTN2_Y,  82, PICO_KB_BTN_H, "OPSLN",  C_GREEN, C_TEXT_DARK);
+    ui_knop(176, PICO_KB_BTN2_Y,  60, PICO_KB_BTN_H, "ANNUL",  C_SURFACE2, C_TEXT_DIM);
+}
+
+void pico_screen_config_toetsenbord_teken() {
+    tft.fillRect(0, CONTENT_Y, TFT_W, CONTENT_H, C_SURFACE);
+    pico_kb_invoerveld_teken();
+    if (cfg_kb_numeriek) { pico_kb_num_teken(); return; }
+    pico_kb_rijen_teken();
+    pico_kb_btns_teken();
+}
+
+static bool pico_kb_opslaan_verwerken() {
+    if (cfg_kb_foutlog_token) {
+#if PLATFORM_ESP32
+        fout_log_token_zet(cfg_invoer);
+#endif
+        cfg_kb_foutlog_token = false;
+    } else if (cfg_kb_info_mode) {
+        cfg_kb_opgeslagen = true;
+    } else if (cfg_bewerk_zeilnr) {
+        strncpy(zeilnummer, cfg_invoer, ZEILNR_LEN - 1); zeilnummer[ZEILNR_LEN - 1] = '\0';
+        state_save(); cfg_bewerk_zeilnr = false;
+    } else if (cfg_geselecteerd >= 0 && cfg_geselecteerd < MAX_IO_KANALEN) {
+        strncpy(io_namen[cfg_geselecteerd], cfg_invoer, IO_NAAM_LEN - 1);
+        io_namen[cfg_geselecteerd][IO_NAAM_LEN - 1] = '\0';
+        hw_io_namen_opslaan();
+    }
+    cfg_toetsenbord_actief = false; cfg_kb_info_mode = false; cfg_kb_numeriek = false;
+    cfg_kb_wachtwoord = false; cfg_kb_foutlog_token = false; kb_sym = false;
+    return true;
+}
+
+static bool pico_kb_annuleren_verwerken() {
+    cfg_bewerk_zeilnr = false; cfg_toetsenbord_actief = false; cfg_kb_info_mode = false;
+    cfg_kb_opgeslagen = false; cfg_kb_numeriek = false; cfg_kb_wachtwoord = false;
+    cfg_kb_foutlog_token = false; kb_sym = false;
+    return true;
+}
+
+bool pico_screen_config_toetsenbord_run(int x, int y) {
+    if (cfg_kb_numeriek) {
+        int num_tw = TFT_W / 3;
+        static const char* num_rijen[4] = {"789","456","123","0,"};
+        for (int rij = 0; rij < 4; rij++) {
+            int ky = PICO_KB_KEYS_Y + rij * (PICO_KB_TOETS_H + PICO_KB_TOETS_G);
+            if (y >= ky && y < ky + PICO_KB_TOETS_H) {
+                int k = x / num_tw;
+                if (k >= 0 && k < (int)strlen(num_rijen[rij])) {
+                    int len = strlen(cfg_invoer);
+                    if (len < CFG_INVOER_LEN - 1) { cfg_invoer[len] = num_rijen[rij][k]; cfg_invoer[len+1] = '\0'; }
+                    pico_screen_config_toetsenbord_teken(); return false;
+                }
+            }
+        }
+        if (y >= PICO_KB_BTN1_Y && y < PICO_KB_BTN1_Y + PICO_KB_BTN_H) {
+            if (x < 62) { int l=strlen(cfg_invoer); if(l>0) cfg_invoer[l-1]='\0'; pico_screen_config_toetsenbord_teken(); }
+            else if (x < 116) { cfg_invoer[0]='\0'; pico_screen_config_toetsenbord_teken(); }
+            else if (x < 178) { return pico_kb_opslaan_verwerken(); }
+            else { return pico_kb_annuleren_verwerken(); }
+        }
+        return false;
+    }
+
+    // Toetsrijen
+    const char** rijen = kb_sym ? kb_sym_rijen : kb_rijen;
+    for (int rij = 0; rij < 4; rij++) {
+        const char* keys = rijen[rij];
+        int cnt = strlen(keys);
+        if (cnt == 0) continue;
+        int tw_k = TFT_W / cnt;
+        int x_off = (TFT_W - cnt * tw_k) / 2;
+        int ky = PICO_KB_KEYS_Y + rij * (PICO_KB_TOETS_H + PICO_KB_TOETS_G);
+        if (y >= ky && y < ky + PICO_KB_TOETS_H) {
+            int k = (x - x_off) / tw_k;
+            if (k >= 0 && k < cnt) {
+                int len = strlen(cfg_invoer);
+                if (len < CFG_INVOER_LEN - 1) {
+                    char c = keys[k];
+                    if (!kb_sym && !kb_hoofdletters && c >= 'A' && c <= 'Z') c += 32;
+                    cfg_invoer[len] = c; cfg_invoer[len+1] = '\0';
+                }
+                pico_screen_config_toetsenbord_teken(); return false;
+            }
+        }
+    }
+
+    // Knoppenrij 1
+    if (y >= PICO_KB_BTN1_Y && y < PICO_KB_BTN1_Y + PICO_KB_BTN_H) {
+        if (x < 62) { int l=strlen(cfg_invoer); if(l>0) cfg_invoer[l-1]='\0'; pico_screen_config_toetsenbord_teken(); }
+        else if (x < 108) { cfg_invoer[0]='\0'; pico_screen_config_toetsenbord_teken(); }
+        else if (x < 168) {
+            if (!kb_sym) kb_hoofdletters = !kb_hoofdletters;
+            else         kb_sym = false;
+            pico_screen_config_toetsenbord_teken();
+        } else { kb_sym = !kb_sym; pico_screen_config_toetsenbord_teken(); }
+        return false;
+    }
+    // Knoppenrij 2
+    if (y >= PICO_KB_BTN2_Y && y < PICO_KB_BTN2_Y + PICO_KB_BTN_H) {
+        if (x < 92) {
+            int len = strlen(cfg_invoer);
+            if (len < CFG_INVOER_LEN - 1) { cfg_invoer[len] = ' '; cfg_invoer[len+1] = '\0'; }
+            pico_screen_config_toetsenbord_teken();
+        } else if (x < 176) { return pico_kb_opslaan_verwerken(); }
+        else { return pico_kb_annuleren_verwerken(); }
+    }
+    return false;
+}
+
+static void pico_cfg_instellingen_teken() {
+    tft.fillRect(0, CFG_CONT_Y, TFT_W, CONTENT_H, C_BG);
+    bool ontg = config_ontgrendeld;
+
+    // Helderheid
+    int y = CFG_CONT_Y + 2;
+    tft.fillRoundRect(4, y, TFT_W - 8, 32, 5, C_SURFACE);
+    tft.fillRoundRect(8, y + 4, 32, 24, 4, C_SURFACE2);
+    tft.setTextSize(2); tft.setTextColor(C_TEXT);
+    tft.setCursor(18, y + 8); tft.print("-");
+    char hbuf[8]; snprintf(hbuf, sizeof(hbuf), "%d%%", tft_helderheid);
+    tft.setTextSize(1); tft.setTextColor(C_CYAN);
+    int hw = strlen(hbuf) * 6;
+    tft.setCursor(46 + (60 - hw) / 2, y + (32 - 8) / 2); tft.print(hbuf);
+    tft.fillRoundRect(112, y + 4, 32, 24, 4, C_SURFACE2);
+    tft.setTextSize(2); tft.setTextColor(C_TEXT);
+    tft.setCursor(122, y + 8); tft.print("+");
+    char tbuf[12]; snprintf(tbuf, sizeof(tbuf), "Dim:%lds", scherm_timer);
+    tft.fillRoundRect(148, y + 4, TFT_W - 156, 24, 4, C_SURFACE2);
+    tft.setTextSize(1); tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(152, y + (32 - 8) / 2); tft.print(tbuf);
+    y += 36;
+
+    // WiFi + Ontgrendelen
+    ui_knop(4, y, 130, 26, "WIFI >", C_SURFACE, C_CYAN);
+    ui_knop(138, y, TFT_W - 142, 26,
+            ontg ? "VERGRENDELEN" : "ONTGRENDELEN",
+            C_SURFACE2, ontg ? C_AMBER : C_TEXT);
+    y += 30;
+
+    // Kleur paletten (compact: 7 kleine bolletjes)
+    tft.fillRoundRect(4, y, TFT_W - 8, 30, 5, C_SURFACE);
+    tft.setTextSize(1); tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(10, y + (30 - 8) / 2); tft.print("KLEUR:");
+    int sw = (TFT_W - 8 - 50 - 6) / PALETTE_CNT;
+    for (int i = 0; i < PALETTE_CNT; i++) {
+        bool act = (kleurenschema == i);
+        uint16_t pacc = palette_accent(i);
+        int cx = 52 + i * (sw + 2) + sw / 2;
+        int cy2 = y + 15;
+        if (ontg) tft.fillCircle(cx, cy2, act ? 10 : 7, act ? pacc : C_SURFACE3);
+        else      tft.fillCircle(cx, cy2, 7, C_SURFACE3);
+        if (act) tft.drawCircle(cx, cy2, 11, C_WHITE);
+    }
+    y += 34;
+
+    // Boot type
+    tft.fillRoundRect(4, y, TFT_W - 8, 26, 5, C_SURFACE);
+    tft.setTextSize(1); tft.setTextColor(ontg ? C_TEXT_DIM : C_DARK_GRAY);
+    tft.setCursor(10, y + (26 - 8) / 2); tft.print("BOOT:");
+    const char* boots[] = {"ZEIL","KRUIZ","SPEEDB","CATA"};
+    int bw = (TFT_W - 50 - 5 * 4) / 4;
+    for (int i = 0; i < 4; i++) {
+        bool act = (boot_type == i);
+        uint16_t bbg = act ? (ontg ? C_CYAN : C_SURFACE2) : C_SURFACE;
+        uint16_t bfg = act ? (ontg ? C_TEXT_DARK : C_TEXT_DIM) : (ontg ? C_TEXT_DIM : C_DARK_GRAY);
+        tft.fillRoundRect(50 + i * (bw + 4), y + 3, bw, 20, 3, bbg);
+        tft.setTextSize(1); tft.setTextColor(bfg);
+        int tw = strlen(boots[i]) * 6;
+        tft.setCursor(50 + i * (bw + 4) + (bw - tw) / 2, y + 3 + (20 - 8) / 2);
+        tft.print(boots[i]);
+    }
+    y += 30;
+
+    // Zeilnummer
+    tft.fillRoundRect(4, y, TFT_W - 8, 26, 5, C_SURFACE);
+    tft.setTextSize(1); tft.setTextColor(ontg ? C_TEXT_DIM : C_DARK_GRAY);
+    tft.setCursor(10, y + (26 - 8) / 2); tft.print("ZEILNR:");
+    tft.setTextColor(ontg ? C_TEXT : C_DARK_GRAY);
+    tft.setCursor(58, y + (26 - 8) / 2);
+    tft.print(ontg ? (strlen(zeilnummer) > 0 ? zeilnummer : "(tik)") : "***");
+    y += 30;
+
+    // IO Configuratie
+    ui_knop(4, y, TFT_W - 8, 26, "IO CONFIGURATIE  >",
+            ontg ? C_SURFACE2 : C_SURFACE, ontg ? C_CYAN : C_TEXT_DIM);
+    y += 30;
+
+    // Firmware
+    ui_knop(4, y, TFT_W - 8, 26, "FIRMWARE UPDATEN  >",
+            ontg ? C_SURFACE2 : C_SURFACE, ontg ? C_CYAN : C_TEXT_DIM);
+    y += 30;
+
+    // PIN
+    ui_knop(4, y, TFT_W - 8, 26, "PINCODE WIJZIGEN  >",
+            C_SURFACE2, ontg ? C_AMBER : C_TEXT_DIM);
+}
+
+static void pico_cfg_instellingen_run(int x, int y) {
+    bool ontg = config_ontgrendeld;
+    int y0 = CFG_CONT_Y + 2;
+
+    // Helderheid
+    if (y >= y0 && y < y0 + 32) {
+        if (x >= 8 && x < 40) {
+            tft_helderheid = max(5, tft_helderheid - 5);
+            tft_helderheid_zet(tft_helderheid); state_save(); pico_cfg_instellingen_teken();
+        } else if (x >= 112 && x < 144) {
+            tft_helderheid = min(100, tft_helderheid + 5);
+            tft_helderheid_zet(tft_helderheid); state_save(); pico_cfg_instellingen_teken();
+        } else if (x >= 148) {
+            long staps[] = {15, 30, 60, 120, 0};
+            int hui = 0;
+            for (int i = 0; i < 5; i++) if (scherm_timer == staps[i]) { hui = i; break; }
+            scherm_timer = staps[(hui + 1) % 5];
+            state_save(); pico_cfg_instellingen_teken();
+        }
+        return;
+    }
+    y0 += 36;
+    if (y >= y0 && y < y0 + 26) {
+        if (x < 138) { actief_scherm = SCREEN_WIFI; scherm_bouwen = true; }
+        else {
+            if (ontg) { config_ontgrendeld = false; scherm_bouwen = true; }
+            else      { pin_vereist_tonen(); }
+        }
+        return;
+    }
+    y0 += 30;
+    // Paletten
+    if (y >= y0 && y < y0 + 30) {
+        if (!ontg) { pin_vereist_tonen(); return; }
+        int sw = (TFT_W - 8 - 50 - 6) / PALETTE_CNT;
+        int idx = (x - 52) / (sw + 2);
+        if (idx >= 0 && idx < PALETTE_CNT) {
+            kleurenschema = idx; palette_toepassen(idx); state_save(); scherm_bouwen = true;
+        }
+        return;
+    }
+    y0 += 34;
+    // Boot type
+    if (y >= y0 && y < y0 + 26) {
+        if (!ontg) { pin_vereist_tonen(); return; }
+        int bw = (TFT_W - 50 - 5 * 4) / 4;
+        int idx = (x - 50) / (bw + 4);
+        if (idx >= 0 && idx < 4) { boot_type = idx; state_save(); pico_cfg_instellingen_teken(); }
+        return;
+    }
+    y0 += 30;
+    // Zeilnummer
+    if (y >= y0 && y < y0 + 26 && x >= 58) {
+        if (!ontg) { pin_vereist_tonen(); return; }
+        cfg_bewerk_zeilnr = true;
+        strncpy(cfg_invoer, zeilnummer, CFG_INVOER_LEN - 1); cfg_invoer[CFG_INVOER_LEN - 1] = '\0';
+        strncpy(cfg_kb_label, "Zeilnr:", 24);
+        cfg_kb_numeriek = false; cfg_toetsenbord_actief = true;
+        screen_config_toetsenbord_teken(); return;
+    }
+    y0 += 30;
+    // IO Configuratie
+    if (y >= y0 && y < y0 + 26) {
+        if (!ontg) { pin_vereist_tonen(); return; }
+        actief_scherm = SCREEN_IO_CFG; scherm_bouwen = true; return;
+    }
+    y0 += 30;
+    // Firmware
+    if (y >= y0 && y < y0 + 26) {
+        if (!ontg) { pin_vereist_tonen(); return; }
+        actief_scherm = SCREEN_OTA; scherm_bouwen = true; return;
+    }
+    y0 += 30;
+    // PIN
+    if (y >= y0 && y < y0 + 26) {
+        if (!ontg) { pin_stap = 0; pin_na_unlock_wijzigen = true; }
+        else       { pin_stap = 1; }
+        pin_invoer[0] = '\0'; pin_overlay_actief = true; pin_overlay_teken();
+    }
+}
+
+#endif  // PLATFORM_PICO
+// ────────────────────────────────────────────────────────────────────────────
+
 // ─── PIN overlay ────────────────────────────────────────────────────────
 static void pin_overlay_teken() {
+#if PLATFORM_PICO
+    pico_pin_overlay_teken(); return;
+#endif
     tft.fillRect(0, CFG_CONT_Y, TFT_W, CONTENT_H, RGB565(5, 10, 20));
     tft.fillRoundRect(PIN_OV_X, PIN_OV_Y, PIN_OV_W, PIN_OV_H, 12, C_SURFACE);
     tft.drawRoundRect(PIN_OV_X, PIN_OV_Y, PIN_OV_W, PIN_OV_H, 12, C_CYAN);
@@ -179,6 +625,47 @@ static void pin_overlay_teken() {
 static bool pin_verwerk_ok();  // forward
 
 bool pin_overlay_run(int x, int y) {
+#if PLATFORM_PICO
+    int kx = PICO_PIN_OV_X + (PICO_PIN_OV_W - (3 * PICO_PIN_KW + 2 * PICO_PIN_KGAP)) / 2;
+    int ky = PICO_PIN_OV_Y + 58;
+    const char* krows[3] = {"789","456","123"};
+    for (int r = 0; r < 3; r++) {
+        int bky = ky + r * (PICO_PIN_KH + PICO_PIN_KGAP);
+        if (y >= bky && y < bky + PICO_PIN_KH) {
+            int k = (x - kx) / (PICO_PIN_KW + PICO_PIN_KGAP);
+            if (k >= 0 && k < 3 && strlen(pin_invoer) < 4) {
+                int bkx = kx + k * (PICO_PIN_KW + PICO_PIN_KGAP);
+                if (x >= bkx && x < bkx + PICO_PIN_KW) {
+                    int len = strlen(pin_invoer);
+                    pin_invoer[len] = krows[r][k]; pin_invoer[len+1] = '\0';
+                    pico_pin_overlay_teken(); return false;
+                }
+            }
+        }
+    }
+    int ky4 = ky + 3 * (PICO_PIN_KH + PICO_PIN_KGAP);
+    if (y >= ky4 && y < ky4 + PICO_PIN_KH) {
+        int del_x = kx + 2 * (PICO_PIN_KW + PICO_PIN_KGAP);
+        if (x >= kx && x < del_x && strlen(pin_invoer) < 4) {
+            int len = strlen(pin_invoer); pin_invoer[len]='0'; pin_invoer[len+1]='\0';
+            pico_pin_overlay_teken(); return false;
+        }
+        if (x >= del_x) {
+            int len = strlen(pin_invoer); if(len>0) pin_invoer[len-1]='\0';
+            pico_pin_overlay_teken(); return false;
+        }
+    }
+    int btn_y = ky4 + PICO_PIN_KH + PICO_PIN_KGAP;
+    int btn_w = (3 * PICO_PIN_KW + 2 * PICO_PIN_KGAP) / 2 - PICO_PIN_KGAP / 2;
+    if (y >= btn_y && y < btn_y + PICO_PIN_KH) {
+        if (x >= kx && x < kx + btn_w) {
+            pin_invoer[0]='\0'; pin_nieuw[0]='\0'; pin_overlay_actief=false; pin_stap=0;
+            pin_na_unlock_wijzigen=false; return true;
+        }
+        if (x >= kx + btn_w + PICO_PIN_KGAP) return pin_verwerk_ok();
+    }
+    return false;
+#endif
     int kx = PIN_OV_X + (PIN_OV_W - (3 * PIN_KW + 2 * PIN_KGAP)) / 2;
     int ky = PIN_OV_Y + 104;
     const char* krows[3] = {"789", "456", "123"};
@@ -805,6 +1292,9 @@ static void cfg_chips_teken() {
 
 // ─── Toetsenbord ────────────────────────────────────────────────────────
 void screen_config_toetsenbord_teken() {
+#if PLATFORM_PICO
+    pico_screen_config_toetsenbord_teken(); return;
+#endif
     tft.fillRect(0, CONTENT_Y, TFT_W, CONTENT_H, C_SURFACE);
 
     // Invoerveld
@@ -914,6 +1404,9 @@ static bool cfg_chip_klik(int x, int y) {
 }
 
 bool screen_config_toetsenbord_run(int x, int y) {
+#if PLATFORM_PICO
+    return pico_screen_config_toetsenbord_run(x, y);
+#endif
     // Numeriek toetsenbord
     if (cfg_kb_numeriek) {
         static const char* num_rijen[4] = {"789", "456", "123", "0,"};
@@ -1223,13 +1716,35 @@ static void cfg_io_namen_run(int x, int y) {
 void screen_config_teken() {
     tft.fillScreen(C_BG);
     sb_scherm_teken("CONFIG", C_CYAN);
+#if PLATFORM_PICO
+    pico_cfg_instellingen_teken();
+#else
     cfg_instellingen_teken();
+#endif
     nav_bar_teken();
 }
 
 void screen_config_run(int x, int y, bool aanraking) {
     if (!aanraking) return;
     if (millis() - cfg_kb_sloot < 400) return;
+
+#if PLATFORM_PICO
+    if (pin_overlay_actief) {
+        if (pin_overlay_run(x, y)) { cfg_kb_sloot = millis(); scherm_bouwen = true; }
+        return;
+    }
+    if (cfg_toetsenbord_actief) {
+        if (screen_config_toetsenbord_run(x, y)) { cfg_kb_sloot = millis(); scherm_bouwen = true; }
+        return;
+    }
+    int nav = nav_bar_klik(x, y);
+    if (nav >= 0 && nav != actief_scherm) {
+        config_ontgrendeld = false; cfg_toetsenbord_actief = false; pin_overlay_actief = false; pin_stap = 0;
+        actief_scherm = nav; scherm_bouwen = true; return;
+    }
+    pico_cfg_instellingen_run(x, y);
+    return;
+#endif
 
     // PIN overlay heeft hoogste prioriteit
     if (pin_overlay_actief) {

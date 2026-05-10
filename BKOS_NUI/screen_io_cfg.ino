@@ -263,10 +263,160 @@ static void iocfg_overlay_teken() {
     ui_knop(OV_IX + OV_IW - 180, save_y, 180, 42, "SLUITEN", C_SURFACE2, C_TEXT_DIM);
 }
 
+// ─────────────────────── PICO UI ────────────────────────────────────────────
+#if PLATFORM_PICO
+
+#define PIOCFG_COUNT_Y   (SB_H + 2)
+#define PIOCFG_COUNT_H   38
+#define PIOCFG_LIST_Y    (PIOCFG_COUNT_Y + PIOCFG_COUNT_H)
+#define PIOCFG_RIJ_H     28
+#define PIOCFG_SCROLL_H  28
+#define PIOCFG_RIJEN_N   ((NAV_Y - PIOCFG_LIST_Y - PIOCFG_SCROLL_H) / PIOCFG_RIJ_H)
+#define PIOCFG_SCROLL_Y  (PIOCFG_LIST_Y + PIOCFG_RIJEN_N * PIOCFG_RIJ_H)
+
+static void pico_iocfg_count_teken() {
+    tft.fillRect(0, PIOCFG_COUNT_Y, TFT_W, PIOCFG_COUNT_H, C_BG);
+    tft.fillRoundRect(4, PIOCFG_COUNT_Y + 2, TFT_W - 8, PIOCFG_COUNT_H - 4, 5, C_SURFACE);
+    tft.setTextSize(1); tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(10, PIOCFG_COUNT_Y + (PIOCFG_COUNT_H - 8) / 2);
+    tft.print("KANALEN:");
+    tft.fillRoundRect(80, PIOCFG_COUNT_Y + 6, 28, PIOCFG_COUNT_H - 12, 4, C_SURFACE2);
+    tft.setTextSize(2); tft.setTextColor(C_TEXT);
+    tft.setCursor(88, PIOCFG_COUNT_Y + 10); tft.print("-");
+    char buf[8];
+    if (io_kanalen_cfg > 0) snprintf(buf, sizeof(buf), "%d", io_kanalen_cfg);
+    else                    strncpy(buf, "AUTO", sizeof(buf));
+    tft.setTextSize(1); tft.setTextColor(C_CYAN);
+    int tw = strlen(buf) * 6;
+    tft.setCursor(114 + (30 - tw) / 2, PIOCFG_COUNT_Y + (PIOCFG_COUNT_H - 8) / 2);
+    tft.print(buf);
+    tft.fillRoundRect(148, PIOCFG_COUNT_Y + 6, 28, PIOCFG_COUNT_H - 12, 4, C_SURFACE2);
+    tft.setTextSize(2); tft.setTextColor(C_TEXT);
+    tft.setCursor(155, PIOCFG_COUNT_Y + 10); tft.print("+");
+    tft.fillRoundRect(180, PIOCFG_COUNT_Y + 6, 54, PIOCFG_COUNT_H - 12, 4, C_SURFACE2);
+    tft.setTextSize(1); tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(190, PIOCFG_COUNT_Y + (PIOCFG_COUNT_H - 8) / 2); tft.print("AUTO");
+}
+
+static void pico_iocfg_rij_teken(int kanaal, int y) {
+    tft.fillRect(0, y, TFT_W, PIOCFG_RIJ_H, (kanaal % 2 == 0) ? C_SURFACE : C_BG);
+    tft.setTextSize(1); tft.setTextColor(C_TEXT_DIM);
+    char nr[5]; snprintf(nr, sizeof(nr), "%3d", kanaal);
+    tft.setCursor(2, y + (PIOCFG_RIJ_H - 8) / 2); tft.print(nr);
+    tft.setTextColor(C_TEXT);
+    tft.setCursor(22, y + (PIOCFG_RIJ_H - 8) / 2);
+    char naam_k[11]; strncpy(naam_k, io_namen[kanaal], 10); naam_k[10] = '\0';
+    tft.print(naam_k);
+    bool is_in = (io_richting[kanaal] == IO_RICHTING_IN);
+    uint16_t rich_bg = is_in ? C_BLUE : C_SURFACE2;
+    tft.fillRoundRect(148, y + 5, 54, PIOCFG_RIJ_H - 10, 3, rich_bg);
+    tft.setTextSize(1); tft.setTextColor(is_in ? C_WHITE : C_TEXT_DIM);
+    const char* lbl = is_in ? "INGANG" : "UITGANG";
+    int tw = strlen(lbl) * 6;
+    tft.setCursor(148 + (54 - tw) / 2, y + (PIOCFG_RIJ_H - 8) / 2); tft.print(lbl);
+    bool heeft_cfg = is_in ? (io_actie_aan[kanaal] || io_actie_uit[kanaal]) : (io_alert[kanaal] > 0);
+    if (heeft_cfg) {
+        tft.fillCircle(234, y + PIOCFG_RIJ_H / 2, 4, C_AMBER);
+    }
+    tft.setTextColor(C_SURFACE3); tft.setCursor(236, y + (PIOCFG_RIJ_H - 8) / 2); tft.print(">");
+}
+
+static void pico_iocfg_lijst_teken() {
+    tft.fillRect(0, PIOCFG_LIST_Y, TFT_W, NAV_Y - PIOCFG_LIST_Y, C_BG);
+    int n_kanalen = io_zichtbaar();
+    for (int r = 0; r < PIOCFG_RIJEN_N; r++) {
+        int k = iocfg_scroll + r;
+        if (k >= n_kanalen) break;
+        pico_iocfg_rij_teken(k, PIOCFG_LIST_Y + r * PIOCFG_RIJ_H);
+    }
+    int n_pag = max(1, (n_kanalen + PIOCFG_RIJEN_N - 1) / PIOCFG_RIJEN_N);
+    int huidig = iocfg_scroll / PIOCFG_RIJEN_N + 1;
+    bool voor = (iocfg_scroll > 0);
+    bool acht = (iocfg_scroll + PIOCFG_RIJEN_N < n_kanalen);
+    tft.fillRect(0, PIOCFG_SCROLL_Y, TFT_W, PIOCFG_SCROLL_H, C_SURFACE);
+    tft.drawFastHLine(0, PIOCFG_SCROLL_Y, TFT_W, C_SURFACE2);
+    ui_knop(4, PIOCFG_SCROLL_Y + 3, 90, PIOCFG_SCROLL_H - 6, "< VORIGE",
+            voor ? C_SURFACE2 : C_SURFACE, voor ? C_TEXT : C_TEXT_DIM);
+    char pag[8]; snprintf(pag, sizeof(pag), "%d/%d", huidig, n_pag);
+    tft.setTextSize(1); tft.setTextColor(C_TEXT_DIM);
+    int pw = strlen(pag) * 6;
+    tft.setCursor(TFT_W / 2 - pw / 2, PIOCFG_SCROLL_Y + (PIOCFG_SCROLL_H - 8) / 2);
+    tft.print(pag);
+    ui_knop(TFT_W - 94, PIOCFG_SCROLL_Y + 3, 90, PIOCFG_SCROLL_H - 6, "VOLG >",
+            acht ? C_SURFACE2 : C_SURFACE, acht ? C_TEXT : C_TEXT_DIM);
+}
+
+static void pico_iocfg_overlay_teken() {
+    tft.fillRect(0, SB_H, TFT_W, NAV_Y - SB_H, C_BG);
+    tft.fillRoundRect(2, SB_H + 2, TFT_W - 4, NAV_Y - SB_H - 4, 8, C_SURFACE);
+    tft.drawRoundRect(2, SB_H + 2, TFT_W - 4, NAV_Y - SB_H - 4, 8, C_CYAN);
+
+    char titel[24]; snprintf(titel, sizeof(titel), "Kan %d: %s", iocfg_kanaal, io_namen[iocfg_kanaal]);
+    tft.setTextSize(1); tft.setTextColor(C_CYAN);
+    tft.setCursor(8, SB_H + 10); tft.print(titel);
+    ui_knop(TFT_W - 68, SB_H + 6, 60, 20, "NAAM..", C_SURFACE2, C_AMBER);
+
+    tft.drawFastHLine(8, SB_H + 30, TFT_W - 16, C_SURFACE3);
+
+    // Richting
+    int ry = SB_H + 36;
+    tft.setTextColor(C_TEXT_DIM); tft.setCursor(8, ry + 6); tft.print("RICHTING:");
+    bool is_in = (ov_richting == IO_RICHTING_IN);
+    ui_knop(90, ry, 70, 26, "UITGANG", !is_in ? C_CYAN : C_SURFACE2, !is_in ? C_TEXT_DARK : C_TEXT);
+    ui_knop(164, ry, 66, 26, "INGANG",  is_in ? C_CYAN : C_SURFACE2,  is_in ? C_TEXT_DARK : C_TEXT);
+
+    tft.drawFastHLine(8, ry + 32, TFT_W - 16, C_SURFACE3);
+
+    int cy = ry + 38;
+    if (!is_in) {
+        tft.setTextColor(C_TEXT_DIM); tft.setCursor(8, cy + 4); tft.print("ALERT:");
+        cy += 16;
+        int bw = (TFT_W - 16 - 3 * 4) / N_ALERTS;
+        for (int i = 0; i < N_ALERTS; i++) {
+            bool act = (i == ov_alert);
+            tft.fillRoundRect(8 + i * (bw + 4), cy, bw, 26, 4, act ? C_AMBER : C_SURFACE2);
+            tft.setTextSize(1); tft.setTextColor(act ? C_TEXT_DARK : C_TEXT_DIM);
+            int tw = strlen(alert_labels[i]) * 6;
+            tft.setCursor(8 + i * (bw + 4) + (bw - tw) / 2, cy + (26 - 8) / 2);
+            tft.print(alert_labels[i]);
+        }
+    } else {
+        tft.setTextColor(C_TEXT_DIM); tft.setCursor(8, cy); tft.print("BIJ ACTIEF:"); cy += 12;
+        int bw = (TFT_W - 16 - (N_ACTIES - 1) * 3) / N_ACTIES;
+        for (int i = 0; i < N_ACTIES; i++) {
+            bool act = (actie_codes[i] == ov_actie_aan);
+            tft.fillRoundRect(8 + i * (bw + 3), cy, bw, 22, 3, act ? C_CYAN : C_SURFACE2);
+            tft.setTextSize(1); tft.setTextColor(act ? C_TEXT_DARK : C_TEXT_DIM);
+            int tw = strlen(actie_labels[i]) * 6;
+            tft.setCursor(8 + i * (bw + 3) + (bw - tw) / 2, cy + (22 - 8) / 2);
+            tft.print(actie_labels[i]);
+        }
+        cy += 26;
+        tft.setTextColor(C_TEXT_DIM); tft.setCursor(8, cy); tft.print("BIJ PASSIEF:"); cy += 12;
+        for (int i = 0; i < N_ACTIES; i++) {
+            bool act = (actie_codes[i] == ov_actie_uit);
+            tft.fillRoundRect(8 + i * (bw + 3), cy, bw, 22, 3, act ? C_CYAN : C_SURFACE2);
+            tft.setTextSize(1); tft.setTextColor(act ? C_TEXT_DARK : C_TEXT_DIM);
+            int tw = strlen(actie_labels[i]) * 6;
+            tft.setCursor(8 + i * (bw + 3) + (bw - tw) / 2, cy + (22 - 8) / 2);
+            tft.print(actie_labels[i]);
+        }
+        cy += 26;
+    }
+
+    int save_y = NAV_Y - 50;
+    tft.drawFastHLine(8, save_y - 6, TFT_W - 16, C_SURFACE3);
+    ui_knop(8,           save_y, 108, 40, "OPSLAAN", C_GREEN,    C_TEXT_DARK);
+    ui_knop(TFT_W - 116, save_y, 108, 40, "SLUITEN", C_SURFACE2, C_TEXT_DIM);
+}
+
+#endif  // PLATFORM_PICO
+// ────────────────────────────────────────────────────────────────────────────
+
 // ─── Hoofd scherm ───────────────────────────────────────────────────────
 void screen_io_cfg_teken() {
     tft.fillScreen(C_BG);
-    sb_scherm_teken("IO CONFIGURATIE", C_CYAN);
+    sb_scherm_teken("IO CFG", C_CYAN);
 
     if (iocfg_naam_kb) {
         screen_config_toetsenbord_teken();
@@ -274,9 +424,15 @@ void screen_io_cfg_teken() {
         return;
     }
 
+#if PLATFORM_PICO
+    pico_iocfg_count_teken();
+    pico_iocfg_lijst_teken();
+    if (iocfg_overlay) pico_iocfg_overlay_teken();
+#else
     iocfg_count_teken();
     iocfg_lijst_teken();
     if (iocfg_overlay) iocfg_overlay_teken();
+#endif
     nav_bar_teken();
 }
 
@@ -293,6 +449,100 @@ static bool ov_actie_klik(int x, int y, int ov_cy, uint8_t &doel) {
 void screen_io_cfg_run(int x, int y, bool aanraking) {
     if (!aanraking) return;
     if (millis() - iocfg_sloot < 400) return;
+
+#if PLATFORM_PICO
+    if (iocfg_naam_kb) {
+        int nav = nav_bar_klik(x, y);
+        if (nav >= 0 && nav != actief_scherm) { iocfg_naam_kb = false; actief_scherm = nav; scherm_bouwen = true; return; }
+        if (screen_config_toetsenbord_run(x, y)) { iocfg_sloot = millis(); iocfg_naam_kb = false; scherm_bouwen = true; }
+        return;
+    }
+    if (iocfg_overlay) {
+        // NAAM
+        if (y >= SB_H + 6 && y < SB_H + 28 && x >= TFT_W - 68) {
+            cfg_geselecteerd = iocfg_kanaal; cfg_bewerk_zeilnr = false;
+            strncpy(cfg_invoer, io_namen[iocfg_kanaal], CFG_INVOER_LEN - 1); cfg_invoer[CFG_INVOER_LEN-1]='\0';
+            iocfg_naam_kb = true; iocfg_sloot = millis();
+            screen_config_toetsenbord_teken(); nav_bar_teken(); return;
+        }
+        // Richting
+        int ry_btn = SB_H + 36;
+        if (y >= ry_btn && y < ry_btn + 26) {
+            if (x >= 90 && x < 160) ov_richting = IO_RICHTING_UIT;
+            else if (x >= 164) ov_richting = IO_RICHTING_IN;
+            pico_iocfg_overlay_teken(); return;
+        }
+        bool is_in = (ov_richting == IO_RICHTING_IN);
+        int cy = ry_btn + 38;
+        if (!is_in) {
+            cy += 16;
+            if (y >= cy && y < cy + 26) {
+                int bw = (TFT_W - 16 - 3 * 4) / N_ALERTS;
+                int idx = (x - 8) / (bw + 4);
+                if (idx >= 0 && idx < N_ALERTS) { ov_alert = idx; pico_iocfg_overlay_teken(); }
+                return;
+            }
+        } else {
+            cy += 12;
+            int bw = (TFT_W - 16 - (N_ACTIES - 1) * 3) / N_ACTIES;
+            if (y >= cy && y < cy + 22) {
+                int idx = (x - 8) / (bw + 3);
+                if (idx >= 0 && idx < N_ACTIES) { ov_actie_aan = actie_codes[idx]; pico_iocfg_overlay_teken(); }
+                return;
+            }
+            cy += 26 + 12;
+            if (y >= cy && y < cy + 22) {
+                int idx = (x - 8) / (bw + 3);
+                if (idx >= 0 && idx < N_ACTIES) { ov_actie_uit = actie_codes[idx]; pico_iocfg_overlay_teken(); }
+                return;
+            }
+        }
+        int save_y = NAV_Y - 50;
+        if (y >= save_y && y < save_y + 40) {
+            if (x < TFT_W / 2) {
+                io_richting[iocfg_kanaal]    = ov_richting;
+                io_alert[iocfg_kanaal]       = ov_alert;
+                io_actie_aan[iocfg_kanaal]   = ov_actie_aan;
+                io_actie_uit[iocfg_kanaal]   = ov_actie_uit;
+                io_actie_param[iocfg_kanaal] = ov_param;
+                hw_io_cfg_opslaan();
+            }
+            iocfg_overlay = false; iocfg_sloot = millis(); scherm_bouwen = true;
+        }
+        return;
+    }
+    int nav = nav_bar_klik(x, y);
+    if (nav >= 0 && nav != actief_scherm) { actief_scherm = nav; scherm_bouwen = true; return; }
+    // Count bar
+    if (y >= PIOCFG_COUNT_Y && y < PIOCFG_COUNT_Y + PIOCFG_COUNT_H) {
+        if (x >= 80 && x < 108) { if (io_kanalen_cfg > 0) io_kanalen_cfg--; hw_io_cfg_opslaan(); pico_iocfg_count_teken(); }
+        else if (x >= 148 && x < 176) { if (io_kanalen_cfg < MAX_IO_KANALEN) io_kanalen_cfg++; hw_io_cfg_opslaan(); pico_iocfg_count_teken(); }
+        else if (x >= 180 && x < 234) { io_kanalen_cfg = 0; hw_io_cfg_opslaan(); pico_iocfg_count_teken(); }
+        return;
+    }
+    // List
+    if (y >= PIOCFG_LIST_Y && y < PIOCFG_SCROLL_Y) {
+        int rij = (y - PIOCFG_LIST_Y) / PIOCFG_RIJ_H;
+        int kanaal = iocfg_scroll + rij;
+        int n_kanalen = io_zichtbaar();
+        if (kanaal >= 0 && kanaal < n_kanalen) {
+            iocfg_kanaal = kanaal; ov_richting = io_richting[kanaal]; ov_alert = io_alert[kanaal];
+            ov_actie_aan = io_actie_aan[kanaal]; ov_actie_uit = io_actie_uit[kanaal]; ov_param = io_actie_param[kanaal];
+            iocfg_overlay = true; iocfg_sloot = millis(); pico_iocfg_overlay_teken();
+        }
+        return;
+    }
+    // Scroll strip
+    if (y >= PIOCFG_SCROLL_Y && y < PIOCFG_SCROLL_Y + PIOCFG_SCROLL_H) {
+        int n_kanalen = io_zichtbaar();
+        if (x < TFT_W / 2 && iocfg_scroll > 0)
+            iocfg_scroll = max(0, iocfg_scroll - PIOCFG_RIJEN_N);
+        else if (x >= TFT_W / 2 && iocfg_scroll + PIOCFG_RIJEN_N < n_kanalen)
+            iocfg_scroll = min(n_kanalen - PIOCFG_RIJEN_N, iocfg_scroll + PIOCFG_RIJEN_N);
+        pico_iocfg_lijst_teken();
+    }
+    return;
+#endif
 
     // Embedded toetsenbord voor naambewerkng
     if (iocfg_naam_kb) {

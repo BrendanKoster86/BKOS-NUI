@@ -195,10 +195,104 @@ static void info_velden_teken() {
     }
 }
 
+// ─────────────────────── PICO UI ────────────────────────────────────────────
+#if PLATFORM_PICO
+
+#define PICO_INFO_TAB_H   24
+#define PICO_INFO_TAB_N   3
+#define PICO_INFO_TAB_W   (TFT_W / PICO_INFO_TAB_N)
+#define PICO_INFO_TAB_Y   CONTENT_Y
+#define PICO_INFO_VELD_Y  (PICO_INFO_TAB_Y + PICO_INFO_TAB_H + 2)
+#define PICO_INFO_VELD_H  28
+
+static void pico_info_tabs_teken() {
+    for (int i = 0; i < PICO_INFO_TAB_N; i++) {
+        const char* tab_labels[PICO_INFO_TAB_N] = {"BOOT", "EIGENAAR", "SYSTEEM"};
+        bool act = (info_tab == (byte)i);
+        tft.fillRect(i * PICO_INFO_TAB_W, PICO_INFO_TAB_Y, PICO_INFO_TAB_W, PICO_INFO_TAB_H,
+                     act ? C_SURFACE2 : C_SURFACE);
+        if (act) {
+            tft.drawFastHLine(i * PICO_INFO_TAB_W, PICO_INFO_TAB_Y, PICO_INFO_TAB_W, C_CYAN);
+        }
+        tft.setTextSize(1);
+        tft.setTextColor(act ? C_CYAN : C_TEXT_DIM);
+        int tw = strlen(tab_labels[i]) * 6;
+        tft.setCursor(i * PICO_INFO_TAB_W + (PICO_INFO_TAB_W - tw) / 2,
+                      PICO_INFO_TAB_Y + (PICO_INFO_TAB_H - 8) / 2);
+        tft.print(tab_labels[i]);
+    }
+    tft.drawFastHLine(0, PICO_INFO_TAB_Y + PICO_INFO_TAB_H, TFT_W, C_SURFACE2);
+}
+
+static void pico_info_rij(int idx, int y, const char* label, const char* waarde) {
+    tft.fillRect(0, y, TFT_W, PICO_INFO_VELD_H, (idx % 2 == 0) ? C_SURFACE : C_BG);
+    tft.setTextSize(1); tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(4, y + (PICO_INFO_VELD_H - 8) / 2); tft.print(label); tft.print(":");
+    tft.setTextColor(strlen(waarde) > 0 ? C_TEXT : C_DARK_GRAY);
+    int lw = (strlen(label) + 1) * 6 + 4;
+    tft.setCursor(lw + 4, y + (PICO_INFO_VELD_H - 8) / 2);
+    if (strlen(waarde) > 0) {
+        char buf[24]; strncpy(buf, waarde, 23); buf[23] = '\0';
+        tft.print(buf);
+    } else {
+        tft.print("(leeg)");
+    }
+    if (info_bewerkbaar) { tft.setTextColor(C_SURFACE3); tft.print(" >"); }
+}
+
+static void pico_systeem_rij(int idx, int y, const char* label, const char* waarde, uint16_t kleur) {
+    tft.fillRect(0, y, TFT_W, PICO_INFO_VELD_H, (idx % 2 == 0) ? C_SURFACE : C_BG);
+    tft.setTextSize(1); tft.setTextColor(C_TEXT_DIM);
+    tft.setCursor(4, y + (PICO_INFO_VELD_H - 8) / 2); tft.print(label);
+    tft.setTextColor(kleur);
+    int lw = strlen(label) * 6 + 4;
+    tft.setCursor(lw + 4, y + (PICO_INFO_VELD_H - 8) / 2); tft.print(waarde);
+}
+
+static void pico_info_velden_teken() {
+    tft.fillRect(0, PICO_INFO_VELD_Y, TFT_W, NAV_Y - PICO_INFO_VELD_Y, C_BG);
+    int y = PICO_INFO_VELD_Y;
+    if (info_tab == 0) {
+        static const char* labels[6] = {"Naam", "Type", "Lengte", "Breedte", "Diepgang", "Hoogte"};
+        for (int i = 0; i < 6; i++) { pico_info_rij(i, y, labels[i], boot_vals[i]); y += PICO_INFO_VELD_H; }
+    } else if (info_tab == 1) {
+        static const char* labels[5] = {"Naam", "Tel", "Stad", "Adres", "Email"};
+        for (int i = 0; i < 5; i++) { pico_info_rij(i, y, labels[i], eig_vals[i]); y += PICO_INFO_VELD_H; }
+    } else {
+        char buf[32];
+        pico_systeem_rij(0, y, "Versie", BKOS_NUI_VERSIE, C_CYAN); y += PICO_INFO_VELD_H;
+        if (bkoss_actief) {
+            snprintf(buf, sizeof(buf), "%s OK", bkoss_versie);
+            pico_systeem_rij(1, y, "BKOSS", buf, C_GREEN);
+        } else {
+            pico_systeem_rij(1, y, "BKOSS", "niet gevonden", C_RED_BRIGHT);
+        }
+        y += PICO_INFO_VELD_H;
+        snprintf(buf, sizeof(buf), "%d", io_aparaten_cnt);
+        pico_systeem_rij(2, y, "IO mod", buf, C_TEXT); y += PICO_INFO_VELD_H;
+        snprintf(buf, sizeof(buf), "%d", io_kanalen_cnt);
+        pico_systeem_rij(3, y, "IO kan", buf, C_TEXT); y += PICO_INFO_VELD_H;
+        pico_systeem_rij(4, y, "WiFi",
+            wifi_verbonden ? "verbonden" : "geen verbinding",
+            wifi_verbonden ? C_GREEN : C_AMBER);
+    }
+}
+
+#endif  // PLATFORM_PICO
+// ────────────────────────────────────────────────────────────────────────────
+
 // ─── Hoofdfuncties ───────────────────────────────────────────────────
 void screen_info_teken() {
     if (!info_geladen) info_laden();
     tft.fillScreen(C_BG);
+#if PLATFORM_PICO
+    sb_scherm_teken("INFO", C_CYAN);
+    ui_knop(TFT_W - 56, (SB_H - 18) / 2, 52, 18,
+            info_bewerkbaar ? "SLOT" : "BEWERK",
+            C_SURFACE2, info_bewerkbaar ? C_AMBER : C_TEXT_DIM);
+    pico_info_tabs_teken();
+    pico_info_velden_teken();
+#else
     sb_scherm_teken("BOOT & EIGENAAR", C_CYAN);
     // BEWERK / VERGRENDELEN knop in status balk
     ui_knop(SB_KLOK_X - 120, (SB_H - 26) / 2, 112, 26,
@@ -206,12 +300,76 @@ void screen_info_teken() {
             C_SURFACE2, info_bewerkbaar ? C_AMBER : C_TEXT_DIM);
     info_tabs_teken();
     info_velden_teken();
+#endif
     nav_bar_teken();
 }
 
 void screen_info_run(int x, int y, bool aanraking) {
     if (!aanraking) return;
     if (millis() - info_kb_sloot < 400) return;
+
+#if PLATFORM_PICO
+    // PIN overlay
+    if (info_pin_wacht && pin_overlay_actief) {
+        if (pin_overlay_run(x, y)) {
+            info_kb_sloot = millis();
+            if (config_ontgrendeld) { info_bewerkbaar = true; config_ontgrendeld = false; }
+            info_pin_wacht = false;
+            scherm_bouwen = true;
+        }
+        return;
+    }
+    if (info_kb_actief) {
+        bool klaar = screen_config_toetsenbord_run(x, y);
+        if (klaar) {
+            if (cfg_kb_opgeslagen) {
+                if (info_kb_boot) { strncpy(boot_vals[info_kb_idx], cfg_invoer, INFO_VELD_LEN - 1); boot_vals[info_kb_idx][INFO_VELD_LEN - 1] = '\0'; }
+                else              { strncpy(eig_vals[info_kb_idx],  cfg_invoer, INFO_VELD_LEN - 1); eig_vals[info_kb_idx][INFO_VELD_LEN - 1]  = '\0'; }
+                info_opslaan();
+            }
+            info_kb_actief = false; info_kb_sloot = millis(); scherm_bouwen = true;
+        }
+        return;
+    }
+    // BEWERK knop
+    if (y < SB_H && x >= TFT_W - 56) {
+        if (info_bewerkbaar) { info_bewerkbaar = false; scherm_bouwen = true; }
+        else { info_pin_wacht = true; pin_vereist_tonen(); }
+        return;
+    }
+    int nav = nav_bar_klik(x, y);
+    if (nav >= 0 && nav != actief_scherm) {
+        info_bewerkbaar = false; info_pin_wacht = false;
+        actief_scherm = nav; scherm_bouwen = true; return;
+    }
+    // Tab klik
+    if (y >= PICO_INFO_TAB_Y && y < PICO_INFO_TAB_Y + PICO_INFO_TAB_H) {
+        byte t = (byte)(x / PICO_INFO_TAB_W);
+        if (t >= PICO_INFO_TAB_N) t = PICO_INFO_TAB_N - 1;
+        if (t != info_tab) { info_tab = t; pico_info_tabs_teken(); pico_info_velden_teken(); }
+        return;
+    }
+    // Veld aanraken
+    if (!info_bewerkbaar || info_tab == 2) return;
+    if (y >= PICO_INFO_VELD_Y) {
+        int vi = (y - PICO_INFO_VELD_Y) / PICO_INFO_VELD_H;
+        int nv = (info_tab == 0) ? 6 : 5;
+        if (vi >= 0 && vi < nv) {
+            info_kb_idx  = vi; info_kb_boot = (info_tab == 0);
+            const char* huidige = info_kb_boot ? boot_vals[vi] : eig_vals[vi];
+            static const char* blabels[6] = {"Naam","Type","Lengte","Breedte","Diepgang","Hoogte"};
+            static const char* elabels[5] = {"Naam","Tel","Stad","Adres","Email"};
+            const char* lbl = info_kb_boot ? blabels[vi] : elabels[vi];
+            strncpy(cfg_invoer, huidige, CFG_INVOER_LEN - 1); cfg_invoer[CFG_INVOER_LEN - 1] = '\0';
+            snprintf(cfg_kb_label, 24, "%s:", lbl);
+            cfg_kb_numeriek = false; cfg_geselecteerd = -1; cfg_bewerk_zeilnr = false;
+            cfg_kb_info_mode = true; cfg_kb_opgeslagen = false; kb_sym = false;
+            info_kb_actief = true;
+            screen_config_toetsenbord_teken();
+        }
+    }
+    return;
+#endif
 
     // PIN overlay voor BEWERK ontgrendeling
     if (info_pin_wacht && pin_overlay_actief) {
