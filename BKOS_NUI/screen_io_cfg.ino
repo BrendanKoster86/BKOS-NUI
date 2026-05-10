@@ -542,7 +542,7 @@ void screen_io_cfg_run(int x, int y, bool aanraking) {
         pico_iocfg_lijst_teken();
     }
     return;
-#endif
+#else
 
     // Embedded toetsenbord voor naambewerkng
     if (iocfg_naam_kb) {
@@ -687,4 +687,5 @@ void screen_io_cfg_run(int x, int y, bool aanraking) {
             iocfg_lijst_teken();
         }
     }
+#endif
 }

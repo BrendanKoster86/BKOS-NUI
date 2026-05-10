@@ -369,7 +369,7 @@ void screen_info_run(int x, int y, bool aanraking) {
         }
     }
     return;
-#endif
+#else
 
     // PIN overlay voor BEWERK ontgrendeling
     if (info_pin_wacht && pin_overlay_actief) {
@@ -459,4 +459,5 @@ void screen_info_run(int x, int y, bool aanraking) {
             screen_config_toetsenbord_teken();
         }
     }
+#endif
 }

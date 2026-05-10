@@ -665,7 +665,7 @@ bool pin_overlay_run(int x, int y) {
         if (x >= kx + btn_w + PICO_PIN_KGAP) return pin_verwerk_ok();
     }
     return false;
-#endif
+#else
     int kx = PIN_OV_X + (PIN_OV_W - (3 * PIN_KW + 2 * PIN_KGAP)) / 2;
     int ky = PIN_OV_Y + 104;
     const char* krows[3] = {"789", "456", "123"};
@@ -712,6 +712,7 @@ bool pin_overlay_run(int x, int y) {
         }
     }
     return false;
+#endif
 }
 
 static bool pin_verwerk_ok() {
@@ -1744,7 +1745,7 @@ void screen_config_run(int x, int y, bool aanraking) {
     }
     pico_cfg_instellingen_run(x, y);
     return;
-#endif
+#else
 
     // PIN overlay heeft hoogste prioriteit
     if (pin_overlay_actief) {
@@ -1781,4 +1782,5 @@ void screen_config_run(int x, int y, bool aanraking) {
     }
 
     cfg_instellingen_run(x, y);
+#endif
 }
