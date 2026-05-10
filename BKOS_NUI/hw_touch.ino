@@ -36,8 +36,12 @@ bool ts_touched() {
     return false;
 
 #elif defined(PICO_TOUCH_XPT2046)
-    if (ts.tirqTouched() && ts.touched()) {
-        TS_Point p = ts.getPoint();
+    // tirqTouched() werkt alleen als IRQ pin aangesloten is;
+    // bij PICO_TS_IRQ == -1 altijd ts.touched() pollen
+    bool aangeraakt = (PICO_TS_IRQ >= 0)
+                      ? (ts.tirqTouched() && ts.touched())
+                      : ts.touched();
+    if (aangeraakt) {
         scherm_touched = millis();
         actieve_touch  = true;
         ts_x = touch_x();

@@ -23,17 +23,18 @@
   // ILI9341 SPI display, 240×320 portret
   #define TFT_W     240
   #define TFT_H     320
-  #define TFT_BL    22    // GP22 — backlight PWM
+  #define TFT_BL    10    // GP10 — backlight PWM
   #define TFT_CS    17    // GP17 — SPI chip select
-  #define TFT_DC    20    // GP20 — data/command
-  #define TFT_RST   21    // GP21 — reset
+  #define TFT_DC    15    // GP15 — data/command
+  #define TFT_RST   14    // GP14 — reset
   #define TFT_SCK   18    // GP18 — SPI0 clock
-  #define TFT_MOSI  19    // GP19 — SPI0 data
+  #define TFT_MOSI  19    // GP19 — SPI0 MOSI
+  #define TFT_MISO  16    // GP16 — SPI0 MISO (nodig voor XPT2046 touch)
 
   // XPT2046 resistieve touch — verwijder de define om touch uit te schakelen
   #define PICO_TOUCH_XPT2046
-  #define PICO_TS_CS   16    // GP16 — touch chip select
-  #define PICO_TS_IRQ  15    // GP15 — touch interrupt (-1 voor polling)
+  #define PICO_TS_CS   13    // GP13 — touch chip select
+  #define PICO_TS_IRQ  -1    // geen IRQ pin → polling modus
 #else
   // Arduino_ESP32RGBPanel 800×480 liggend
   #define TFT_W    800
