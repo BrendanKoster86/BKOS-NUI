@@ -181,12 +181,13 @@ jobs:
         run: |
           mkdir -p firmware
           cp build_pico/BKOS_NUI.ino.bin firmware/bkos_pico1w2432.bin
+          cp build_pico/BKOS_NUI.ino.uf2 firmware/bkos_pico1w2432.uf2
 
       - name: Commit Pico firmware
         run: |
           git config user.name  "GitHub Actions"
           git config user.email "actions@github.com"
           git pull --rebase
-          git add firmware/bkos_pico1w2432.bin firmware/versie_pico.txt
+          git add firmware/bkos_pico1w2432.bin firmware/bkos_pico1w2432.uf2 firmware/versie_pico.txt
           git diff --staged --quiet || git commit -m "ci: Pico firmware $(cat firmware/versie_pico.txt)"
           git push
