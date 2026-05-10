@@ -89,32 +89,32 @@ static void meter_naar_ft(const char* val, char* buf, int len) {
 }
 
 // ─── Tab balk ────────────────────────────────────────────────────────
-#define TAB_Y   CONTENT_Y
-#define TAB_H   36
-#define TAB_N   3
-#define TAB_W   (TFT_W / TAB_N)
+#define INFO_TAB_Y   CONTENT_Y
+#define INFO_TAB_H   36
+#define INFO_TAB_N   3
+#define INFO_TAB_W   (TFT_W / INFO_TAB_N)
 
-static const char* tab_labels[TAB_N] = {"BOOT", "EIGENAAR", "SYSTEEM"};
+static const char* tab_labels[INFO_TAB_N] = {"BOOT", "EIGENAAR", "SYSTEEM"};
 
 static void info_tabs_teken() {
-    for (int i = 0; i < TAB_N; i++) {
+    for (int i = 0; i < INFO_TAB_N; i++) {
         bool actief = (info_tab == (byte)i);
-        tft.fillRect(i * TAB_W, TAB_Y, TAB_W, TAB_H, actief ? C_SURFACE2 : C_SURFACE);
+        tft.fillRect(i * INFO_TAB_W, INFO_TAB_Y, INFO_TAB_W, INFO_TAB_H, actief ? C_SURFACE2 : C_SURFACE);
         if (actief) {
-            tft.drawFastHLine(i * TAB_W + 10, TAB_Y,     TAB_W - 20, C_CYAN);
-            tft.drawFastHLine(i * TAB_W + 10, TAB_Y + 1, TAB_W - 20, C_CYAN);
+            tft.drawFastHLine(i * INFO_TAB_W + 10, INFO_TAB_Y,     INFO_TAB_W - 20, C_CYAN);
+            tft.drawFastHLine(i * INFO_TAB_W + 10, INFO_TAB_Y + 1, INFO_TAB_W - 20, C_CYAN);
         }
         tft.setTextSize(2);
         tft.setTextColor(actief ? C_CYAN : C_TEXT_DIM);
         int tw = strlen(tab_labels[i]) * 12;
-        tft.setCursor(i * TAB_W + (TAB_W - tw) / 2, TAB_Y + (TAB_H - 16) / 2);
+        tft.setCursor(i * INFO_TAB_W + (INFO_TAB_W - tw) / 2, INFO_TAB_Y + (INFO_TAB_H - 16) / 2);
         tft.print(tab_labels[i]);
     }
-    tft.drawFastHLine(0, TAB_Y + TAB_H, TFT_W, C_SURFACE2);
+    tft.drawFastHLine(0, INFO_TAB_Y + INFO_TAB_H, TFT_W, C_SURFACE2);
 }
 
 // ─── Velden ──────────────────────────────────────────────────────────
-#define VELD_START_Y  (TAB_Y + TAB_H + 4)
+#define VELD_START_Y  (INFO_TAB_Y + INFO_TAB_H + 4)
 #define VELD_H        50
 #define VELD_LABEL_W  120
 
@@ -266,9 +266,9 @@ void screen_info_run(int x, int y, bool aanraking) {
         actief_scherm = nav; scherm_bouwen = true; return;
     }
 
-    if (y >= TAB_Y && y < TAB_Y + TAB_H) {
-        byte nieuwe_tab = (byte)(x / TAB_W);
-        if (nieuwe_tab >= TAB_N) nieuwe_tab = TAB_N - 1;
+    if (y >= INFO_TAB_Y && y < INFO_TAB_Y + INFO_TAB_H) {
+        byte nieuwe_tab = (byte)(x / INFO_TAB_W);
+        if (nieuwe_tab >= INFO_TAB_N) nieuwe_tab = INFO_TAB_N - 1;
         if (nieuwe_tab != info_tab) {
             info_tab = nieuwe_tab;
             info_tabs_teken();

@@ -96,6 +96,12 @@ static void netwerk_taak(void* param) {
 
 // ─── Publieke API ─────────────────────────────────────────────────────────
 void wifi_taak_start() {
+#if PLATFORM_PICO
+    // Pico: geen FreeRTOS taak — direct verbinden bij opstarten
+    _wifi_verbinden_intern();
+    if (wifi_verbonden)
+        configTime(NTP_GMT_OFFSET, NTP_DST_OFFSET, NTP_SERVER1, NTP_SERVER2);
+#else
     PLATFORM_TASK_CREATE(
         netwerk_taak,
         "netwerk",
@@ -104,6 +110,7 @@ void wifi_taak_start() {
         1,
         &netwerk_task_handle
     );
+#endif
 }
 
 void wifi_ota_zet(bool actief) {
@@ -143,7 +150,17 @@ void wifi_setup() {
 }
 
 void wifi_loop() {
-    // Leeg — verbinding beheer is nu in netwerk_taak
+#if PLATFORM_PICO
+    // Pico: periodieke verbindingscheck + data-update (elke 5 minuten)
+    static unsigned long _laatste_check = 0;
+    if (millis() - _laatste_check < 300000UL) return;
+    _laatste_check = millis();
+    if (WiFi.status() != WL_CONNECTED) _wifi_verbinden_intern();
+    if (wifi_verbonden) {
+        meteo_weer_ophalen();
+        ota_git_check();
+    }
+#endif
 }
 
 void wifi_reset() {

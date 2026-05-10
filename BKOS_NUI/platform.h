@@ -70,18 +70,23 @@
 #endif
 
 // ─── FreeRTOS taak aanmaken ───────────────────────────────────────────────────
-// xTaskCreatePinnedToCore is ESP32-specifiek; Pico gebruikt xTaskCreate
+// ESP32: xTaskCreatePinnedToCore op core 0
+// Pico:  geen echte FreeRTOS — taken worden niet gestart (no-op)
 #if PLATFORM_PICO
-  #define PLATFORM_TASK_CREATE(fn, naam, stack, param, prio, handle) \
-      xTaskCreate((fn), (naam), (stack), (param), (prio), (handle))
+  #define PLATFORM_TASK_CREATE(fn, naam, stack, param, prio, handle) ((void)0)
 #else
   #define PLATFORM_TASK_CREATE(fn, naam, stack, param, prio, handle) \
       xTaskCreatePinnedToCore((fn), (naam), (stack), (param), (prio), (handle), 0)
 #endif
 
-// ─── FreeRTOS headers (RP2040 vereist expliciete opt-in; ESP32 heeft dit via Arduino.h) ──
+// ─── FreeRTOS type/functie stubs voor RP2040 ─────────────────────────────────
+// De earlephilhower RP2040 core heeft geen standaard FreeRTOS bibliotheek
+// tenzij je de RTOS-build activeert. Stubs vervangen de RTOS-calls.
 #if PLATFORM_PICO
-  #define __FREERTOS 1   // vereist door earlephilhower RP2040 core v5.x
-  #include <FreeRTOS.h>
-  #include <task.h>
+  typedef void*  TaskHandle_t;
+  typedef long   BaseType_t;
+  #define pdTRUE             ((BaseType_t)1)
+  #define portTICK_PERIOD_MS 1
+  static inline void vTaskDelay(unsigned long ms) { delay(ms); }
+  static inline void vTaskDelete(TaskHandle_t)    { }
 #endif
