@@ -31,10 +31,20 @@
   #define TFT_MOSI  19    // GP19 — SPI0 MOSI
   #define TFT_MISO  16    // GP16 — SPI0 MISO (nodig voor XPT2046 touch)
 
-  // XPT2046 resistieve touch — verwijder de define om touch uit te schakelen
+  // XPT2046 resistieve touch (gedeelde SPI bus met display)
   #define PICO_TOUCH_XPT2046
   #define PICO_TS_CS   13    // GP13 — touch chip select
-  #define PICO_TS_IRQ  -1    // geen IRQ pin → polling modus
+  #define PICO_TS_IRQ  11    // GP11 — touch interrupt
+
+  // SD kaart (gedeelde SPI bus: SCK=18, MISO=16, MOSI=19)
+  #define PICO_SD_CS   12    // GP12 — SD chip select
+
+  // IO shift register bus (BKOS4 protocol, direct GPIO)
+  #define HC_IN    0    // GP0  — seriële data ingang (HC165 → Pico)
+  #define HC_SCK   1    // GP1  — seriële klok
+  #define HC_PCK   2    // GP2  — parallelle klok (load)
+  #define HC_UIT   3    // GP3  — seriële data uitgang (Pico → HC595)
+  #define HC_ID    4    // GP4  — module ID data ingang
 #else
   // Arduino_ESP32RGBPanel 800×480 liggend
   #define TFT_W    800

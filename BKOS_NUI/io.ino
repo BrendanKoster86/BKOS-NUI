@@ -4,7 +4,33 @@
 
 byte licht_cfg_idx = 0;
 
+// ─── Pico GPIO helpers ────────────────────────────────────────────────────
+#if PLATFORM_PICO
+
+static void _pck_puls() {
+    digitalWrite(HC_PCK, LOW);  delayMicroseconds(100);
+    digitalWrite(HC_PCK, HIGH); delayMicroseconds(100);
+}
+
+// Leest 1 byte (LSB eerst) van de HC_ID pin via seriële klok
+static byte _lees_id_byte() {
+    byte id = 0;
+    for (int bit = 0; bit < 8; bit++) {
+        digitalWrite(HC_SCK, LOW);  delayMicroseconds(10);
+        if (digitalRead(HC_ID)) id |= (1 << bit);
+        delayMicroseconds(10);
+        digitalWrite(HC_SCK, HIGH); delayMicroseconds(10);
+    }
+    return id;
+}
+
+#endif // PLATFORM_PICO
+
 void io_bkoss_check() {
+#if PLATFORM_PICO
+    bkoss_actief = false;  // geen ATtiny op Pico
+    return;
+#endif
     bkoss_actief = false;
     memset(bkoss_versie, 0, BKOSS_VERSIE_LEN);
 
@@ -33,14 +59,29 @@ void io_bkoss_check() {
 }
 
 void io_boot() {
+#if !PLATFORM_PICO
     Serial.flush();
     io_bkoss_check();
+#endif
     io_detect();
 }
 
 void io_detect() {
     io_aparaten_cnt = 0;
     io_kanalen_cnt  = 0;
+
+#if PLATFORM_PICO
+    // Pico: directe GPIO — parallel klok zet modules in detectiemodus,
+    // daarna 8 klokpulsen per module om het ID via HC_ID uit te lezen.
+    _pck_puls();
+    for (int m = 0; m < MAX_MODULES; m++) {
+        byte id = _lees_id_byte();
+        if (id == 0 || id == 255) break;
+        io_aparaten[io_aparaten_cnt++] = id;
+        io_kanalen_cnt += (id == MODULE_LOGICA16 || id == MODULE_SCHAKEL16) ? 16 : 8;
+    }
+    return;
+#endif
 
     while (Serial.available()) Serial.read();
     Serial.print("IOD\n");
@@ -75,6 +116,47 @@ void io_cyclus() {
 
     int n = min(io_kanalen_cnt, MAX_IO_KANALEN);
     if (n == 0) { io_actief = false; return; }
+
+#if PLATFORM_PICO
+    // Pico: directe GPIO shift register cyclus
+    // Parallelle klok laadt huidige uitgangswaarden
+    _pck_puls();
+
+    for (int i = 0; i < n; i++) {
+        int i_uit = n - (i + 1);  // uitgang: omgekeerde volgorde (shift register)
+
+        digitalWrite(HC_SCK, LOW);
+        delayMicroseconds(10);
+
+        // Uitgang zetten (omgekeerd)
+        byte out = io_output[i_uit];
+        digitalWrite(HC_UIT,
+            (out == IO_AAN || out == IO_INV_UIT || out == IO_INV_GEBLOKKEERD) ? HIGH : LOW);
+
+        // Ingang lezen (gewone volgorde)
+        bool nieuw = digitalRead(HC_IN);
+        if (nieuw != io_input[i]) {
+            if (io_richting[i] == IO_RICHTING_IN) {
+                io_actie_uitvoeren(nieuw ? io_actie_aan[i] : io_actie_uit[i],
+                                   io_actie_param[i]);
+            }
+            io_input[i] = nieuw;
+            io_gewijzigd[i] = true;
+        }
+
+        delayMicroseconds(10);
+        digitalWrite(HC_SCK, HIGH);
+        delayMicroseconds(10);
+    }
+
+    // Afsluitende parallel klok stuurt nieuwe uitgangswaarden door naar registers
+    _pck_puls();
+
+    io_runned    = true;
+    io_actief    = false;
+    io_gecheckt  = millis();
+    return;
+#endif
 
     while (Serial.available()) Serial.read();
     Serial.print("IO\n");

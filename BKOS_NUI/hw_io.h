@@ -1,6 +1,7 @@
 #pragma once
 #include <FS.h>
 #include "platform_fs.h"
+#include "platform.h"
 
 // UART naar ATtiny3217 — standaard Serial (UART0, USB uitgang)
 #define IO_BAUD          9600

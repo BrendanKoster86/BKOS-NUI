@@ -25,7 +25,19 @@ uint8_t io_actie_param[MAX_IO_KANALEN];
 #define IO_CFG_BESTAND   "/io_cfg.csv"
 
 void hw_io_setup() {
+#if PLATFORM_PICO
+    pinMode(HC_PCK, OUTPUT);
+    pinMode(HC_SCK, OUTPUT);
+    pinMode(HC_IN,  INPUT);
+    pinMode(HC_UIT, OUTPUT);
+    pinMode(HC_ID,  INPUT);
+    // Beginstand: klokken hoog, uitgang laag
+    digitalWrite(HC_PCK, HIGH);
+    digitalWrite(HC_SCK, HIGH);
+    digitalWrite(HC_UIT, LOW);
+#else
     Serial.begin(IO_BAUD);
+#endif
     memset(io_output,    0, sizeof(io_output));
     memset(io_input,     0, sizeof(io_input));
     memset(io_gewijzigd, 0, sizeof(io_gewijzigd));
