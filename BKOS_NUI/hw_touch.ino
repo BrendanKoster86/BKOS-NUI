@@ -38,9 +38,7 @@ bool ts_touched() {
 #elif defined(PICO_TOUCH_XPT2046)
     // tirqTouched() werkt alleen als IRQ pin aangesloten is;
     // bij PICO_TS_IRQ == -1 altijd ts.touched() pollen
-    bool aangeraakt = (PICO_TS_IRQ >= 0)
-                      ? (ts.tirqTouched() && ts.touched())
-                      : ts.touched();
+    bool aangeraakt = ts.tirqTouched() && ts.touched();
     if (aangeraakt) {
         scherm_touched = millis();
         actieve_touch  = true;
@@ -63,8 +61,9 @@ int touch_x() {
     // Liggend: raw Y → display X
     return map(ts.points[0].y, 5, 800, 0, TFT_W);
 #elif defined(PICO_TOUCH_XPT2046)
+    // Portret ILI9341: touch-paneel 90° gedraaid → p.y → display X
     TS_Point p = ts.getPoint();
-    return map(p.x, 200, 3700, 0, TFT_W);
+    return map(p.y, 200, 3700, 0, TFT_W);
 #else
     return 0;
 #endif
@@ -75,8 +74,9 @@ int touch_y() {
     // Liggend: raw X omgekeerd → display Y
     return map(ts.points[0].x, 490, 5, 0, TFT_H);
 #elif defined(PICO_TOUCH_XPT2046)
+    // Portret ILI9341: touch-paneel 90° gedraaid → p.x → display Y
     TS_Point p = ts.getPoint();
-    return map(p.y, 200, 3700, 0, TFT_H);
+    return map(p.x, 200, 3700, 0, TFT_H);
 #else
     return 0;
 #endif

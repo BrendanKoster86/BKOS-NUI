@@ -631,7 +631,8 @@ static void pico_boot_seg_teken(const int data[][2], int cnt, uint16_t kleur) {
 }
 
 static void pico_boot_teken() {
-    tft.fillRect(0, CONTENT_Y, PICO_LEFT_W, CONTENT_H, C_BG);
+    // Wis alleen linker paneel boven apparaat-rij
+    tft.fillRect(0, CONTENT_Y, PICO_LEFT_W, PICO_DKNOP_Y - CONTENT_Y, C_BG);
     switch (boot_type) {
         case 1:
             pico_boot_seg_teken(MBK_ROMP,  sizeof(MBK_ROMP) /sizeof(MBK_ROMP[0]),  C_TEXT_DIM);
@@ -663,59 +664,62 @@ static void pico_boot_teken() {
     }
 }
 
-// Compacte vaarmodus knop (38px hoog, icoon + naam op 1 rij)
+// Vaarmodus knop: 52px breed, icoon boven — naam onder (past in 38px hoogte)
 static void pico_modus_knop(int x, int y, const char* naam, int icoon,
                              uint16_t accent, bool actief) {
     uint16_t bg = actief ? C_SURFACE2 : C_SURFACE;
-    tft.fillRoundRect(x, y, PICO_MKNOP_W, PICO_MKNOP_H, 4, bg);
+    tft.fillRoundRect(x, y, PICO_MKNOP_W, PICO_MKNOP_H, 3, bg);
     if (actief) {
-        tft.drawRoundRect(x,   y,   PICO_MKNOP_W,   PICO_MKNOP_H,   4, accent);
-        tft.fillRoundRect(x,   y,   4, PICO_MKNOP_H, 4, accent);
+        tft.drawRoundRect(x, y, PICO_MKNOP_W, PICO_MKNOP_H, 3, accent);
+        tft.fillRect(x, y, 3, PICO_MKNOP_H, accent);  // accent balk links
     } else {
-        tft.drawRoundRect(x, y, PICO_MKNOP_W, PICO_MKNOP_H, 4, C_SURFACE2);
+        tft.drawRoundRect(x, y, PICO_MKNOP_W, PICO_MKNOP_H, 3, C_SURFACE2);
     }
     uint16_t fg = actief ? accent : C_TEXT_DIM;
-    int cy = y + PICO_MKNOP_H / 2;
-    teken_icoon(icoon, x + 16, cy, fg);
+    int mx = x + PICO_MKNOP_W / 2;
+    teken_icoon(icoon, mx, y + 13, fg);          // icoon in bovenste helft
     tft.setTextSize(1);
     tft.setTextColor(fg);
-    tft.setCursor(x + 30, cy - 4);
+    int tw = strlen(naam) * 6;
+    tft.setCursor(mx - tw / 2, y + 26);          // naam gecentreerd onderaan
     tft.print(naam);
 }
 
-// Verlichting cycling knop
+// Verlichting cycling knop (52px breed, 22px hoog): icoon links + kort label
 static void pico_licht_knop_teken() {
     const char* label;
     int icoon;
     uint16_t accent;
     switch (licht_instelling) {
-        case LICHT_AAN:  label = "LICHT AAN";  icoon = I_LICHT_AAN;  accent = C_GREEN; break;
-        case LICHT_AUTO: label = "LICHT AUTO"; icoon = I_LICHT_AUTO; accent = C_CYAN;  break;
-        default:         label = "LICHT UIT";  icoon = I_LICHT_UIT;  accent = C_GRAY;  break;
+        case LICHT_AAN:  label = "AAN";  icoon = I_LICHT_AAN;  accent = C_GREEN; break;
+        case LICHT_AUTO: label = "AUTO"; icoon = I_LICHT_AUTO; accent = C_CYAN;  break;
+        default:         label = "UIT";  icoon = I_LICHT_UIT;  accent = C_GRAY;  break;
     }
-    tft.fillRoundRect(PICO_LKNOP_X, PICO_LKNOP_Y, PICO_LKNOP_W, PICO_LKNOP_H, 4, C_SURFACE);
-    tft.drawRoundRect(PICO_LKNOP_X, PICO_LKNOP_Y, PICO_LKNOP_W, PICO_LKNOP_H, 4, accent);
+    tft.fillRoundRect(PICO_LKNOP_X, PICO_LKNOP_Y, PICO_LKNOP_W, PICO_LKNOP_H, 3, C_SURFACE);
+    tft.drawRoundRect(PICO_LKNOP_X, PICO_LKNOP_Y, PICO_LKNOP_W, PICO_LKNOP_H, 3, accent);
     int cy = PICO_LKNOP_Y + PICO_LKNOP_H / 2;
     teken_icoon(icoon, PICO_LKNOP_X + 12, cy, accent);
     tft.setTextSize(1);
     tft.setTextColor(accent);
-    tft.setCursor(PICO_LKNOP_X + 24, cy - 4);
+    tft.setCursor(PICO_LKNOP_X + 23, cy - 4);
     tft.print(label);
 }
 
-// Compacte apparaat knop
-static void pico_apparaat_knop(int x, int y, const char* label, int icoon,
+// Apparaat knop voor volle-breedte rij (55px × 34px)
+static void pico_apparaat_knop(int bx, const char* label, int icoon,
                                 bool actief, bool mix) {
     uint16_t bg = actief ? C_SURFACE2 : C_SURFACE;
     uint16_t fg = actief ? C_CYAN : C_TEXT_DIM;
-    tft.fillRoundRect(x, y, PICO_DKNOP_W, PICO_DKNOP_H, 4, bg);
-    tft.drawRoundRect(x, y, PICO_DKNOP_W, PICO_DKNOP_H, 4, actief ? C_CYAN : C_SURFACE2);
-    if (mix) tft.fillRect(x + 2, y + PICO_DKNOP_H - 4, PICO_DKNOP_W - 4, 3, C_ORANGE);
-    int cy = y + PICO_DKNOP_H / 2;
-    teken_icoon(icoon, x + 10, cy, fg);
+    tft.fillRoundRect(bx, PICO_DKNOP_Y, PICO_DKNOP_W, PICO_DKNOP_H, 4, bg);
+    tft.drawRoundRect(bx, PICO_DKNOP_Y, PICO_DKNOP_W, PICO_DKNOP_H, 4,
+                      actief ? C_CYAN : C_SURFACE2);
+    if (mix) tft.fillRect(bx + 2, PICO_DKNOP_Y + PICO_DKNOP_H - 4,
+                           PICO_DKNOP_W - 4, 3, C_ORANGE);
+    int cy = PICO_DKNOP_Y + PICO_DKNOP_H / 2;
+    teken_icoon(icoon, bx + 10, cy, fg);
     tft.setTextSize(1);
     tft.setTextColor(fg);
-    tft.setCursor(x + 22, cy - 4);
+    tft.setCursor(bx + 22, cy - 4);
     tft.print(label);
 }
 
@@ -733,22 +737,26 @@ static void pico_modus_knoppen_teken() {
 }
 
 static void pico_apparaten_teken() {
-    // 2×2 grid: rij1=WATER/TV, rij2=USB/230V
-    struct { const char* label; int icoon; const char* prefix; int x; int y; } ap[4] = {
-        {"WATER", I_WATER, "**water", PICO_DKNOP_X1, PICO_DKNOP_Y1},
-        {"TV",    I_TV,    "**tv",    PICO_DKNOP_X2, PICO_DKNOP_Y1},
-        {"USB",   I_USB,   "**USB",   PICO_DKNOP_X1, PICO_DKNOP_Y2},
-        {"230V",  I_230V,  "**230",   PICO_DKNOP_X2, PICO_DKNOP_Y2},
+    // 1 rij WATER / TV / USB / 230V over volledige breedte
+    struct { const char* label; int icoon; const char* prefix; } ap[4] = {
+        {"WATER", I_WATER, "**water"},
+        {"TV",    I_TV,    "**tv"},
+        {"USB",   I_USB,   "**USB"},
+        {"230V",  I_230V,  "**230"},
     };
     for (int i = 0; i < 4; i++) {
-        byte staat3 = (io_zichtbaar() > 0) ? io_apparaat_staat3(ap[i].prefix) : (dev_lokaal[i] ? 2 : 0);
-        pico_apparaat_knop(ap[i].x, ap[i].y, ap[i].label, ap[i].icoon,
+        byte staat3 = (io_zichtbaar() > 0) ? io_apparaat_staat3(ap[i].prefix)
+                                           : (dev_lokaal[i] ? 2 : 0);
+        pico_apparaat_knop(PICO_DKNOP_X(i), ap[i].label, ap[i].icoon,
                            staat3 == 2, staat3 == 1);
     }
 }
 
 static void pico_controls_teken() {
-    tft.fillRect(PICO_RIGHT_X, CONTENT_Y, PICO_RIGHT_W, CONTENT_H, C_BG);
+    // Rechter kolom (vaarmodus + licht knoppen)
+    tft.fillRect(PICO_RIGHT_X, CONTENT_Y, PICO_RIGHT_W, PICO_DKNOP_Y - CONTENT_Y, C_BG);
+    // Apparaat rij (volle breedte)
+    tft.fillRect(0, PICO_DKNOP_Y, TFT_W, PICO_DKNOP_H, C_BG);
     pico_modus_knoppen_teken();
     pico_licht_knop_teken();
     pico_apparaten_teken();
@@ -774,8 +782,10 @@ static void pico_status_bar_teken() {
 static void pico_screen_main_teken() {
     tft.fillScreen(C_BG);
     pico_status_bar_teken();
-    // Scheiding linker/rechter paneel
-    tft.drawFastVLine(PICO_RIGHT_X - 1, CONTENT_Y, CONTENT_H, C_SURFACE2);
+    // Vertikale scheiding boot | knoppen (tot aan apparaat rij)
+    tft.drawFastVLine(PICO_RIGHT_X - 1, CONTENT_Y, PICO_DKNOP_Y - CONTENT_Y, C_SURFACE2);
+    // Horizontale scheiding boven apparaat rij
+    tft.drawFastHLine(0, PICO_DKNOP_Y - 2, TFT_W, C_SURFACE2);
     pico_boot_teken();
     pico_controls_teken();
     nav_bar_teken();
@@ -799,17 +809,15 @@ static void pico_screen_main_run(int x, int y, bool aanraking) {
 
     bool gewijzigd = false;
 
-    // Vaarmodus knoppen
-    struct { byte modus; } modi[4] = {
-        {MODE_HAVEN}, {MODE_ZEILEN}, {MODE_MOTOR}, {MODE_ANKER}
-    };
+    // Vaarmodus knoppen (rechter kolom)
+    static const byte modi_modus[4] = {MODE_HAVEN, MODE_ZEILEN, MODE_MOTOR, MODE_ANKER};
     for (int i = 0; i < 4; i++) {
         if (x >= PICO_MKNOP_X && x < PICO_MKNOP_X + PICO_MKNOP_W &&
             y >= PICO_MKNOP_Y(i) && y < PICO_MKNOP_Y(i) + PICO_MKNOP_H) {
-            if (vaar_modus == modi[i].modus) {
+            if (vaar_modus == modi_modus[i]) {
                 licht_cfg_idx++;
             } else {
-                vaar_modus = modi[i].modus;
+                vaar_modus = modi_modus[i];
                 licht_cfg_idx = 0;
             }
             io_verlichting_update();
@@ -827,19 +835,16 @@ static void pico_screen_main_run(int x, int y, bool aanraking) {
         gewijzigd = true;
     }
 
-    // Apparaat knoppen
-    struct { int x; int y; const char* prefix; } ap[4] = {
-        {PICO_DKNOP_X1, PICO_DKNOP_Y1, "**water"},
-        {PICO_DKNOP_X2, PICO_DKNOP_Y1, "**tv"},
-        {PICO_DKNOP_X1, PICO_DKNOP_Y2, "**USB"},
-        {PICO_DKNOP_X2, PICO_DKNOP_Y2, "**230"},
-    };
-    for (int i = 0; i < 4; i++) {
-        if (x >= ap[i].x && x < ap[i].x + PICO_DKNOP_W &&
-            y >= ap[i].y && y < ap[i].y + PICO_DKNOP_H) {
-            io_apparaat_toggle(ap[i].prefix);
-            dev_lokaal[i] = !dev_lokaal[i];
-            gewijzigd = true;
+    // Apparaat knoppen (1 rij volle breedte)
+    static const char* ap_prefix[4] = {"**water", "**tv", "**USB", "**230"};
+    if (y >= PICO_DKNOP_Y && y < PICO_DKNOP_Y + PICO_DKNOP_H) {
+        for (int i = 0; i < 4; i++) {
+            int bx = PICO_DKNOP_X(i);
+            if (x >= bx && x < bx + PICO_DKNOP_W) {
+                io_apparaat_toggle(ap_prefix[i]);
+                dev_lokaal[i] = !dev_lokaal[i];
+                gewijzigd = true;
+            }
         }
     }
 
