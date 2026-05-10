@@ -74,9 +74,9 @@ int touch_y() {
     // Liggend: raw X omgekeerd → display Y
     return map(ts.points[0].x, 490, 5, 0, TFT_H);
 #elif defined(PICO_TOUCH_XPT2046)
-    // Portret ILI9341: touch-paneel 90° gedraaid → p.x → display Y
+    // Portret ILI9341: touch-paneel 90° gedraaid + Y gespiegeld → p.x omgekeerd → display Y
     TS_Point p = ts.getPoint();
-    return map(p.x, 200, 3700, 0, TFT_H);
+    return map(p.x, 3700, 200, 0, TFT_H);
 #else
     return 0;
 #endif
