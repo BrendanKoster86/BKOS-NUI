@@ -323,11 +323,19 @@ String app_pad(const char* id) {
 
 // ─── Storage info ─────────────────────────────────────────────────────────────
 size_t app_spiffs_vrij() {
+#if PLATFORM_ESP32
     return SPIFFS.totalBytes() - SPIFFS.usedBytes();
+#else
+    return 0;  // LittleFS op RP2040 heeft geen totalBytes/usedBytes
+#endif
 }
 
 size_t app_spiffs_totaal() {
+#if PLATFORM_ESP32
     return SPIFFS.totalBytes();
+#else
+    return 0;
+#endif
 }
 
 bool app_sd_aanwezig() {

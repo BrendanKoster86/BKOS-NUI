@@ -3,6 +3,7 @@
 // ============================================================
 
 #include "getijdata.h"
+#include "platform.h"
 #include <HTTPClient.h>
 #include <LittleFS.h>
 #include <time.h>
@@ -99,7 +100,11 @@ static time_t _getij_parseer_tijdstip(const char* iso) {
 // ------------------------------------------------------------
 
 bool getijdata_init() {
+#if PLATFORM_PICO
+    if (!LittleFS.begin()) {
+#else
     if (!LittleFS.begin(true)) {
+#endif
         Serial.println("[Getij] LittleFS mount mislukt!");
         return false;
     }

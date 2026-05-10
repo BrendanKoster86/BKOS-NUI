@@ -23,8 +23,11 @@ void tft_setup() {
         0, 210, 30, 16, 0, 22, 13, 10, 1, 16000000);
     tft_p = new Arduino_RGB_Display(800, 480, rgbpanel, 0, true);
 #else
-    // Pico: ILI9341 SPI 240×320
-    Arduino_DataBus *bus = new Arduino_HWSPI(TFT_DC, TFT_CS, TFT_SCK, TFT_MOSI, -1);
+    // Pico: ILI9341 SPI 240×320 — gebruik hardware SPI met expliciete pin-toewijzing
+    SPI.setTX(TFT_MOSI);
+    SPI.setSCK(TFT_SCK);
+    SPI.begin();
+    Arduino_DataBus *bus = new Arduino_HWSPI(TFT_DC, TFT_CS, &SPI);
     tft_p = new Arduino_ILI9341(bus, TFT_RST, 0 /* portret */, false);
 #endif
     pinMode(TFT_BL, OUTPUT);

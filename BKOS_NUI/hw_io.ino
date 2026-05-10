@@ -34,7 +34,7 @@ void hw_io_setup() {
     memset(io_actie_aan, 0, sizeof(io_actie_aan));
     memset(io_actie_uit, 0, sizeof(io_actie_uit));
     memset(io_actie_param,0,sizeof(io_actie_param));
-    SPIFFS.begin(true);
+    SPIFFS_BEGIN();
     hw_io_namen_laden();
     hw_io_cfg_laden();
 }

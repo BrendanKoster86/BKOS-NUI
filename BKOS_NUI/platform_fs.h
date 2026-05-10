@@ -5,6 +5,9 @@
 #if PLATFORM_PICO
   #include <LittleFS.h>
   #define SPIFFS LittleFS
+  // RP2040 LittleFS::begin() heeft geen format-argument
+  #define SPIFFS_BEGIN() (SPIFFS.begin())
 #else
   #include <SPIFFS.h>
+  #define SPIFFS_BEGIN() (SPIFFS.begin(true))
 #endif

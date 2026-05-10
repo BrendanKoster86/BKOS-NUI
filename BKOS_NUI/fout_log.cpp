@@ -55,10 +55,7 @@ static String _device_id() {
     hex[16] = '\0';
     return String(hex);
 #else
-    uint32_t id = rp2040.getChipID();
-    char hex[9];
-    snprintf(hex, sizeof(hex), "%08x", id);
-    return String(hex);
+    return String(rp2040.getChipID());
 #endif
 }
 

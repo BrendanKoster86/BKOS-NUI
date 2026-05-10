@@ -16,16 +16,15 @@ static unsigned long ntp_last_sync = 0;
 static void _wifi_verbinden_intern() {
     if (WiFi.status() == WL_CONNECTED) { wifi_verbonden = true; return; }
     WiFi.mode(WIFI_STA);
+#if PLATFORM_ESP32
     WiFi.setAutoReconnect(false);
-
     // Probeer eerst met intern opgeslagen credentials (ESP32 NVS)
     WiFi.begin();
     for (int i = 0; i < 20 && WiFi.status() != WL_CONNECTED; i++)
         vTaskDelay(300 / portTICK_PERIOD_MS);
-
     if (WiFi.status() == WL_CONNECTED) { wifi_verbonden = true; return; }
-
-    // Fallback: credentials uit Preferences (opgeslagen via screen_wifi)
+#endif
+    // Verbinden met opgeslagen credentials (Preferences)
     Preferences wprefs;
     wprefs.begin("wifi_creds", true);
     String ssid = wprefs.getString("ssid", "");
@@ -42,7 +41,9 @@ static void _wifi_verbinden_intern() {
 static void _wifi_verbreken_intern() {
     if (wifi_ota_modus) return;   // OTA modus: verbonden houden
     WiFi.disconnect(true);
+#if PLATFORM_ESP32
     WiFi.mode(WIFI_OFF);
+#endif
     wifi_verbonden = false;
 }
 
@@ -65,8 +66,12 @@ static void netwerk_taak(void* param) {
 
     // ── Hoofd lus ────────────────────────────────────────────────────────
     for (;;) {
-        // Wacht op notificatie (max 60 seconden), daarna periodichecheck
+        // Wacht op notificatie (max 60 seconden), daarna periodieke check
+#if PLATFORM_ESP32
         ulTaskNotifyTake(pdTRUE, 60000 / portTICK_PERIOD_MS);
+#else
+        vTaskDelay(60000 / portTICK_PERIOD_MS);
+#endif
 
         unsigned long nu = millis();
         bool update_nodig = (!meteo_geladen) ||
@@ -103,11 +108,15 @@ void wifi_taak_start() {
 
 void wifi_ota_zet(bool actief) {
     wifi_ota_modus = actief;
+#if PLATFORM_ESP32
     if (actief && netwerk_task_handle) xTaskNotifyGive(netwerk_task_handle);
+#endif
 }
 
 void wifi_verbind_aanvragen() {
+#if PLATFORM_ESP32
     if (netwerk_task_handle) xTaskNotifyGive(netwerk_task_handle);
+#endif
 }
 
 bool wifi_verbind(const char* ssid, const char* wachtwoord) {
@@ -164,7 +173,12 @@ void ntp_loop() {
     if (millis() - ntp_last_sync < 30000) return;
     ntp_last_sync = millis();
     struct tm t;
+#if PLATFORM_ESP32
     if (getLocalTime(&t, 0)) {  // 0ms = niet-blokkerend
+#else
+    time_t nu = time(nullptr);
+    if (nu > 1000000000UL && localtime_r(&nu, &t)) {
+#endif
         char buf[8];
         snprintf(buf, sizeof(buf), "%02d:%02d", t.tm_hour, t.tm_min);
         klok_tijd  = String(buf);

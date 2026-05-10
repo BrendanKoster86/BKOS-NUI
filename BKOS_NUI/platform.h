@@ -78,3 +78,9 @@
   #define PLATFORM_TASK_CREATE(fn, naam, stack, param, prio, handle) \
       xTaskCreatePinnedToCore((fn), (naam), (stack), (param), (prio), (handle), 0)
 #endif
+
+// ─── FreeRTOS headers (RP2040 vereist expliciete include; ESP32 heeft dit via Arduino.h) ──
+#if PLATFORM_PICO
+  #include <FreeRTOS.h>
+  #include <task.h>
+#endif

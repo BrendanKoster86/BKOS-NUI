@@ -95,7 +95,11 @@ static void wifi_lijst_teken() {
         }
 
         // Open of beveiligd
+#if PLATFORM_ESP32
         bool open = (WiFi.encryptionType(idx) == WIFI_AUTH_OPEN);
+#else
+        bool open = (WiFi.encryptionType(idx) == CYW43_AUTH_OPEN);
+#endif
         tft.setTextSize(1);
         tft.setTextColor(open ? C_GREEN : C_TEXT_DIM);
         tft.setCursor(bx - 50, ry + (WIFI_RIJ_H - 8) / 2);

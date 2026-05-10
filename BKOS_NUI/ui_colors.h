@@ -1,6 +1,7 @@
 #pragma once
 #include <Arduino.h>
 
+#undef  RGB565
 #define RGB565(r,g,b) ((uint16_t)(((uint16_t)((r) & 0xF8) << 8) | ((uint16_t)((g) & 0xFC) << 3) | ((uint16_t)((b) & 0xF8) >> 3)))
 
 // ─── Paletten (kleurenschema 0..6) ───────────────────────────────────────
