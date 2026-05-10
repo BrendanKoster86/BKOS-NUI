@@ -41,6 +41,13 @@ char cfg_kb_label[24]           = "Naam:";
 static unsigned long cfg_kb_sloot = 0;
 static bool cfg_preset_menu     = false;
 
+// Wachtwoord-display: alle tekens behalve het laatste als '*'
+static void kb_wachtwoord_print(const char* s) {
+    int n = strlen(s);
+    for (int i = 0; i < n - 1; i++) tft.print('*');
+    if (n > 0) tft.print(s[n - 1]);
+}
+
 // ─── PIN state ───────────────────────────────────────────────────────────
 bool  config_ontgrendeld     = false;
 bool  pin_overlay_actief     = false;
@@ -198,7 +205,7 @@ static void pico_kb_invoerveld_teken() {
     const char* show = cfg_invoer;
     if (len > max_chars) show = cfg_invoer + len - max_chars;
     if (cfg_kb_wachtwoord) {
-        int n = strlen(show); for (int i = 0; i < n && i < max_chars; i++) tft.print('*');
+        kb_wachtwoord_print(show);
     } else { tft.print(show); }
     tft.print("_");
 }
@@ -309,6 +316,11 @@ bool pico_screen_config_toetsenbord_run(int x, int y) {
             if (y >= ky && y < ky + PICO_KB_TOETS_H) {
                 int k = x / num_tw;
                 if (k >= 0 && k < (int)strlen(num_rijen[rij])) {
+                    int fkx = k * num_tw;
+                    tft.fillRoundRect(fkx + 2, ky + 2, num_tw - 4, PICO_KB_TOETS_H - 4, 4, C_CYAN);
+                    tft.setTextSize(2); tft.setTextColor(C_TEXT_DARK);
+                    tft.setCursor(fkx + (num_tw - 12) / 2, ky + (PICO_KB_TOETS_H - 16) / 2);
+                    tft.print(num_rijen[rij][k]); delay(60);
                     int len = strlen(cfg_invoer);
                     if (len < CFG_INVOER_LEN - 1) { cfg_invoer[len] = num_rijen[rij][k]; cfg_invoer[len+1] = '\0'; }
                     pico_screen_config_toetsenbord_teken(); return false;
@@ -336,12 +348,15 @@ bool pico_screen_config_toetsenbord_run(int x, int y) {
         if (y >= ky && y < ky + PICO_KB_TOETS_H) {
             int k = (x - x_off) / tw_k;
             if (k >= 0 && k < cnt) {
+                char c = keys[k];
+                if (!kb_sym && !kb_hoofdletters && c >= 'A' && c <= 'Z') c += 32;
+                int fkx = x_off + k * tw_k;
+                tft.fillRoundRect(fkx + 1, ky + 1, tw_k - 2, PICO_KB_TOETS_H - 2, 3, C_CYAN);
+                tft.setTextSize(1); tft.setTextColor(C_TEXT_DARK);
+                tft.setCursor(fkx + (tw_k - 6) / 2, ky + (PICO_KB_TOETS_H - 8) / 2);
+                tft.print(c); delay(60);
                 int len = strlen(cfg_invoer);
-                if (len < CFG_INVOER_LEN - 1) {
-                    char c = keys[k];
-                    if (!kb_sym && !kb_hoofdletters && c >= 'A' && c <= 'Z') c += 32;
-                    cfg_invoer[len] = c; cfg_invoer[len+1] = '\0';
-                }
+                if (len < CFG_INVOER_LEN - 1) { cfg_invoer[len] = c; cfg_invoer[len+1] = '\0'; }
                 pico_screen_config_toetsenbord_teken(); return false;
             }
         }
@@ -636,6 +651,10 @@ bool pin_overlay_run(int x, int y) {
             if (k >= 0 && k < 3 && strlen(pin_invoer) < 4) {
                 int bkx = kx + k * (PICO_PIN_KW + PICO_PIN_KGAP);
                 if (x >= bkx && x < bkx + PICO_PIN_KW) {
+                    tft.fillRoundRect(bkx + 2, bky + 2, PICO_PIN_KW - 4, PICO_PIN_KH - 4, 4, C_CYAN);
+                    tft.setTextSize(2); tft.setTextColor(C_TEXT_DARK);
+                    tft.setCursor(bkx + (PICO_PIN_KW - 12) / 2, bky + (PICO_PIN_KH - 16) / 2);
+                    tft.print(krows[r][k]); delay(60);
                     int len = strlen(pin_invoer);
                     pin_invoer[len] = krows[r][k]; pin_invoer[len+1] = '\0';
                     pico_pin_overlay_teken(); return false;
@@ -647,6 +666,9 @@ bool pin_overlay_run(int x, int y) {
     if (y >= ky4 && y < ky4 + PICO_PIN_KH) {
         int del_x = kx + 2 * (PICO_PIN_KW + PICO_PIN_KGAP);
         if (x >= kx && x < del_x && strlen(pin_invoer) < 4) {
+            tft.fillRoundRect(kx + 2, ky4 + 2, PICO_PIN_KW * 2 + PICO_PIN_KGAP - 4, PICO_PIN_KH - 4, 4, C_CYAN);
+            tft.setTextSize(2); tft.setTextColor(C_TEXT_DARK);
+            tft.setCursor(kx + (PICO_PIN_KW - 6) / 2, ky4 + (PICO_PIN_KH - 16) / 2); tft.print("0"); delay(60);
             int len = strlen(pin_invoer); pin_invoer[len]='0'; pin_invoer[len+1]='\0';
             pico_pin_overlay_teken(); return false;
         }
@@ -677,6 +699,10 @@ bool pin_overlay_run(int x, int y) {
             if (k >= 0 && k < 3) {
                 int bkx = kx + k * (PIN_KW + PIN_KGAP);
                 if (x >= bkx && x < bkx + PIN_KW && strlen(pin_invoer) < 4) {
+                    tft.fillRoundRect(bkx + 4, bky + 4, PIN_KW - 8, PIN_KH - 8, 6, C_CYAN);
+                    tft.setTextSize(3); tft.setTextColor(C_TEXT_DARK);
+                    tft.setCursor(bkx + (PIN_KW - 18) / 2, bky + (PIN_KH - 24) / 2);
+                    tft.print(krows[r][k]); delay(60);
                     int len = strlen(pin_invoer);
                     pin_invoer[len] = krows[r][k]; pin_invoer[len + 1] = '\0';
                     pin_overlay_teken(); return false;
@@ -688,6 +714,9 @@ bool pin_overlay_run(int x, int y) {
     if (y >= ky4 && y < ky4 + PIN_KH) {
         int del_x = kx + 2 * (PIN_KW + PIN_KGAP);
         if (x >= kx && x < del_x && strlen(pin_invoer) < 4) {  // "0"
+            tft.fillRoundRect(kx + 4, ky4 + 4, PIN_KW * 2 + PIN_KGAP - 8, PIN_KH - 8, 6, C_CYAN);
+            tft.setTextSize(3); tft.setTextColor(C_TEXT_DARK);
+            tft.setCursor(kx + PIN_KW - 9, ky4 + (PIN_KH - 24) / 2); tft.print("0"); delay(60);
             int len = strlen(pin_invoer);
             pin_invoer[len] = '0'; pin_invoer[len + 1] = '\0';
             pin_overlay_teken(); return false;
@@ -1307,7 +1336,7 @@ void screen_config_toetsenbord_teken() {
     tft.print(" ");
     tft.setTextColor(C_WHITE);
     if (cfg_kb_wachtwoord) {
-        for (size_t i = 0; i < strlen(cfg_invoer); i++) tft.print("*");
+        kb_wachtwoord_print(cfg_invoer);
     } else {
         tft.print(cfg_invoer);
     }
@@ -1420,11 +1449,13 @@ bool screen_config_toetsenbord_run(int x, int y) {
             if (y >= ky && y < ky + KB_TOETS_H) {
                 int k = (x - KB_X) / num_tw;
                 if (k >= 0 && k < cnt) {
+                    int fkx = KB_X + k * num_tw;
+                    tft.fillRoundRect(fkx + 2, ky + 2, num_tw - 4, KB_TOETS_H - 4, 5, C_CYAN);
+                    tft.setTextSize(3); tft.setTextColor(C_TEXT_DARK);
+                    tft.setCursor(fkx + (num_tw - 18) / 2, ky + (KB_TOETS_H - 24) / 2);
+                    tft.print(keys[k]); delay(60);
                     int len = strlen(cfg_invoer);
-                    if (len < CFG_INVOER_LEN - 1) {
-                        cfg_invoer[len] = keys[k];
-                        cfg_invoer[len + 1] = '\0';
-                    }
+                    if (len < CFG_INVOER_LEN - 1) { cfg_invoer[len] = keys[k]; cfg_invoer[len + 1] = '\0'; }
                     screen_config_toetsenbord_teken();
                     return false;
                 }
@@ -1478,13 +1509,15 @@ bool screen_config_toetsenbord_run(int x, int y) {
         if (y >= ky && y < ky + KB_TOETS_H) {
             int k = (x - KB_X) / tw;
             if (k >= 0 && k < cnt) {
+                char c = keys[k];
+                if (!kb_sym && !kb_hoofdletters && c >= 'A' && c <= 'Z') c += 32;
+                int fkx = KB_X + k * tw;
+                tft.fillRoundRect(fkx + 2, ky + 2, tw - 4, KB_TOETS_H - 4, 5, C_CYAN);
+                tft.setTextSize(2); tft.setTextColor(C_TEXT_DARK);
+                tft.setCursor(fkx + (tw - 12) / 2, ky + (KB_TOETS_H - 16) / 2);
+                tft.print(c); delay(60);
                 int len = strlen(cfg_invoer);
-                if (len < CFG_INVOER_LEN - 1) {
-                    char c = keys[k];
-                    if (!kb_sym && !kb_hoofdletters && c >= 'A' && c <= 'Z') c += 32;
-                    cfg_invoer[len] = c;
-                    cfg_invoer[len + 1] = '\0';
-                }
+                if (len < CFG_INVOER_LEN - 1) { cfg_invoer[len] = c; cfg_invoer[len + 1] = '\0'; }
                 screen_config_toetsenbord_teken();
                 return false;
             }
